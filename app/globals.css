@@ -19,7 +19,11 @@
   }
 }
 
-body {
+/* Force global desktop minimum width and horizontal scrolling across all mobile browsers */
+html, body {
+  min-width: 1280px !important;
+  width: 1280px !important;
+  overflow-x: auto !important;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
