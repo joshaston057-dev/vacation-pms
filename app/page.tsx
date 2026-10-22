@@ -1,12 +1,12 @@
-import HeaderNav from '@/components/HeaderNav';
+import HeaderNav from '../components/HeaderNav';
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 text-white flex flex-col">
-      {/* Force the Desktop Header Navigation to show right at the top */}
+      {/* Desktop Navigation Header with all icons */}
       <HeaderNav />
 
-      {/* Rest of your homepage content */}
+      {/* Main Homepage Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
         <div className="text-center max-w-3xl space-y-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold tracking-wide">
