@@ -1,4 +1,4 @@
-import HeaderNav from '@/components/HeaderNav';
+import HeaderNav from '../components/HeaderNav';
 
 export default function WelcomePage() {
   return (
