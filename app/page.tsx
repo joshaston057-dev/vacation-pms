@@ -37,8 +37,53 @@ export default function HomePage() {
     },
   ]
 
+  const upsells = [
+    {
+      icon: '👨‍🍳',
+      title: 'In-House Private Chef',
+      badge: 'Gourmet Dining',
+      description: 'Custom organic breakfast, barbecue, and fine dining prepared live at your staycation villa.',
+      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! I would like to inquire about booking an In-House Private Chef for my stay.',
+    },
+    {
+      icon: '🚙',
+      title: 'Airport VIP Transfer & Chauffeur',
+      badge: 'Luxury Transit',
+      description: 'Premium Entebbe Airport pickups, city transfers, and private SUV chauffeur hire throughout your stay.',
+      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! I am interested in booking Airport Pick-up / Private Chauffeur services.',
+    },
+    {
+      icon: '🐘',
+      title: 'Curated Safaris & Excursions',
+      badge: 'Uganda Travel',
+      description: 'Gorilla trekking, Jinja Nile trips, and tailored weekend getaways booked with verified local tour guides.',
+      image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! Please send me options for curated safari excursions and tours.',
+    },
+    {
+      icon: '✨',
+      title: 'Daily Housekeeping & Laundry',
+      badge: 'Turnover & Care',
+      description: 'Mid-stay deep cleaning, fresh linen changes, and full turnaround care on your schedule.',
+      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! I would like to schedule additional housekeeping and fresh linen service.',
+    },
+  ]
+
+  const motionIcons = [
+    { emoji: '👨‍🍳', label: 'Private Chef' },
+    { emoji: '🚘', label: 'Airport SUV' },
+    { emoji: '🧹', label: 'Daily Cleaning' },
+    { emoji: '🍾', label: 'VIP Welcome Bar' },
+    { emoji: '🐘', label: 'Safari Excursions' },
+    { emoji: '🏊‍♂️', label: 'Pool Servicing' },
+    { emoji: '🧘‍♀️', label: 'In-Villa Wellness' },
+  ]
+
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-[#070b14] text-white flex flex-col justify-between font-sans overflow-x-hidden">
       
       {/* Navigation Bar */}
       <nav className="border-b border-gray-800/80 bg-[#070b14]/90 backdrop-blur-md sticky top-0 z-50">
@@ -85,7 +130,7 @@ export default function HomePage() {
       </nav>
 
       {/* Hero Header */}
-      <main className="max-w-7xl mx-auto px-6 py-16 md:py-20 space-y-16">
+      <main className="max-w-7xl mx-auto px-6 py-12 md:py-16 space-y-16">
         
         <div className="text-center space-y-6 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-full text-amber-400 text-xs font-semibold tracking-wide">
@@ -122,14 +167,14 @@ export default function HomePage() {
         </div>
 
         {/* Visual Services Section */}
-        <section className="space-y-8 pt-6">
+        <section className="space-y-8 pt-4">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-800/80 pb-6">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
                 What We Offer
               </span>
               <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-1">
-                Our Core Services & Portfolio
+                Core Services & Portfolio
               </h2>
             </div>
             <p className="text-xs text-gray-400 max-w-md">
@@ -144,8 +189,7 @@ export default function HomePage() {
                 key={idx}
                 className="group relative bg-[#0e1626] border border-gray-800 rounded-3xl overflow-hidden shadow-xl hover:border-amber-500/50 transition duration-500 flex flex-col justify-between"
               >
-                {/* Image Container with Dark Overlay */}
-                <div className="relative h-64 w-full overflow-hidden">
+                <div className="relative h-60 w-full overflow-hidden">
                   <img
                     src={item.image}
                     alt={item.title}
@@ -153,13 +197,11 @@ export default function HomePage() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0e1626] via-[#0e1626]/40 to-transparent" />
                   
-                  {/* Category Pill Tag */}
                   <span className="absolute top-4 left-4 bg-amber-500/90 backdrop-blur-md text-black font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg">
                     {item.badge}
                   </span>
                 </div>
 
-                {/* Card Content */}
                 <div className="p-6 space-y-3 -mt-6 relative z-10 flex-1 flex flex-col justify-between">
                   <div className="space-y-2">
                     <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition">
@@ -170,7 +212,6 @@ export default function HomePage() {
                     </p>
                   </div>
 
-                  {/* Action Link Button */}
                   <div className="pt-4">
                     {item.isExternal ? (
                       <a
@@ -193,6 +234,92 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+
+        {/* MOTION ICONS UPSELLS SHOWCASE SECTION */}
+        <section className="space-y-8 pt-10">
+          <div className="bg-gradient-to-r from-[#0e1626] via-[#111a2d] to-[#0e1626] border border-amber-500/30 rounded-3xl p-6 md:p-10 shadow-2xl space-y-8">
+            
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-800/80 pb-6">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20">
+                  Concierge Add-Ons
+                </span>
+                <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-3">
+                  Tailored Stay Upsells & Experiences
+                </h2>
+              </div>
+              <p className="text-xs text-gray-400 max-w-md">
+                Elevate guest staycations with automated luxury add-ons bookable in one click via WhatsApp.
+              </p>
+            </div>
+
+            {/* Continuous Motion Icons Ticker */}
+            <div className="relative overflow-hidden bg-[#070b14]/80 py-4 px-2 rounded-2xl border border-gray-800 shadow-inner">
+              <div className="flex gap-4 animate-pulse items-center justify-around flex-wrap">
+                {motionIcons.map((m, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-[#131c2e] hover:bg-amber-500/20 border border-gray-700/80 hover:border-amber-400/50 px-4 py-2 rounded-xl transition duration-300 transform hover:-translate-y-1 cursor-pointer shadow-md"
+                  >
+                    <span className="text-xl animate-bounce">{m.emoji}</span>
+                    <span className="text-xs font-semibold text-gray-200">{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Upsells Visual Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {upsells.map((u, idx) => (
+                <div
+                  key={idx}
+                  className="bg-[#070b14] border border-gray-800 rounded-2xl overflow-hidden hover:border-amber-500/50 transition duration-300 group flex flex-col justify-between shadow-lg"
+                >
+                  <div>
+                    <div className="h-40 w-full relative overflow-hidden">
+                      <img
+                        src={u.image}
+                        alt={u.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-transparent" />
+                      
+                      {/* Floating Motion Icon Badge */}
+                      <div className="absolute top-3 left-3 w-10 h-10 rounded-xl bg-black/70 backdrop-blur-md border border-amber-500/40 flex items-center justify-center text-lg animate-bounce">
+                        {u.icon}
+                      </div>
+
+                      <span className="absolute top-3 right-3 bg-amber-500/90 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full shadow">
+                        {u.badge}
+                      </span>
+                    </div>
+
+                    <div className="p-4 space-y-2">
+                      <h4 className="text-sm font-bold text-white group-hover:text-amber-400 transition">
+                        {u.title}
+                      </h4>
+                      <p className="text-[11px] text-gray-400 leading-normal">
+                        {u.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 pt-2">
+                    <a
+                      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(u.msg)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-[#131c2e] hover:bg-emerald-600 text-amber-400 hover:text-white border border-gray-700/80 font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2 transition duration-300 shadow-md"
+                    >
+                      <span>💬</span> Request Service
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+
           </div>
         </section>
 
