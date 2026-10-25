@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 
 export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<'buy' | 'rent' | 'cohost'>('rent')
+  const [activeTab, setActiveTab] = useState<'rent' | 'cohost'>('rent')
   const [keyword, setKeyword] = useState('')
   const [propertyType, setPropertyType] = useState('All Types')
   const [maxPrice, setMaxPrice] = useState('Any Price')
@@ -14,12 +14,15 @@ export default function HomePage() {
   const services = [
     {
       title: 'Verified Luxury Stays',
+      badge: 'Guest Experience',
       description: 'Hand-picked serviced apartments and villas furnished to international standards with 24/7 guest support.',
       image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80',
       href: '/properties',
+      isExternal: false,
     },
     {
       title: 'Direct WhatsApp Bookings',
+      badge: 'Zero Commissions',
       description: 'Skip platform commissions and reserve instantly via WhatsApp with zero extra booking fees.',
       image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
       href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I want to book a stay directly.')}`,
@@ -27,21 +30,52 @@ export default function HomePage() {
     },
     {
       title: 'Co-Hosting & Management',
-      description: 'Automated iCal channel syncing, cleaning operations logs, and yield optimization for property owners.',
+      badge: 'Owner Yields',
+      description: 'Automated iCal channel syncing, cleaning operations logs, and financial yield optimization.',
       image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
       href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello! I am a property owner interested in co-hosting.')}`,
+      isExternal: true,
+    },
+    {
+      title: 'In-House Private Chef',
+      badge: 'Gourmet Upsell',
+      description: 'Custom organic breakfast, barbecue, and fine dining prepared live at your villa.',
+      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
+      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I would like to book a Private Chef.')}`,
+      isExternal: true,
+    },
+    {
+      title: 'VIP Airport Chauffeur',
+      badge: 'Luxury Transit',
+      description: 'Entebbe Airport pickups and private SUV chauffeur hire throughout your stay.',
+      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
+      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I am interested in Airport Pick-up.')}`,
       isExternal: true,
     },
   ]
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 font-sans">
+    <div className="min-h-screen bg-white text-gray-900 font-sans overflow-x-hidden">
       
+      {/* Continuous Marquee Animation Styles */}
+      <style jsx global>{`
+        @keyframes scrollCards {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-card-scroll {
+          display: flex;
+          width: max-content;
+          animation: scrollCards 35s linear infinite;
+        }
+        .animate-card-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+
       {/* Top Header Navbar */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#2d5a27] flex items-center justify-center font-black text-white text-lg shadow-md">
               LE
@@ -56,20 +90,12 @@ export default function HomePage() {
             </div>
           </Link>
 
-          {/* Navigation Links */}
           <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-700">
-            <Link href="/" className="text-[#2d5a27] border-b-2 border-[#2d5a27] pb-1">
-              Home
-            </Link>
-            <Link href="/properties" className="hover:text-[#2d5a27] transition">
-              Stays & Rentals
-            </Link>
-            <Link href="/operations" className="hover:text-[#2d5a27] transition">
-              Operations
-            </Link>
+            <Link href="/" className="text-[#2d5a27] border-b-2 border-[#2d5a27] pb-1">Home</Link>
+            <Link href="/properties" className="hover:text-[#2d5a27] transition">Stays & Rentals</Link>
+            <Link href="/operations" className="hover:text-[#2d5a27] transition">Operations</Link>
           </nav>
 
-          {/* Sign In / WhatsApp Action */}
           <div className="flex items-center gap-4">
             <a
               href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I need assistance.')}`}
@@ -83,10 +109,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero Section with Background Image & Integrated Search Filter */}
+      {/* Hero Section */}
       <section className="relative h-[620px] bg-gray-900 flex flex-col justify-between">
-        
-        {/* Background Image with Dark Gradient Overlay */}
         <div className="absolute inset-0 overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=2000&q=80"
@@ -96,7 +120,6 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
         </div>
 
-        {/* Hero Content Header */}
         <div className="relative max-w-7xl mx-auto px-6 pt-24 text-center space-y-4 text-white z-10">
           <span className="bg-white/10 backdrop-blur-md border border-white/20 text-emerald-300 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
             ✨ Premium Serviced Apartments & Mansions across Uganda
@@ -106,15 +129,13 @@ export default function HomePage() {
             <span className="text-emerald-400">Made Effortless.</span>
           </h1>
           <p className="text-sm md:text-base text-gray-200 max-w-2xl mx-auto font-medium">
-            Discover hand-picked short-stay homes with 5-star ratings, combining modern design with zero extra booking fees.
+            Discover hand-picked short-stay homes with 5-star ratings, financial yield forecasting, and zero booking fees.
           </p>
         </div>
 
-        {/* Property Search Filter Box (Overlapping Bottom Hero) */}
+        {/* Property Search Filter Box */}
         <div className="relative max-w-5xl mx-auto w-full px-6 translate-y-12 z-20">
           <div className="bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-4">
-            
-            {/* Filter Tabs */}
             <div className="flex gap-2 border-b border-gray-100 pb-4">
               <button
                 onClick={() => setActiveTab('rent')}
@@ -126,13 +147,11 @@ export default function HomePage() {
                 onClick={() => setActiveTab('cohost')}
                 className={`px-5 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'cohost' ? 'bg-[#2d5a27] text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
-                Property Co-Hosting
+                Financial Planning & Co-Hosting
               </button>
             </div>
 
-            {/* Search Input Fields */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-              
               <div className="space-y-1">
                 <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Search Keywords</label>
                 <input
@@ -180,81 +199,81 @@ export default function HomePage() {
                   <span>🔍</span> Search Properties
                 </Link>
               </div>
-
             </div>
-
           </div>
         </div>
-
       </section>
 
-      {/* Spacer for overlapping search box */}
-      <div className="h-24 md:h-16" />
+      <div className="h-28 md:h-20" />
 
-      {/* Our Services Section */}
-      <main className="max-w-7xl mx-auto px-6 py-16 space-y-16">
-        
-        <div className="text-center space-y-3 max-w-xl mx-auto">
+      {/* CONTINUOUS MOVING CARDS TICKER SECTION */}
+      <main className="max-w-full py-16 space-y-12 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 text-center space-y-3">
           <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
-            Our Services
+            Interactive Showcase
           </span>
           <h2 className="text-3xl font-black text-gray-900">
-            Empowering Your Stay & Property Solutions
+            Our Services & Upsells in Continuous Motion
           </h2>
-          <p className="text-xs text-gray-600">
-            Professional hospitality management, verified luxury housing, and commission-free guest reservations.
+          <p className="text-xs text-gray-600 max-w-xl mx-auto">
+            Hover over any card to pause the motion, or click to explore and connect directly via WhatsApp.
           </p>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {services.map((item, idx) => (
-            <div
-              key={idx}
-              className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
-            >
-              <div className="h-56 w-full relative overflow-hidden bg-gray-100">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                />
-              </div>
+        {/* Moving Cards Row */}
+        <div className="relative w-full overflow-hidden py-4">
+          <div className="animate-card-scroll flex gap-6 px-4">
+            {[...services, ...services].map((item, idx) => (
+              <div
+                key={idx}
+                className="w-[320px] sm:w-[360px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="h-52 w-full relative overflow-hidden bg-gray-100">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    <span className="absolute top-3 left-3 bg-[#2d5a27] text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
+                      {item.badge}
+                    </span>
+                  </div>
 
-              <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {item.description}
-                  </p>
+                  <div className="p-6 space-y-2">
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="pt-4 border-t border-gray-100">
+                <div className="p-6 pt-0">
                   {item.isExternal ? (
                     <a
                       href={item.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-xs font-bold text-[#2d5a27] hover:underline"
+                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
                     >
-                      Learn More <span>→</span>
+                      <span>💬</span> Inquire via WhatsApp
                     </a>
                   ) : (
                     <Link
                       href={item.href}
-                      className="inline-flex items-center gap-2 text-xs font-bold text-[#2d5a27] hover:underline"
+                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
                     >
-                      Learn More <span>→</span>
+                      <span>✨</span> Explore Stays
                     </Link>
                   )}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-
       </main>
 
       {/* Footer */}
