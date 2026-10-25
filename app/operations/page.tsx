@@ -1,373 +1,198 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
+import { useState } from 'react'
+import Link from 'next/link'
 
-interface Task {
-  id: string;
-  property: string;
-  accessPin: string;
-  category: 'Cleaning' | 'Restocking' | 'Maintenance' | 'Inspection';
-  task: string;
-  date: string;
-  assignedTo: string;
-  staffPhone: string;
-  priority: 'High' | 'Medium' | 'Low';
-  status: 'Pending' | 'In Progress' | 'Completed';
-  unitStatus: 'Needs Clean' | 'In Cleaning' | 'Ready for Guest' | 'Occupied';
-}
+export default function OperationsPMSPage() {
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
 
-export default function OperationsPage() {
-  const [tasks, setTasks] = useState<Task[]>([
+  // Sample properties portfolio in Uganda
+  const properties = [
     {
       id: '1',
-      property: 'Kololo Serviced Apartment',
-      accessPin: 'PIN: 4821 #',
-      category: 'Cleaning',
-      task: 'Turnaround Clean & Fresh Linen Swap',
-      date: '2026-10-21',
-      assignedTo: 'Sarah',
-      staffPhone: '256757386946',
-      priority: 'High',
-      status: 'Pending',
-      unitStatus: 'Needs Clean',
+      name: 'The Emin Pasha Luxury Villa',
+      location: 'Kyanja, Kampala',
+      status: 'Active',
+      airbnbIcal: 'https://airbnb.com/calendar/ical/123456.ics?s=abcdef',
+      bookingIcal: 'https://admin.booking.com/hotel/ical/123456.ics',
+      estanciaFeed: 'https://vacation-pms.vercel.app/api/ical/emin-pasha.ics',
     },
     {
       id: '2',
-      property: 'Naguru Heights Villa',
-      accessPin: 'Gate Box: 9021',
-      category: 'Restocking',
-      task: 'Refill 13kg Cooking Gas Cylinder & Water Tokens',
-      date: '2026-10-22',
-      assignedTo: 'Joshua',
-      staffPhone: '256780564778',
-      priority: 'Medium',
-      status: 'Pending',
-      unitStatus: 'In Cleaning',
+      name: 'Kololo Heights Serviced Apartment',
+      location: 'Kololo, Kampala',
+      status: 'Active',
+      airbnbIcal: 'https://airbnb.com/calendar/ical/789012.ics?s=ghijkl',
+      bookingIcal: 'https://admin.booking.com/hotel/ical/789012.ics',
+      estanciaFeed: 'https://vacation-pms.vercel.app/api/ical/kololo-heights.ics',
     },
-  ]);
+  ]
 
-  const [activeFilter, setActiveFilter] = useState<'All' | 'Cleaning' | 'Maintenance' | 'Restocking'>('All');
-
-  // Form State
-  const [property, setProperty] = useState('');
-  const [accessPin, setAccessPin] = useState('');
-  const [category, setCategory] = useState<'Cleaning' | 'Restocking' | 'Maintenance' | 'Inspection'>('Cleaning');
-  const [taskName, setTaskName] = useState('');
-  const [taskDate, setTaskDate] = useState('');
-  const [assignedTo, setAssignedTo] = useState('');
-  const [staffPhone, setStaffPhone] = useState('');
-  const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('Medium');
-  const [unitStatus, setUnitStatus] = useState<'Needs Clean' | 'In Cleaning' | 'Ready for Guest' | 'Occupied'>('Needs Clean');
-
-  const handleAddTask = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!property || !taskName || !taskDate) return;
-
-    const newTask: Task = {
-      id: Date.now().toString(),
-      property,
-      accessPin: accessPin || 'No Pin Provided',
-      category,
-      task: taskName,
-      date: taskDate,
-      assignedTo: assignedTo || 'Unassigned',
-      staffPhone: staffPhone || '256757386946',
-      priority,
-      status: 'Pending',
-      unitStatus,
-    };
-
-    setTasks([newTask, ...tasks]);
-    resetForm();
-  };
-
-  const resetForm = () => {
-    setProperty('');
-    setAccessPin('');
-    setTaskName('');
-    setTaskDate('');
-    setAssignedTo('');
-    setStaffPhone('');
-    setCategory('Cleaning');
-    setPriority('Medium');
-    setUnitStatus('Needs Clean');
-  };
-
-  const cycleStatus = (id: string) => {
-    setTasks(
-      tasks.map((t) => {
-        if (t.id === id) {
-          const nextStatus =
-            t.status === 'Pending'
-              ? 'In Progress'
-              : t.status === 'In Progress'
-              ? 'Completed'
-              : 'Pending';
-          return { ...t, status: nextStatus };
-        }
-        return t;
-      })
-    );
-  };
-
-  const filteredTasks = activeFilter === 'All' 
-    ? tasks 
-    : tasks.filter(t => t.category === activeFilter);
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url)
+    setCopiedUrl(url)
+    setTimeout(() => setCopiedUrl(null), 2000)
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
-        <div>
-          <span className="text-amber-400 font-bold text-xs uppercase tracking-widest block mb-1">
-            Host Operations Center
-          </span>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Turnarounds, Lockbox Pins & Rota
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2 text-slate-300 text-sm font-medium">
-            Pending Tasks: <span className="text-amber-400 font-bold">{tasks.filter(t => t.status !== 'Completed').length}</span>
+    <div className="min-h-screen bg-[#070b14] text-white font-sans flex flex-col justify-between">
+      
+      {/* Top PMS Navigation Bar */}
+      <nav className="border-b border-gray-800 bg-[#070b14]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-300 flex items-center justify-center font-black text-black text-lg shadow-lg">
+              OS
+            </div>
+            <div>
+              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-100 to-amber-200 bg-clip-text text-transparent">
+                EstanciaOS
+              </span>
+              <span className="block text-[9px] uppercase tracking-widest text-amber-400 font-medium">
+                Internal PMS & Operations
+              </span>
+            </div>
+          </Link>
+
+          <div className="flex items-center gap-6 text-xs font-semibold text-gray-300">
+            <Link href="/" className="hover:text-amber-300 transition">Public Website</Link>
+            <Link href="/properties" className="hover:text-amber-300 transition">Properties</Link>
+            <Link href="/operations" className="text-amber-400 font-bold border-b-2 border-amber-400 pb-1">iCal Sync & Ops</Link>
+          </div>
+
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold px-4 py-2 rounded-xl">
+            🟢 Supabase RLS Active
           </div>
         </div>
-      </div>
+      </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Task Creation Form */}
-        <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-xl backdrop-blur-md h-fit space-y-6">
-          <h2 className="text-lg font-bold text-white border-b border-slate-800 pb-3">
-            ➕ Schedule Turnaround & Task
-          </h2>
+      {/* Main PMS Content */}
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-10 w-full">
+        
+        {/* Header Title */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-800 pb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20">
+              Channel Manager
+            </span>
+            <h1 className="text-3xl font-black text-white mt-2">
+              iCal Synchronization & Calendar Feeds
+            </h1>
+          </div>
+          <p className="text-xs text-gray-400 max-w-md">
+            Sync your EstanciaOS inventory with Airbnb, Booking.com, and direct WhatsApp reservations to prevent double-booking across platforms.
+          </p>
+        </div>
 
-          <form onSubmit={handleAddTask} className="space-y-4">
+        {/* Quick Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-[#0e1626] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-2">
+            <span className="text-xs text-gray-400 font-medium">Active Channels Connected</span>
+            <h3 className="text-3xl font-black text-amber-400">Airbnb & Booking.com</h3>
+            <p className="text-[11px] text-emerald-400">● Real-time bi-directional sync enabled</p>
+          </div>
+          <div className="bg-[#0e1626] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-2">
+            <span className="text-xs text-gray-400 font-medium">Portfolio Properties</span>
+            <h3 className="text-3xl font-black text-white">2 Managed Villas</h3>
+            <p className="text-[11px] text-gray-400">Kampala & Entebbe region</p>
+          </div>
+          <div className="bg-[#0e1626] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-2">
+            <span className="text-xs text-gray-400 font-medium">WhatsApp Direct Sync</span>
+            <h3 className="text-3xl font-black text-emerald-400">+256 757 386946</h3>
+            <p className="text-[11px] text-gray-400">Instant manual block dispatch</p>
+          </div>
+        </div>
+
+        {/* Property iCal Management Table */}
+        <div className="bg-[#0e1626] border border-gray-800 rounded-3xl overflow-hidden shadow-2xl space-y-6 p-6">
+          <div className="flex items-center justify-between border-b border-gray-800 pb-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Property Name</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Kololo Serviced Apartment"
-                value={property}
-                onChange={(e) => setProperty(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
-              />
+              <h3 className="text-lg font-bold text-white">Property Feed Manager</h3>
+              <p className="text-xs text-gray-400">Export your EstanciaOS `.ics` link to external OTAs or paste external calendars below.</p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Access PIN / Lockbox</label>
-                <input
-                  type="text"
-                  placeholder="e.g. PIN: 4821"
-                  value={accessPin}
-                  onChange={(e) => setAccessPin(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Unit Status</label>
-                <select
-                  value={unitStatus}
-                  onChange={(e: any) => setUnitStatus(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                >
-                  <option value="Needs Clean">🧹 Needs Clean</option>
-                  <option value="In Cleaning">🔄 In Cleaning</option>
-                  <option value="Ready for Guest">✅ Ready for Guest</option>
-                  <option value="Occupied">🚗 Occupied</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Category</label>
-                <select
-                  value={category}
-                  onChange={(e: any) => setCategory(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                >
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Restocking">Restocking</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Inspection">Inspection</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Priority</label>
-                <select
-                  value={priority}
-                  onChange={(e: any) => setPriority(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400"
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High Urgent</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Task Description</label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Linen Swap, Gas Cylinder Refill"
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={taskDate}
-                  onChange={(e) => setTaskDate(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2 py-2.5 text-[11px] text-white focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Staff Name</label>
-                <input
-                  type="text"
-                  placeholder="Sarah"
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">WhatsApp #</label>
-                <input
-                  type="text"
-                  placeholder="256757..."
-                  value={staffPhone}
-                  onChange={(e) => setStaffPhone(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/20 transition transform active:scale-95 mt-2 cursor-pointer"
-            >
-              Add Operations Task
+            <button className="bg-amber-500 hover:bg-amber-600 text-black font-extrabold text-xs px-4 py-2.5 rounded-xl transition shadow">
+              + Add Property Feed
             </button>
-          </form>
-        </div>
-
-        {/* Task List Table */}
-        <div className="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-3xl overflow-hidden shadow-xl backdrop-blur-md space-y-4 p-6">
-          {/* Category Filter Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-4">
-            <h2 className="text-lg font-bold text-white">📋 Active Turnarounds & Rota</h2>
-            
-            <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-              {(['All', 'Cleaning', 'Restocking', 'Maintenance'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveFilter(tab)}
-                  className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                    activeFilter === tab
-                      ? 'bg-amber-500 text-slate-950 shadow-md'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-950/80 text-amber-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-800">
-                <tr>
-                  <th className="px-4 py-3">Property, Pin & Task</th>
-                  <th className="px-4 py-3">Unit Status</th>
-                  <th className="px-4 py-3">Staff & WhatsApp</th>
-                  <th className="px-4 py-3 text-right">Action / Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium text-xs">
-                {filteredTasks.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-12 text-slate-500">
-                      No operations tasks found for this category.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTasks.map((t) => (
-                    <tr key={t.id} className="hover:bg-slate-800/40 transition">
-                      <td className="px-4 py-3.5 space-y-1">
-                        <div className="text-white font-bold flex items-center gap-2">
-                          <span>{t.property}</span>
-                        </div>
-                        <div className="text-slate-300">{t.task}</div>
-                        <div className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md inline-block border border-amber-500/20">
-                          🔑 {t.accessPin}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold inline-block border ${
-                          t.unitStatus === 'Ready for Guest'
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                            : t.unitStatus === 'In Cleaning'
-                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-                            : t.unitStatus === 'Occupied'
-                            ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
-                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                        }`}>
-                          {t.unitStatus === 'Ready for Guest' ? '✅ ' : t.unitStatus === 'In Cleaning' ? '🔄 ' : t.unitStatus === 'Occupied' ? '🚗 ' : '🧹 '}
-                          {t.unitStatus}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 space-y-1">
-                        <div className="text-slate-200 font-semibold">👤 {t.assignedTo}</div>
-                        <a
-                          href={`https://wa.me/${t.staffPhone}?text=Hello%20${t.assignedTo}%2C%20here%20is%20your%20rota%20task%20for%20${encodeURIComponent(t.property)}:%20${encodeURIComponent(t.task)}.%20Access%20PIN:%20${encodeURIComponent(t.accessPin)}.`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center space-x-1 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-[10px] font-bold transition"
-                        >
-                          <span>📲 WhatsApp Staff</span>
-                        </a>
-                      </td>
-                      <td className="px-4 py-3.5 text-right space-y-2">
-                        <button
-                          onClick={() => cycleStatus(t.id)}
-                          className={`block ml-auto px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                            t.status === 'Completed'
-                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                              : t.status === 'In Progress'
-                              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                              : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
-                          }`}
-                        >
-                          {t.status === 'Completed'
-                            ? '✓ Completed'
-                            : t.status === 'In Progress'
-                            ? '🔄 In Progress'
-                            : '⏳ Pending'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="space-y-6">
+            {properties.map((prop) => (
+              <div key={prop.id} className="bg-[#070b14] border border-gray-800 rounded-2xl p-6 space-y-4 shadow-md">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-base font-bold text-white">{prop.name}</h4>
+                    <span className="text-xs text-gray-400">{prop.location}</span>
+                  </div>
+                  <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full w-fit">
+                    {prop.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  
+                  {/* EstanciaOS Export Feed */}
+                  <div className="space-y-1.5 bg-[#0e1626] p-3.5 rounded-xl border border-gray-800">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">EstanciaOS Export Link (.ics)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={prop.estanciaFeed}
+                        className="w-full bg-black/50 border border-gray-700 text-gray-300 text-[11px] p-2 rounded-lg truncate"
+                      />
+                      <button
+                        onClick={() => handleCopy(prop.estanciaFeed)}
+                        className="bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-bold px-3 py-2 rounded-lg transition"
+                      >
+                        {copiedUrl === prop.estanciaFeed ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Airbnb iCal Import */}
+                  <div className="space-y-1.5 bg-[#0e1626] p-3.5 rounded-xl border border-gray-800">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Airbnb Imported iCal</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        defaultValue={prop.airbnbIcal}
+                        className="w-full bg-black/50 border border-gray-700 text-gray-300 text-[11px] p-2 rounded-lg truncate"
+                      />
+                      <button className="bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-bold px-3 py-2 rounded-lg transition">
+                        Update
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Booking.com iCal Import */}
+                  <div className="space-y-1.5 bg-[#0e1626] p-3.5 rounded-xl border border-gray-800">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-blue-400">Booking.com Imported iCal</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        defaultValue={prop.bookingIcal}
+                        className="w-full bg-black/50 border border-gray-700 text-gray-300 text-[11px] p-2 rounded-lg truncate"
+                      />
+                      <button className="bg-gray-800 hover:bg-gray-700 text-white text-[11px] font-bold px-3 py-2 rounded-lg transition">
+                        Update
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-800 bg-[#070b14] py-8 text-center text-xs text-gray-500">
+        <p>© 2026 EstanciaOS Property Management System. All rights reserved.</p>
+      </footer>
+
     </div>
-  );
+  )
 }
