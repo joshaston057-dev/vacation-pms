@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 
 interface HostAuthModalProps {
   isOpen: boolean
@@ -17,7 +16,6 @@ export default function HostAuthModal({ isOpen, onClose, onSuccess }: HostAuthMo
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    // Secure host passcode check (can be wired to Supabase Auth)
     if (passcode === 'estancia2026') {
       setError(false)
       onSuccess()
@@ -27,13 +25,12 @@ export default function HostAuthModal({ isOpen, onClose, onSuccess }: HostAuthMo
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-      <div className="bg-[#0e1626] border border-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative space-y-6 text-white font-sans">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 font-sans">
+      <div className="bg-[#0e1626] border border-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative space-y-6 text-white">
         
-        {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-white text-lg font-bold w-8 h-8 rounded-full bg-gray-800/50 flex items-center justify-center transition"
+          className="absolute top-5 right-5 text-gray-400 hover:text-white text-sm font-bold w-8 h-8 rounded-full bg-gray-800/60 flex items-center justify-center transition"
         >
           ✕
         </button>
@@ -44,27 +41,27 @@ export default function HostAuthModal({ isOpen, onClose, onSuccess }: HostAuthMo
           </div>
           <h2 className="text-2xl font-black tracking-tight">EstanciaOS Host Portal</h2>
           <p className="text-xs text-gray-400">
-            Restricted section. Please sign in with your host passcode to manage property operations, calendars, and upsells.
+            🔒 Restricted section. Please enter host credentials to access calendar syncs and PMS controls.
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-              Host Passcode / Key
+              Host Passcode
             </label>
             <input
               type="password"
               value={passcode}
               onChange={(e) => setPasscode(e.target.value)}
-              placeholder="Enter host passcode"
+              placeholder="Enter passcode"
               className="w-full bg-black/60 border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-amber-500 focus:outline-none"
             />
           </div>
 
           {error && (
             <p className="text-xs text-rose-400 font-semibold text-center">
-              Invalid host passcode. Please try again.
+              Invalid host passcode. Access denied.
             </p>
           )}
 
@@ -81,7 +78,7 @@ export default function HostAuthModal({ isOpen, onClose, onSuccess }: HostAuthMo
             onClick={onClose}
             className="text-xs text-gray-400 hover:text-white transition"
           >
-            ← Continue as Guest
+            ← Return to Public Website
           </button>
         </div>
 
