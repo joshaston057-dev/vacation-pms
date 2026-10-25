@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 
 export default function HomePage() {
@@ -10,6 +10,16 @@ export default function HomePage() {
   const [maxPrice, setMaxPrice] = useState('Any Price')
 
   const whatsappNumber = '256757386946'
+  const sliderRef = useRef<HTMLDivElement>(null)
+
+  // Function to slide left or right on button click
+  const scrollSlider = (direction: 'left' | 'right') => {
+    if (sliderRef.current) {
+      const { scrollLeft, clientWidth } = sliderRef.current
+      const offset = direction === 'left' ? -clientWidth / 2 : clientWidth / 2
+      sliderRef.current.scrollTo({ left: scrollLeft + offset, behavior: 'smooth' })
+    }
+  }
 
   const services = [
     {
@@ -57,22 +67,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans overflow-x-hidden">
       
-      {/* Continuous Marquee Animation Styles */}
-      <style jsx global>{`
-        @keyframes scrollCards {
-          0% { transform: translateX(0%); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-card-scroll {
-          display: flex;
-          width: max-content;
-          animation: scrollCards 35s linear infinite;
-        }
-        .animate-card-scroll:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-
       {/* Top Header Navbar */}
       <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-xs">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -206,74 +200,96 @@ export default function HomePage() {
 
       <div className="h-28 md:h-20" />
 
-      {/* CONTINUOUS MOVING CARDS TICKER SECTION */}
-      <main className="max-w-full py-16 space-y-12 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 text-center space-y-3">
-          <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
-            Interactive Showcase
-          </span>
-          <h2 className="text-3xl font-black text-gray-900">
-            Our Services & Upsells in Continuous Motion
-          </h2>
-          <p className="text-xs text-gray-600 max-w-xl mx-auto">
-            Hover over any card to pause the motion, or click to explore and connect directly via WhatsApp.
-          </p>
-        </div>
+      {/* INTERACTIVE CLICK-TO-SLIDE SERVICES & UPSELLS SECTION */}
+      <main className="max-w-7xl mx-auto px-6 py-16 space-y-8">
+        
+        {/* Section Header with Clickable Arrow Controls */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+          <div>
+            <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
+              Interactive Showcase
+            </span>
+            <h2 className="text-3xl font-black text-gray-900 mt-1">
+              Our Services & Upsells
+            </h2>
+          </div>
 
-        {/* Moving Cards Row */}
-        <div className="relative w-full overflow-hidden py-4">
-          <div className="animate-card-scroll flex gap-6 px-4">
-            {[...services, ...services].map((item, idx) => (
-              <div
-                key={idx}
-                className="w-[320px] sm:w-[360px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition duration-300 flex flex-col justify-between group"
-              >
-                <div>
-                  <div className="h-52 w-full relative overflow-hidden bg-gray-100">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition duration-700"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                    <span className="absolute top-3 left-3 bg-[#2d5a27] text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
-                      {item.badge}
-                    </span>
-                  </div>
-
-                  <div className="p-6 space-y-2">
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-6 pt-0">
-                  {item.isExternal ? (
-                    <a
-                      href={item.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
-                    >
-                      <span>💬</span> Inquire via WhatsApp
-                    </a>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
-                    >
-                      <span>✨</span> Explore Stays
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ))}
+          {/* Left / Right Arrow Buttons */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => scrollSlider('left')}
+              className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+              aria-label="Previous Slide"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => scrollSlider('right')}
+              className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+              aria-label="Next Slide"
+            >
+              →
+            </button>
           </div>
         </div>
+
+        {/* Smooth Horizontally Sliding Container */}
+        <div
+          ref={sliderRef}
+          className="flex gap-6 overflow-x-auto scroll-smooth no-scrollbar py-4 px-2"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {services.map((item, idx) => (
+            <div
+              key={idx}
+              className="w-[320px] sm:w-[360px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
+            >
+              <div>
+                <div className="h-52 w-full relative overflow-hidden bg-gray-100">
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                  <span className="absolute top-3 left-3 bg-[#2d5a27] text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
+                    {item.badge}
+                  </span>
+                </div>
+
+                <div className="p-6 space-y-2">
+                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 pt-0">
+                {item.isExternal ? (
+                  <a
+                    href={item.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
+                  >
+                    <span>💬</span> Inquire via WhatsApp
+                  </a>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
+                  >
+                    <span>✨</span> Explore Stays
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
       </main>
 
       {/* Footer */}
