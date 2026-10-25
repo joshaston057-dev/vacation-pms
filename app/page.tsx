@@ -10,18 +10,20 @@ export default function HomePage() {
   const [maxPrice, setMaxPrice] = useState('Any Price')
 
   const whatsappNumber = '256757386946'
-  const sliderRef = useRef<HTMLDivElement>(null)
 
-  // Function to slide left or right on button click
-  const scrollSlider = (direction: 'left' | 'right') => {
-    if (sliderRef.current) {
-      const { scrollLeft, clientWidth } = sliderRef.current
+  // Refs for independent sliders
+  const coreSliderRef = useRef<HTMLDivElement>(null)
+  const upsellSliderRef = useRef<HTMLDivElement>(null)
+
+  const scrollSlider = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const { scrollLeft, clientWidth } = ref.current
       const offset = direction === 'left' ? -clientWidth / 2 : clientWidth / 2
-      sliderRef.current.scrollTo({ left: scrollLeft + offset, behavior: 'smooth' })
+      ref.current.scrollTo({ left: scrollLeft + offset, behavior: 'smooth' })
     }
   }
 
-  const services = [
+  const coreServices = [
     {
       title: 'Verified Luxury Stays',
       badge: 'Guest Experience',
@@ -46,21 +48,40 @@ export default function HomePage() {
       href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello! I am a property owner interested in co-hosting.')}`,
       isExternal: true,
     },
+  ]
+
+  const upsellServices = [
     {
+      icon: '👨‍🍳',
       title: 'In-House Private Chef',
       badge: 'Gourmet Upsell',
       description: 'Custom organic breakfast, barbecue, and fine dining prepared live at your villa.',
       image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
-      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I would like to book a Private Chef.')}`,
-      isExternal: true,
+      msg: 'Hello La Estancia! I would like to book an In-House Private Chef.',
     },
     {
+      icon: '🚙',
       title: 'VIP Airport Chauffeur',
       badge: 'Luxury Transit',
       description: 'Entebbe Airport pickups and private SUV chauffeur hire throughout your stay.',
       image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I am interested in Airport Pick-up.')}`,
-      isExternal: true,
+      msg: 'Hello La Estancia! I am interested in booking Airport Pick-up and Chauffeur services.',
+    },
+    {
+      icon: '🐘',
+      title: 'Curated Safaris & Excursions',
+      badge: 'Uganda Travel',
+      description: 'Gorilla trekking, Jinja Nile trips, and tailored weekend getaways with verified local guides.',
+      image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! Please send me options for curated safari excursions.',
+    },
+    {
+      icon: '✨',
+      title: 'Daily Housekeeping & Laundry',
+      badge: 'Turnover & Care',
+      description: 'Mid-stay deep cleaning, fresh linen changes, and full turnover care on your schedule.',
+      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
+      msg: 'Hello La Estancia! I would like to schedule additional housekeeping and fresh linen service.',
     },
   ]
 
@@ -200,94 +221,179 @@ export default function HomePage() {
 
       <div className="h-28 md:h-20" />
 
-      {/* INTERACTIVE CLICK-TO-SLIDE SERVICES & UPSELLS SECTION */}
-      <main className="max-w-7xl mx-auto px-6 py-16 space-y-8">
+      {/* MAIN CONTENT AREA: TWO DISTINCT SLIDESHOWS */}
+      <main className="max-w-7xl mx-auto px-6 py-16 space-y-20">
         
-        {/* Section Header with Clickable Arrow Controls */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
-              Interactive Showcase
-            </span>
-            <h2 className="text-3xl font-black text-gray-900 mt-1">
-              Our Services & Upsells
-            </h2>
+        {/* SLIDESHOW 1: CORE SERVICES */}
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
+                Core Offerings
+              </span>
+              <h2 className="text-3xl font-black text-gray-900 mt-1">
+                Our Core Services
+              </h2>
+            </div>
+
+            {/* Core Services Arrow Controls */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => scrollSlider(coreSliderRef, 'left')}
+                className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+                aria-label="Previous Core Service"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => scrollSlider(coreSliderRef, 'right')}
+                className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+                aria-label="Next Core Service"
+              >
+                →
+              </button>
+            </div>
           </div>
 
-          {/* Left / Right Arrow Buttons */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => scrollSlider('left')}
-              className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
-              aria-label="Previous Slide"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => scrollSlider('right')}
-              className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
-              aria-label="Next Slide"
-            >
-              →
-            </button>
+          <div
+            ref={coreSliderRef}
+            className="flex gap-6 overflow-x-auto scroll-smooth py-4 px-2"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {coreServices.map((item, idx) => (
+              <div
+                key={idx}
+                className="w-[340px] sm:w-[380px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="h-52 w-full relative overflow-hidden bg-gray-100">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    <span className="absolute top-3 left-3 bg-[#2d5a27] text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
+                      {item.badge}
+                    </span>
+                  </div>
+
+                  <div className="p-6 space-y-2">
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 pt-0">
+                  {item.isExternal ? (
+                    <a
+                      href={item.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
+                    >
+                      <span>💬</span> Inquire via WhatsApp
+                    </a>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
+                    >
+                      <span>✨</span> Explore Stays
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Smooth Horizontally Sliding Container */}
-        <div
-          ref={sliderRef}
-          className="flex gap-6 overflow-x-auto scroll-smooth no-scrollbar py-4 px-2"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {services.map((item, idx) => (
-            <div
-              key={idx}
-              className="w-[320px] sm:w-[360px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
-            >
-              <div>
-                <div className="h-52 w-full relative overflow-hidden bg-gray-100">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-                  <span className="absolute top-3 left-3 bg-[#2d5a27] text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
-                    {item.badge}
-                  </span>
+        {/* SLIDESHOW 2: UPSELLS FOR HOSTS & GUESTS */}
+        <div className="space-y-8 pt-6 border-t border-gray-200">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+            <div>
+              <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
+                Concierge & Add-Ons
+              </span>
+              <h2 className="text-3xl font-black text-gray-900 mt-1">
+                We Also Have Upsells for Our Hosts & Guests
+              </h2>
+            </div>
+
+            {/* Upsells Arrow Controls */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => scrollSlider(upsellSliderRef, 'left')}
+                className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+                aria-label="Previous Upsell"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => scrollSlider(upsellSliderRef, 'right')}
+                className="w-11 h-11 rounded-full bg-gray-100 hover:bg-[#2d5a27] hover:text-white text-gray-800 flex items-center justify-center text-lg font-bold transition shadow-sm border border-gray-200"
+                aria-label="Next Upsell"
+              >
+                →
+              </button>
+            </div>
+          </div>
+
+          <div
+            ref={upsellSliderRef}
+            className="flex gap-6 overflow-x-auto scroll-smooth py-4 px-2"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {upsellServices.map((u, idx) => (
+              <div
+                key={idx}
+                className="w-[340px] sm:w-[380px] flex-shrink-0 bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
+              >
+                <div>
+                  <div className="h-52 w-full relative overflow-hidden bg-gray-100">
+                    <img
+                      src={u.image}
+                      alt={u.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                    
+                    <div className="absolute top-3 left-3 w-10 h-10 rounded-xl bg-black/70 backdrop-blur-md border border-emerald-500/40 flex items-center justify-center text-lg shadow-md">
+                      {u.icon}
+                    </div>
+
+                    <span className="absolute top-3 right-3 bg-emerald-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full shadow">
+                      {u.badge}
+                    </span>
+                  </div>
+
+                  <div className="p-6 space-y-2">
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
+                      {u.title}
+                    </h3>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      {u.description}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="p-6 space-y-2">
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-6 pt-0">
-                {item.isExternal ? (
+                <div className="p-6 pt-0">
                   <a
-                    href={item.href}
+                    href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(u.msg)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
                   >
-                    <span>💬</span> Inquire via WhatsApp
+                    <span>💬</span> Request via WhatsApp
                   </a>
-                ) : (
-                  <Link
-                    href={item.href}
-                    className="w-full bg-gray-900 hover:bg-[#2d5a27] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-md"
-                  >
-                    <span>✨</span> Explore Stays
-                  </Link>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
       </main>
