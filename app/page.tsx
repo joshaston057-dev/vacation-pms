@@ -1,333 +1,272 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 
 export default function HomePage() {
+  const [activeTab, setActiveTab] = useState<'buy' | 'rent' | 'cohost'>('rent')
+  const [keyword, setKeyword] = useState('')
+  const [propertyType, setPropertyType] = useState('All Types')
+  const [maxPrice, setMaxPrice] = useState('Any Price')
+
   const whatsappNumber = '256757386946'
-  const directBookingMsg = encodeURIComponent(
-    'Hello La Estancia! I am looking to book a short-stay property in Uganda. Please share available listings.'
-  )
 
   const services = [
     {
       title: 'Verified Luxury Stays',
-      badge: 'Guest Experience',
-      description: 'Hand-picked serviced apartments, villas, and mansions fully furnished to international standards with 24/7 support.',
-      image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1200&q=80',
-      actionText: 'Browse Stays',
+      description: 'Hand-picked serviced apartments and villas furnished to international standards with 24/7 guest support.',
+      image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=800&q=80',
       href: '/properties',
     },
     {
       title: 'Direct WhatsApp Bookings',
-      badge: 'Zero Platform Fees',
-      description: 'Skip costly third-party commissions. Inquire directly with our team for instant availability and seamless reservations.',
-      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-      actionText: 'Chat Concierge',
-      href: `https://wa.me/${whatsappNumber}?text=${directBookingMsg}`,
+      description: 'Skip platform commissions and reserve instantly via WhatsApp with zero extra booking fees.',
+      image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
+      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I want to book a stay directly.')}`,
       isExternal: true,
     },
     {
       title: 'Co-Hosting & Management',
-      badge: 'Host Solutions',
-      description: 'Full-service property management including automated iCal syncing, turnover logs, cleaning operations, and yield optimization.',
-      image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-      actionText: 'List Your Property',
-      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello! I am a property owner interested in co-hosting with La Estancia.')}`,
+      description: 'Automated iCal channel syncing, cleaning operations logs, and yield optimization for property owners.',
+      image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
+      href: `https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello! I am a property owner interested in co-hosting.')}`,
       isExternal: true,
     },
   ]
 
-  const upsells = [
-    {
-      icon: '👨‍🍳',
-      title: 'In-House Private Chef',
-      badge: 'Gourmet Dining',
-      description: 'Custom organic breakfast, barbecue, and fine dining prepared live at your staycation villa.',
-      image: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=800&q=80',
-      msg: 'Hello La Estancia! I would like to inquire about booking an In-House Private Chef for my stay.',
-    },
-    {
-      icon: '🚙',
-      title: 'Airport VIP Transfer & Chauffeur',
-      badge: 'Luxury Transit',
-      description: 'Premium Entebbe Airport pickups, city transfers, and private SUV chauffeur hire throughout your stay.',
-      image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-      msg: 'Hello La Estancia! I am interested in booking Airport Pick-up / Private Chauffeur services.',
-    },
-    {
-      icon: '🐘',
-      title: 'Curated Safaris & Excursions',
-      badge: 'Uganda Travel',
-      description: 'Gorilla trekking, Jinja Nile trips, and tailored weekend getaways booked with verified local tour guides.',
-      image: 'https://images.unsplash.com/photo-1516426122078-c23e76319801?auto=format&fit=crop&w=800&q=80',
-      msg: 'Hello La Estancia! Please send me options for curated safari excursions and tours.',
-    },
-    {
-      icon: '✨',
-      title: 'Daily Housekeeping & Laundry',
-      badge: 'Turnover & Care',
-      description: 'Mid-stay deep cleaning, fresh linen changes, and full turnaround care on your schedule.',
-      image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
-      msg: 'Hello La Estancia! I would like to schedule additional housekeeping and fresh linen service.',
-    },
-  ]
-
-  const motionIcons = [
-    { emoji: '👨‍🍳', label: 'Private Chef' },
-    { emoji: '🚘', label: 'Airport SUV' },
-    { emoji: '🧹', label: 'Daily Cleaning' },
-    { emoji: '🍾', label: 'VIP Welcome Bar' },
-    { emoji: '🐘', label: 'Safari Excursions' },
-    { emoji: '🏊‍♂️', label: 'Pool Servicing' },
-    { emoji: '🧘‍♀️', label: 'In-Villa Wellness' },
-  ]
-
   return (
-    <div className="min-h-screen bg-[#070b14] text-white flex flex-col justify-between font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-white text-gray-900 font-sans">
       
-      {/* Navigation Bar */}
-      <nav className="border-b border-gray-800/80 bg-[#070b14]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      {/* Top Header Navbar */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-xs">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           
-          {/* Brand Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-300 flex items-center justify-center font-black text-black text-lg shadow-lg shadow-amber-500/20 group-hover:scale-105 transition">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#2d5a27] flex items-center justify-center font-black text-white text-lg shadow-md">
               LE
             </div>
             <div>
-              <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-gray-100 to-amber-200 bg-clip-text text-transparent">
-                La Estancia
+              <span className="text-xl font-black tracking-tight text-gray-900">
+                LA ESTANCIA
               </span>
-              <span className="block text-[10px] uppercase tracking-widest text-amber-400 font-medium">
+              <span className="block text-[9px] uppercase tracking-widest text-[#2d5a27] font-bold">
                 Vacation Homes
               </span>
             </div>
           </Link>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-8 text-xs font-semibold text-gray-300">
-            <Link href="/" className="text-amber-400 font-bold border-b-2 border-amber-400 pb-1">
+          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-700">
+            <Link href="/" className="text-[#2d5a27] border-b-2 border-[#2d5a27] pb-1">
               Home
             </Link>
-            <Link href="/properties" className="hover:text-amber-300 transition">
-              Stays & Portfolio
+            <Link href="/properties" className="hover:text-[#2d5a27] transition">
+              Stays & Rentals
             </Link>
-            <Link href="/operations" className="hover:text-amber-300 transition">
+            <Link href="/operations" className="hover:text-[#2d5a27] transition">
               Operations
             </Link>
-          </div>
+          </nav>
 
-          {/* WhatsApp Action */}
-          <a
-            href={`https://wa.me/${whatsappNumber}?text=${directBookingMsg}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition shadow-md shadow-emerald-600/20 flex items-center gap-2"
-          >
-            <span>💬</span> Direct WhatsApp
-          </a>
-        </div>
-      </nav>
-
-      {/* Hero Header */}
-      <main className="max-w-7xl mx-auto px-6 py-12 md:py-16 space-y-16">
-        
-        <div className="text-center space-y-6 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3.5 py-1.5 rounded-full text-amber-400 text-xs font-semibold tracking-wide">
-            ✨ PREMIUM SERVICED APARTMENTS & MANSIONS
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight text-white">
-            Luxury Staycation Homes <br className="hidden md:inline" />
-            <span className="bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
-              Made Effortless.
-            </span>
-          </h1>
-
-          <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
-            Experience hand-picked short-stay homes across Uganda. Reserve directly via WhatsApp with zero extra booking fees, or co-host your property with us.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <Link
-              href="/properties"
-              className="w-full sm:w-auto bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-black font-extrabold px-8 py-3.5 rounded-xl text-sm transition shadow-xl shadow-amber-500/20 text-center"
-            >
-              Explore Available Stays
-            </Link>
+          {/* Sign In / WhatsApp Action */}
+          <div className="flex items-center gap-4">
             <a
-              href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello! I am interested in co-hosting my property with La Estancia.')}`}
+              href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent('Hello La Estancia! I need assistance.')}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full sm:w-auto bg-[#131c2e] hover:bg-gray-800 border border-gray-700 text-gray-200 font-semibold px-8 py-3.5 rounded-xl text-sm transition text-center"
+              className="bg-[#2d5a27] hover:bg-[#23471f] text-white font-bold text-xs px-5 py-3 rounded-xl transition shadow-md flex items-center gap-2"
             >
-              Partner With Us
+              <span>💬</span> WhatsApp Concierge
             </a>
           </div>
         </div>
+      </header>
 
-        {/* Visual Services Section */}
-        <section className="space-y-8 pt-4">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-800/80 pb-6">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                What We Offer
-              </span>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-1">
-                Core Services & Portfolio
-              </h2>
-            </div>
-            <p className="text-xs text-gray-400 max-w-md">
-              High-touch hospitality for guests and automated co-hosting operations for property owners.
-            </p>
-          </div>
+      {/* Hero Section with Background Image & Integrated Search Filter */}
+      <section className="relative h-[620px] bg-gray-900 flex flex-col justify-between">
+        
+        {/* Background Image with Dark Gradient Overlay */}
+        <div className="absolute inset-0 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=2000&q=80"
+            alt="Luxury Villa Background"
+            className="w-full h-full object-cover opacity-60 scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
+        </div>
 
-          {/* Image-Based Service Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {services.map((item, idx) => (
-              <div
-                key={idx}
-                className="group relative bg-[#0e1626] border border-gray-800 rounded-3xl overflow-hidden shadow-xl hover:border-amber-500/50 transition duration-500 flex flex-col justify-between"
-              >
-                <div className="relative h-60 w-full overflow-hidden">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-110 transition duration-700 ease-out"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0e1626] via-[#0e1626]/40 to-transparent" />
-                  
-                  <span className="absolute top-4 left-4 bg-amber-500/90 backdrop-blur-md text-black font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full shadow-lg">
-                    {item.badge}
-                  </span>
-                </div>
+        {/* Hero Content Header */}
+        <div className="relative max-w-7xl mx-auto px-6 pt-24 text-center space-y-4 text-white z-10">
+          <span className="bg-white/10 backdrop-blur-md border border-white/20 text-emerald-300 text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wider">
+            ✨ Premium Serviced Apartments & Mansions across Uganda
+          </span>
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
+            Luxury Staycation Homes <br className="hidden md:inline" />
+            <span className="text-emerald-400">Made Effortless.</span>
+          </h1>
+          <p className="text-sm md:text-base text-gray-200 max-w-2xl mx-auto font-medium">
+            Discover hand-picked short-stay homes with 5-star ratings, combining modern design with zero extra booking fees.
+          </p>
+        </div>
 
-                <div className="p-6 space-y-3 -mt-6 relative z-10 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-white group-hover:text-amber-300 transition">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-gray-400 leading-relaxed">
-                      {item.description}
-                    </p>
-                  </div>
-
-                  <div className="pt-4">
-                    {item.isExternal ? (
-                      <a
-                        href={item.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition group-hover:translate-x-1 duration-300"
-                      >
-                        {item.actionText} <span>→</span>
-                      </a>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        className="inline-flex items-center gap-2 text-xs font-bold text-amber-400 hover:text-amber-300 transition group-hover:translate-x-1 duration-300"
-                      >
-                        {item.actionText} <span>→</span>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* MOTION ICONS UPSELLS SHOWCASE SECTION */}
-        <section className="space-y-8 pt-10">
-          <div className="bg-gradient-to-r from-[#0e1626] via-[#111a2d] to-[#0e1626] border border-amber-500/30 rounded-3xl p-6 md:p-10 shadow-2xl space-y-8">
+        {/* Property Search Filter Box (Overlapping Bottom Hero) */}
+        <div className="relative max-w-5xl mx-auto w-full px-6 translate-y-12 z-20">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 border border-gray-100 space-y-4">
             
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-800/80 pb-6">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md border border-amber-500/20">
-                  Concierge Add-Ons
-                </span>
-                <h2 className="text-2xl md:text-3xl font-extrabold text-white mt-3">
-                  Tailored Stay Upsells & Experiences
-                </h2>
-              </div>
-              <p className="text-xs text-gray-400 max-w-md">
-                Elevate guest staycations with automated luxury add-ons bookable in one click via WhatsApp.
-              </p>
+            {/* Filter Tabs */}
+            <div className="flex gap-2 border-b border-gray-100 pb-4">
+              <button
+                onClick={() => setActiveTab('rent')}
+                className={`px-5 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'rent' ? 'bg-[#2d5a27] text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                Short Stays
+              </button>
+              <button
+                onClick={() => setActiveTab('cohost')}
+                className={`px-5 py-2 rounded-xl text-xs font-bold transition ${activeTab === 'cohost' ? 'bg-[#2d5a27] text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                Property Co-Hosting
+              </button>
             </div>
 
-            {/* Continuous Motion Icons Ticker */}
-            <div className="relative overflow-hidden bg-[#070b14]/80 py-4 px-2 rounded-2xl border border-gray-800 shadow-inner">
-              <div className="flex gap-4 animate-pulse items-center justify-around flex-wrap">
-                {motionIcons.map((m, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 bg-[#131c2e] hover:bg-amber-500/20 border border-gray-700/80 hover:border-amber-400/50 px-4 py-2 rounded-xl transition duration-300 transform hover:-translate-y-1 cursor-pointer shadow-md"
-                  >
-                    <span className="text-xl animate-bounce">{m.emoji}</span>
-                    <span className="text-xs font-semibold text-gray-200">{m.label}</span>
-                  </div>
-                ))}
+            {/* Search Input Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+              
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Search Keywords</label>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="e.g. Kyanja, Villa..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:border-[#2d5a27] focus:outline-none"
+                />
               </div>
-            </div>
 
-            {/* Upsells Visual Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {upsells.map((u, idx) => (
-                <div
-                  key={idx}
-                  className="bg-[#070b14] border border-gray-800 rounded-2xl overflow-hidden hover:border-amber-500/50 transition duration-300 group flex flex-col justify-between shadow-lg"
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Property Type</label>
+                <select
+                  value={propertyType}
+                  onChange={(e) => setPropertyType(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:border-[#2d5a27] focus:outline-none"
                 >
-                  <div>
-                    <div className="h-40 w-full relative overflow-hidden">
-                      <img
-                        src={u.image}
-                        alt={u.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#070b14] via-transparent to-transparent" />
-                      
-                      {/* Floating Motion Icon Badge */}
-                      <div className="absolute top-3 left-3 w-10 h-10 rounded-xl bg-black/70 backdrop-blur-md border border-amber-500/40 flex items-center justify-center text-lg animate-bounce">
-                        {u.icon}
-                      </div>
+                  <option>All Types</option>
+                  <option>Serviced Apartment</option>
+                  <option>Standalone House</option>
+                  <option>Luxury Mansion</option>
+                </select>
+              </div>
 
-                      <span className="absolute top-3 right-3 bg-amber-500/90 text-black text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full shadow">
-                        {u.badge}
-                      </span>
-                    </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Max Price / Night</label>
+                <select
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-xs text-gray-900 focus:border-[#2d5a27] focus:outline-none"
+                >
+                  <option>Any Price</option>
+                  <option>Under $100</option>
+                  <option>$100 - $250</option>
+                  <option>$250+</option>
+                </select>
+              </div>
 
-                    <div className="p-4 space-y-2">
-                      <h4 className="text-sm font-bold text-white group-hover:text-amber-400 transition">
-                        {u.title}
-                      </h4>
-                      <p className="text-[11px] text-gray-400 leading-normal">
-                        {u.description}
-                      </p>
-                    </div>
-                  </div>
+              <div className="pt-5">
+                <Link
+                  href="/properties"
+                  className="w-full bg-[#2d5a27] hover:bg-[#23471f] text-white font-extrabold p-3.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2"
+                >
+                  <span>🔍</span> Search Properties
+                </Link>
+              </div>
 
-                  <div className="p-4 pt-2">
+            </div>
+
+          </div>
+        </div>
+
+      </section>
+
+      {/* Spacer for overlapping search box */}
+      <div className="h-24 md:h-16" />
+
+      {/* Our Services Section */}
+      <main className="max-w-7xl mx-auto px-6 py-16 space-y-16">
+        
+        <div className="text-center space-y-3 max-w-xl mx-auto">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#2d5a27]">
+            Our Services
+          </span>
+          <h2 className="text-3xl font-black text-gray-900">
+            Empowering Your Stay & Property Solutions
+          </h2>
+          <p className="text-xs text-gray-600">
+            Professional hospitality management, verified luxury housing, and commission-free guest reservations.
+          </p>
+        </div>
+
+        {/* Services Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {services.map((item, idx) => (
+            <div
+              key={idx}
+              className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg hover:shadow-xl transition duration-300 flex flex-col justify-between group"
+            >
+              <div className="h-56 w-full relative overflow-hidden bg-gray-100">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                />
+              </div>
+
+              <div className="p-6 space-y-3 flex-1 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-[#2d5a27] transition">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  {item.isExternal ? (
                     <a
-                      href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(u.msg)}`}
+                      href={item.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full bg-[#131c2e] hover:bg-emerald-600 text-amber-400 hover:text-white border border-gray-700/80 font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-2 transition duration-300 shadow-md"
+                      className="inline-flex items-center gap-2 text-xs font-bold text-[#2d5a27] hover:underline"
                     >
-                      <span>💬</span> Request Service
+                      Learn More <span>→</span>
                     </a>
-                  </div>
+                  ) : (
+                    <Link
+                      href={item.href}
+                      className="inline-flex items-center gap-2 text-xs font-bold text-[#2d5a27] hover:underline"
+                    >
+                      Learn More <span>→</span>
+                    </Link>
+                  )}
                 </div>
-              ))}
+              </div>
             </div>
-
-          </div>
-        </section>
+          ))}
+        </div>
 
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-gray-800/80 bg-[#070b14] py-8 text-center text-xs text-gray-500">
-        <p>© 2026 La Estancia Vacation Homes. All rights reserved.</p>
+      <footer className="bg-gray-900 text-white py-12 border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-gray-400">
+          <p>© 2026 La Estancia Vacation Homes. All rights reserved.</p>
+          <div className="flex gap-6">
+            <Link href="/" className="hover:text-white">Privacy Policy</Link>
+            <Link href="/" className="hover:text-white">Terms of Service</Link>
+            <Link href="/properties" className="hover:text-white">Portfolio</Link>
+          </div>
+        </div>
       </footer>
 
     </div>
