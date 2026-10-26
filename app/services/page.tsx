@@ -2,11 +2,21 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import HostAuthModal from '@/components/HostAuthModal'
 
 export default function GuestServicesPage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false)
+  const [passcode, setPasscode] = useState('')
+  const [authError, setAuthError] = useState(false)
   const whatsappNumber = '256757386946'
+
+  const handleHostLogin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passcode === 'estancia2026') {
+      window.location.href = '/operations'
+    } else {
+      setAuthError(true)
+    }
+  }
 
   const services = [
     {
@@ -46,7 +56,7 @@ export default function GuestServicesPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col justify-between">
       
-      {/* Self-contained Navbar */}
+      {/* Navigation */}
       <header className="border-b border-gray-800 bg-gray-900/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link href="/" className="text-xl font-black tracking-tight text-white">
@@ -68,6 +78,7 @@ export default function GuestServicesPage() {
         </div>
       </header>
 
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12 w-full space-y-10">
         <div className="border-b border-gray-800 pb-6">
           <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md">
@@ -108,18 +119,62 @@ export default function GuestServicesPage() {
         </div>
       </main>
 
+      {/* Footer */}
       <footer className="border-t border-gray-800 py-8 text-center text-xs text-gray-500">
         <p>© 2026 La Estancia Vacation Homes. All rights reserved.</p>
       </footer>
 
-      <HostAuthModal
-        isOpen={isAuthOpen}
-        onClose={() => setIsAuthOpen(false)}
-        onSuccess={() => {
-          setIsAuthOpen(false)
-          window.location.href = '/operations'
-        }}
-      />
+      {/* Host Auth Modal (Inline) */}
+      {isAuthOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-[#0e1626] border border-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative space-y-6 text-white">
+            <button
+              onClick={() => setIsAuthOpen(false)}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white text-sm font-bold w-8 h-8 rounded-full bg-gray-800/60 flex items-center justify-center"
+            >
+              ✕
+            </button>
+
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center mx-auto text-xl shadow-lg">
+                OS
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">EstanciaOS Host Portal</h2>
+              <p className="text-xs text-gray-400">
+                🔒 Restricted section. Enter your host passcode to access management operations.
+              </p>
+            </div>
+
+            <form onSubmit={handleHostLogin} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                  Host Passcode
+                </label>
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="Enter passcode"
+                  className="w-full bg-black/60 border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+
+              {authError && (
+                <p className="text-xs text-rose-400 font-semibold text-center">
+                  Invalid host passcode. Access denied.
+                </p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3.5 rounded-xl text-xs transition shadow-lg"
+              >
+                Authenticate Host
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   )
