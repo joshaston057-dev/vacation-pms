@@ -1,181 +1,115 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import HeaderNav from '../components/HeaderNav'
+import Footer from '../components/Footer'
+import { supabase } from '@/lib/supabase'
 
-export default function GuestServicesPage() {
-  const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [passcode, setPasscode] = useState('')
-  const [authError, setAuthError] = useState(false)
-  const whatsappNumber = '256757386946'
+interface Service {
+  id: string
+  title: string
+  category: string
+  price: number
+  price_type: string // e.g., 'per trip', 'per day', 'per stay'
+  description: string
+  image_url?: string
+}
 
-  const handleHostLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (passcode === 'estancia2026') {
-      window.location.href = '/operations'
-    } else {
-      setAuthError(true)
+export default function ServicesPage() {
+  const [services, setServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchServices() {
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Error fetching services:', error.message)
+        } else if (data) {
+          setServices(data)
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching services:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
-  const services = [
-    {
-      id: '1',
-      title: 'Entebbe Airport Pickup / Dropoff',
-      category: 'Transport',
-      priceUSD: '$40',
-      priceUGX: '~150,000 UGX',
-      description: 'Private comfortable transport directly between Entebbe International Airport and your villa/apartment.',
-    },
-    {
-      id: '2',
-      title: 'Early Check-In / Late Check-Out',
-      category: 'Flexibility',
-      priceUSD: '$25',
-      priceUGX: '~95,000 UGX',
-      description: 'Flexible timing to match your flight schedule (subject to availability).',
-    },
-    {
-      id: '3',
-      title: 'In-House Private Chef Dining',
-      category: 'Hospitality',
-      priceUSD: '$60',
-      priceUGX: '~225,000 UGX',
-      description: 'Professional chef service for custom breakfast, lunch, or dinner prepared directly in your suite.',
-    },
-    {
-      id: '4',
-      title: '4x4 SUV / Vehicle Rental',
-      category: 'Rentals',
-      priceUSD: '$85',
-      priceUGX: '~320,000 UGX',
-      description: 'Reliable 4x4 SUV rental with optional dedicated driver for town trips or safari routes.',
-    },
-  ]
+    fetchServices()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col justify-between">
-      
-      {/* Navigation */}
-      <header className="border-b border-gray-800 bg-gray-900/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black tracking-tight text-white">
-            La Estancia <span className="text-amber-500 text-xs font-normal">Vacation Homes</span>
-          </Link>
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
+      <div>
+        <HeaderNav />
+        
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="mb-10 text-center md:text-left">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-amber-500 mb-3">
+              Concierge Services & Upsells
+            </h1>
+            <p className="text-neutral-400 max-w-2xl">
+              Elevate your guest experience with airport transfers, private chef services, safari bookings, and bespoke luxury addons across Kampala.
+            </p>
+          </div>
 
-          <nav className="flex items-center gap-6 text-xs font-semibold text-gray-300">
-            <Link href="/" className="hover:text-amber-400 transition">Home</Link>
-            <Link href="/properties" className="hover:text-amber-400 transition">Stays</Link>
-            <Link href="/services" className="hover:text-amber-400 transition">Concierge Services</Link>
-            
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="bg-gray-800 hover:bg-gray-700 text-amber-400 px-3 py-1.5 rounded-lg border border-gray-700 transition flex items-center gap-1.5"
-            >
-              🔒 Host OS
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12 w-full space-y-10">
-        <div className="border-b border-gray-800 pb-6">
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md">
-            Guest Experiences
-          </span>
-          <h1 className="text-3xl font-black mt-2">Concierge & Add-On Services</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Enhance your stay at La Estancia Vacation Homes with custom services tailored for comfort.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {services.map((s) => (
-            <div key={s.id} className="bg-gray-800/50 border border-gray-800 p-6 rounded-3xl space-y-4 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-                    {s.category}
-                  </span>
-                  <span className="text-sm font-extrabold text-white">
-                    {s.priceUSD} <span className="text-xs text-gray-400 font-normal">({s.priceUGX})</span>
-                  </span>
-                </div>
-                <h3 className="text-lg font-bold">{s.title}</h3>
-                <p className="text-xs text-gray-400 leading-relaxed">{s.description}</p>
-              </div>
-
-              <a
-                href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello La Estancia! I would like to book the add-on service: ${s.title}.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3 rounded-xl text-xs text-center transition block shadow-lg"
-              >
-                Book via WhatsApp
-              </a>
+          {loading ? (
+            <div className="py-20 text-center text-neutral-400 animate-pulse">
+              Loading concierge services from database...
             </div>
-          ))}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 text-center text-xs text-gray-500">
-        <p>© 2026 La Estancia Vacation Homes. All rights reserved.</p>
-      </footer>
-
-      {/* Host Auth Modal (Inline) */}
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="bg-[#0e1626] border border-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative space-y-6 text-white">
-            <button
-              onClick={() => setIsAuthOpen(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-white text-sm font-bold w-8 h-8 rounded-full bg-gray-800/60 flex items-center justify-center"
-            >
-              ✕
-            </button>
-
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center mx-auto text-xl shadow-lg">
-                OS
-              </div>
-              <h2 className="text-2xl font-black tracking-tight">EstanciaOS Host Portal</h2>
-              <p className="text-xs text-gray-400">
-                🔒 Restricted section. Enter your host passcode to access management operations.
+          ) : services.length === 0 ? (
+            <div className="py-20 text-center bg-neutral-900 border border-neutral-800 rounded-2xl p-8">
+              <p className="text-xl text-neutral-300 font-semibold mb-2">No concierge services added yet</p>
+              <p className="text-neutral-500 text-sm">
+                Add your first service offer from your database or admin portal to see it appear here live!
               </p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {services.map((service) => (
+                <div 
+                  key={service.id} 
+                  className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg hover:border-amber-500/50 transition duration-300 flex flex-col justify-between"
+                >
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs uppercase tracking-widest font-semibold px-2.5 py-1 bg-amber-500/10 text-amber-500 rounded-md border border-amber-500/20">
+                        {service.category || 'Concierge'}
+                      </span>
+                      <span className="text-lg font-bold text-amber-500">
+                        ${service.price} <span className="text-xs font-normal text-neutral-400">/ {service.price_type}</span>
+                      </span>
+                    </div>
 
-            <form onSubmit={handleHostLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                  Host Passcode
-                </label>
-                <input
-                  type="password"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter passcode"
-                  className="w-full bg-black/60 border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+                    <h3 className="text-xl font-bold text-white mb-2">{service.title}</h3>
+                    <p className="text-neutral-400 text-sm leading-relaxed mb-4">
+                      {service.description}
+                    </p>
+                  </div>
 
-              {authError && (
-                <p className="text-xs text-rose-400 font-semibold text-center">
-                  Invalid host passcode. Access denied.
-                </p>
-              )}
+                  <div className="p-6 pt-0 border-t border-neutral-800/50 mt-4 flex items-center justify-between">
+                    <span className="text-xs text-neutral-500">La Estancia Guarantee</span>
+                    <a 
+                      href={`https://wa.me/256757386946?text=Hi!%20I%20would%20like%20to%20book%20the%20${encodeURIComponent(service.title)}%20service`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-sm transition"
+                    >
+                      Book Addon
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
-              <button
-                type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3.5 rounded-xl text-xs transition shadow-lg"
-              >
-                Authenticate Host
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-    </div>
+      <Footer />
+    </main>
   )
 }

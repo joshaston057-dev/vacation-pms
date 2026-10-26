@@ -1,180 +1,129 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import HeaderNav from '../components/HeaderNav'
+import Footer from '../components/Footer'
+import { supabase } from '@/lib/supabase'
 
-export default function GuestPropertiesPage() {
-  const [isAuthOpen, setIsAuthOpen] = useState(false)
-  const [passcode, setPasscode] = useState('')
-  const [authError, setAuthError] = useState(false)
-  const whatsappNumber = '256757386946'
+interface Property {
+  id: string
+  title: string
+  location: string
+  price_per_night: number
+  bedrooms: number
+  bathrooms: number
+  guests: number
+  image_url: string
+  description?: string
+}
 
-  const handleHostLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (passcode === 'estancia2026') {
-      window.location.href = '/operations'
-    } else {
-      setAuthError(true)
+export default function PropertiesPage() {
+  const [properties, setProperties] = useState<Property[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchProperties() {
+      try {
+        const { data, error } = await supabase
+          .from('properties')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          console.error('Error fetching properties:', error.message)
+        } else if (data) {
+          setProperties(data)
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }
 
-  const properties = [
-    {
-      id: '1',
-      name: 'The Executive Penthouse Apartment',
-      location: 'Kampala, Uganda',
-      price: '$120 / night',
-      specs: '2 Bedrooms • 2 Bathrooms • City Skyline View • High-Speed Wi-Fi',
-      imageBg: 'from-amber-600/20 to-gray-900',
-      description: 'Luxurious modern apartment located in the prime center of Kampala, featuring premium furnishings and 24/7 security.',
-    },
-    {
-      id: '2',
-      name: 'La Estancia Garden Villa',
-      location: 'Kampala Outskirts / Entebbe Road',
-      price: '$250 / night',
-      specs: '4 Bedrooms • Private Pool • Lush Garden • Dedicated Housekeeper',
-      imageBg: 'from-emerald-600/20 to-gray-900',
-      description: 'Spacious stand-alone villa with a private swimming pool, outdoor lounging terrace, and serene natural surroundings.',
-    },
-    {
-      id: '3',
-      name: 'The Skyline Luxury Suite',
-      location: 'Kampala, Uganda',
-      price: '$95 / night',
-      specs: '1 Bedroom • Balcony • Workspace • Kitchenette',
-      imageBg: 'from-blue-600/20 to-gray-900',
-      description: 'An elegant, cozy suite tailored for business travelers and couples looking for a sophisticated short-stay experience.',
-    },
-  ]
+    fetchProperties()
+  }, [])
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col justify-between">
-      
-      {/* Navigation */}
-      <header className="border-b border-gray-800 bg-gray-900/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="text-xl font-black tracking-tight text-white">
-            La Estancia <span className="text-amber-500 text-xs font-normal">Vacation Homes</span>
-          </Link>
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
+      <div>
+        <HeaderNav />
+        
+        <section className="max-w-7xl mx-auto px-6 py-12">
+          <div className="mb-10 text-center md:text-left">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-amber-500 mb-3">
+              Our Exclusive Stays
+            </h1>
+            <p className="text-neutral-400 max-w-2xl">
+              Discover curated luxury apartments, villas, and stand-alone vacation homes across Uganda.
+            </p>
+          </div>
 
-          <nav className="flex items-center gap-6 text-xs font-semibold text-gray-300">
-            <Link href="/" className="hover:text-amber-400 transition">Home</Link>
-            <Link href="/properties" className="hover:text-amber-400 transition text-amber-400">Stays</Link>
-            <Link href="/services" className="hover:text-amber-400 transition">Concierge Services</Link>
-            
-            <button
-              onClick={() => setIsAuthOpen(true)}
-              className="bg-gray-800 hover:bg-gray-700 text-amber-400 px-3 py-1.5 rounded-lg border border-gray-700 transition flex items-center gap-1.5"
-            >
-              🔒 Host OS
-            </button>
-          </nav>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-12 w-full space-y-10">
-        <div className="border-b border-gray-800 pb-6">
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md">
-            Portfolio
-          </span>
-          <h1 className="text-3xl font-black mt-2">Curated Vacation Stays</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Hand-picked apartments, houses, and villas managed by La Estancia Vacation Homes.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {properties.map((p) => (
-            <div key={p.id} className="bg-gray-800/50 border border-gray-800 rounded-3xl overflow-hidden flex flex-col justify-between shadow-xl">
-              <div className={`p-8 bg-gradient-to-br ${p.imageBg} border-b border-gray-800/80 space-y-3`}>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-black/40 px-3 py-1 rounded-full border border-amber-500/30">
-                    {p.location}
-                  </span>
-                  <span className="text-sm font-black text-white">{p.price}</span>
-                </div>
-                <h3 className="text-xl font-black text-white">{p.name}</h3>
-              </div>
-
-              <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-400 leading-relaxed">{p.description}</p>
-                  <p className="text-[11px] font-semibold text-amber-400/90">{p.specs}</p>
-                </div>
-
-                <a
-                  href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Hello La Estancia! I would like to inquire about booking: ${p.name}.`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3.5 rounded-xl text-xs text-center transition block shadow-lg mt-4"
-                >
-                  Book via WhatsApp
-                </a>
-              </div>
+          {loading ? (
+            <div className="py-20 text-center text-neutral-400 animate-pulse">
+              Loading properties from database...
             </div>
-          ))}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-800 py-8 text-center text-xs text-gray-500">
-        <p>© 2026 La Estancia Vacation Homes. All rights reserved.</p>
-      </footer>
-
-      {/* Host Auth Modal */}
-      {isAuthOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-          <div className="bg-[#0e1626] border border-gray-800 rounded-3xl max-w-md w-full p-8 shadow-2xl relative space-y-6 text-white">
-            <button
-              onClick={() => setIsAuthOpen(false)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-white text-sm font-bold w-8 h-8 rounded-full bg-gray-800/60 flex items-center justify-center"
-            >
-              ✕
-            </button>
-
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center mx-auto text-xl shadow-lg">
-                OS
-              </div>
-              <h2 className="text-2xl font-black tracking-tight">EstanciaOS Host Portal</h2>
-              <p className="text-xs text-gray-400">
-                🔒 Restricted section. Enter your host passcode to access management operations.
+          ) : properties.length === 0 ? (
+            <div className="py-20 text-center bg-neutral-900 border border-neutral-800 rounded-2xl p-8">
+              <p className="text-xl text-neutral-300 font-semibold mb-2">No properties listed yet</p>
+              <p className="text-neutral-500 text-sm">
+                Add your first property from the host management portal or Supabase dashboard to see it appear here live!
               </p>
             </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {properties.map((property) => (
+                <div 
+                  key={property.id} 
+                  className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg hover:border-amber-500/50 transition duration-300"
+                >
+                  <div className="h-56 bg-neutral-800 relative">
+                    {property.image_url ? (
+                      <img 
+                        src={property.image_url} 
+                        alt={property.title} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-500">
+                        No Image Available
+                      </div>
+                    )}
+                  </div>
 
-            <form onSubmit={handleHostLogin} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                  Host Passcode
-                </label>
-                <input
-                  type="password"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter passcode"
-                  className="w-full bg-black/60 border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-amber-500 focus:outline-none"
-                />
-              </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-white mb-2">{property.title}</h3>
+                    <p className="text-neutral-400 text-sm mb-4">📍 {property.location}</p>
+                    
+                    <div className="flex items-center gap-4 text-xs text-neutral-400 border-t border-b border-neutral-800 py-3 mb-6">
+                      <span>🛏️ {property.bedrooms} Beds</span>
+                      <span>🚿 {property.bathrooms} Baths</span>
+                      <span>👥 {property.guests} Guests</span>
+                    </div>
 
-              {authError && (
-                <p className="text-xs text-rose-400 font-semibold text-center">
-                  Invalid host passcode. Access denied.
-                </p>
-              )}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-2xl font-bold text-amber-500">${property.price_per_night}</span>
+                        <span className="text-xs text-neutral-500"> / night</span>
+                      </div>
+                      <a 
+                        href={`https://wa.me/256757386946?text=Hi!%20I%20am%20interested%20in%20booking%20${encodeURIComponent(property.title)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg text-sm transition"
+                      >
+                        Inquire
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
-              <button
-                type="submit"
-                className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3.5 rounded-xl text-xs transition shadow-lg"
-              >
-                Authenticate Host
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-    </div>
+      <Footer />
+    </main>
   )
 }

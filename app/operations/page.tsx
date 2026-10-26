@@ -1,161 +1,313 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import HeaderNav from '../components/HeaderNav'
+import Footer from '../components/Footer'
+import { supabase } from '@/lib/supabase'
 
-export default function OperationsPMSPage() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+export default function OperationsPage() {
   const [passcode, setPasscode] = useState('')
-  const [error, setError] = useState(false)
-  const [copiedUrl, setCopiedUrl] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+
+  // Form states for Property
+  const [propTitle, setPropTitle] = useState('')
+  const [propLocation, setPropLocation] = useState('')
+  const [propPrice, setPropPrice] = useState('')
+  const [propBeds, setPropBeds] = useState('1')
+  const [propBaths, setPropBaths] = useState('1')
+  const [propGuests, setPropGuests] = useState('2')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  // Form states for Service
+  const [servTitle, setServTitle] = useState('')
+  const [servCategory, setServCategory] = useState('Transport')
+  const [servPrice, setServPrice] = useState('')
+  const [servPriceType, setServPriceType] = useState('per trip')
+  const [servDesc, setServDesc] = useState('')
+
+  // Lists for preview
+  const [propertiesList, setPropertiesList] = useState<any[]>([])
+  const [servicesList, setServicesList] = useState<any[]>([])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     if (passcode === 'estancia2026') {
       setIsAuthenticated(true)
-      setError(false)
+      setErrorMsg('')
+      fetchDashboardData()
     } else {
-      setError(true)
+      setErrorMsg('Invalid passcode. Access denied.')
     }
   }
 
-  const handleCopy = (url: string) => {
-    navigator.clipboard.writeText(url)
-    setCopiedUrl(url)
-    setTimeout(() => setCopiedUrl(null), 2000)
+  const fetchDashboardData = async () => {
+    const { data: propsData } = await supabase.from('properties').select('*').order('created_at', { ascending: false })
+    const { data: servsData } = await supabase.from('services').select('*').order('created_at', { ascending: false })
+    if (propsData) setPropertiesList(propsData)
+    if (servsData) setServicesList(servsData)
   }
 
-  // 🔒 HARD SECURITY GATE: IF NOT LOGGED IN, STOP EVERYTHING & SHOW LOCK SCREEN
+  // Upload image to Supabase Storage and return public URL
+  const uploadImage = async (file: File) => {
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Math.random()}.${fileExt}`
+    const filePath = `properties/${fileName}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('property-images')
+      .upload(filePath, file)
+
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage
+      .from('property-images')
+      .getPublicUrl(filePath)
+
+    return data.publicUrl
+  }
+
+  const handleCreateProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setUploading(true)
+    try {
+      let publicImageUrl = ''
+      if (imageFile) {
+        publicImageUrl = await uploadImage(imageFile)
+      }
+
+      const { error } = await supabase.from('properties').insert([
+        {
+          title: propTitle,
+          location: propLocation,
+          price_per_night: parseFloat(propPrice),
+          bedrooms: parseInt(propBeds),
+          bathrooms: parseInt(propBaths),
+          guests: parseInt(propGuests),
+          image_url: publicImageUrl
+        }
+      ])
+
+      if (error) throw error
+
+      alert('Property created successfully!')
+      setPropTitle('')
+      setPropLocation('')
+      setPropPrice('')
+      setImageFile(null)
+      fetchDashboardData()
+    } catch (err: any) {
+      alert(`Error saving property: ${err.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { error } = await supabase.from('services').insert([
+        {
+          title: servTitle,
+          category: servCategory,
+          price: parseFloat(servPrice),
+          price_type: servPriceType,
+          description: servDesc
+        }
+      ])
+
+      if (error) throw error
+
+      alert('Service created successfully!')
+      setServTitle('')
+      setServPrice('')
+      setServDesc('')
+      fetchDashboardData()
+    } catch (err: any) {
+      alert(`Error saving service: ${err.message}`)
+    }
+  }
+
+  const handleDeleteProperty = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this property?')) return
+    await supabase.from('properties').delete().eq('id', id)
+    fetchDashboardData()
+  }
+
+  const handleDeleteService = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this service?')) return
+    await supabase.from('services').delete().eq('id', id)
+    fetchDashboardData()
+  }
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#070b14] text-white flex items-center justify-center p-6 font-sans">
-        <div className="bg-[#0e1626] border border-gray-800 p-8 rounded-3xl max-w-md w-full space-y-6 shadow-2xl">
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500 text-black font-black flex items-center justify-center mx-auto text-xl shadow-lg shadow-amber-500/20">
-              OS
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">EstanciaOS Login</h1>
-            <p className="text-xs text-gray-400">
-              🔒 Restricted access. Enter host passcode to access internal PMS, turnover logs, and iCal feeds.
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                Host Passcode
-              </label>
-              <input
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode"
-                className="w-full bg-black/60 border border-gray-700 rounded-xl p-3 text-sm text-white focus:border-amber-500 focus:outline-none"
-              />
-            </div>
-
-            {error && (
-              <p className="text-xs text-rose-400 font-semibold text-center">
-                Incorrect passcode. Access denied.
-              </p>
-            )}
-
-            <button
-              type="submit"
-              className="w-full bg-amber-500 hover:bg-amber-600 text-black font-extrabold py-3.5 rounded-xl text-xs transition shadow-lg"
-            >
-              Access EstanciaOS
+      <main className="min-h-screen bg-neutral-950 text-white flex flex-col justify-between">
+        <HeaderNav />
+        <div className="flex-1 flex items-center justify-center p-6">
+          <form onSubmit={handleLogin} className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl max-w-md w-full shadow-2xl">
+            <h1 className="text-2xl font-bold text-amber-500 mb-2">Host OS Operations</h1>
+            <p className="text-sm text-neutral-400 mb-6">Enter your administrative passcode to manage properties and concierge services.</p>
+            
+            <input 
+              type="password" 
+              placeholder="Enter passcode"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+              className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg mb-4 text-white focus:outline-none focus:border-amber-500"
+            />
+            
+            {errorMsg && <p className="text-red-500 text-xs mb-4">{errorMsg}</p>}
+            
+            <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition">
+              Unlock Portal
             </button>
           </form>
-
-          <div className="text-center pt-2">
-            <Link href="/" className="text-xs text-gray-400 hover:text-white transition">
-              ← Return to Public Website
-            </Link>
-          </div>
         </div>
-      </div>
+        <Footer />
+      </main>
     )
   }
 
-  // 🔓 AUTHENTICATED HOST VIEW
   return (
-    <div className="min-h-screen bg-[#070b14] text-white font-sans flex flex-col justify-between">
-      <nav className="border-b border-gray-800 bg-[#070b14]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center font-black text-black text-lg">
-              OS
-            </div>
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
+      <div>
+        <HeaderNav />
+        
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 pb-6 border-b border-neutral-800">
             <div>
-              <span className="text-xl font-extrabold tracking-tight">EstanciaOS</span>
-              <span className="block text-[9px] uppercase tracking-widest text-amber-400 font-medium">
-                Host Operations Engine
-              </span>
+              <h1 className="text-3xl font-extrabold text-amber-500">EstanciaOS Host Portal</h1>
+              <p className="text-neutral-400 text-sm mt-1">Manage vacation properties, concierge pricing, and live content.</p>
             </div>
+            <button 
+              onClick={() => setIsAuthenticated(false)}
+              className="mt-4 md:mt-0 px-4 py-2 border border-neutral-700 text-neutral-400 hover:text-white rounded-lg text-sm"
+            >
+              🔒 Lock Portal
+            </button>
           </div>
-          <button
-            onClick={() => setIsAuthenticated(false)}
-            className="bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold px-4 py-2 rounded-xl hover:bg-rose-500/20 transition"
-          >
-            🔒 Lock Operations
-          </button>
-        </div>
-      </nav>
 
-      <main className="max-w-7xl mx-auto px-6 py-12 space-y-10 w-full">
-        <div className="border-b border-gray-800 pb-6 flex justify-between items-end">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 px-3 py-1 rounded-md">
-              Secure Channel Manager
-            </span>
-            <h1 className="text-3xl font-black mt-2">iCal Calendar Feeds & Sync</h1>
-          </div>
-        </div>
-
-        <div className="bg-[#0e1626] border border-gray-800 rounded-3xl p-6 space-y-6 shadow-2xl">
-          <h3 className="text-lg font-bold">Property Calendar Feeds</h3>
-          <div className="space-y-4">
-            <div className="bg-[#070b14] border border-gray-800 rounded-2xl p-6 space-y-4">
-              <div className="flex justify-between">
-                <h4 className="font-bold text-white">The Emin Pasha Luxury Villa</h4>
-                <span className="text-xs text-emerald-400 font-bold">Active Sync</span>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-[#0e1626] p-3.5 rounded-xl border border-gray-800 space-y-1">
-                  <label className="text-[10px] font-bold text-amber-400 uppercase">EstanciaOS Export (.ics)</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value="https://vacation-pms.vercel.app/api/ical/emin-pasha.ics"
-                      className="w-full bg-black/50 border border-gray-700 text-gray-300 text-[11px] p-2 rounded-lg"
-                    />
-                    <button
-                      onClick={() => handleCopy('https://vacation-pms.vercel.app/api/ical/emin-pasha.ics')}
-                      className="bg-gray-800 text-white text-[11px] px-3 rounded-lg hover:bg-gray-700"
-                    >
-                      {copiedUrl === 'https://vacation-pms.vercel.app/api/ical/emin-pasha.ics' ? 'Copied' : 'Copy'}
-                    </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            {/* PROPERTY FORM */}
+            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
+              <h2 className="text-xl font-bold text-white mb-4"> Add New Property</h2>
+              <form onSubmit={handleCreateProperty} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Property Title</label>
+                  <input required type="text" placeholder="e.g. Kololo Luxury Apartment" value={propTitle} onChange={e=>setPropTitle(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Location</label>
+                  <input required type="text" placeholder="e.g. Kololo, Kampala" value={propLocation} onChange={e=>setPropLocation(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Price per Night ($)</label>
+                    <input required type="number" placeholder="150" value={propPrice} onChange={e=>setPropPrice(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Max Guests</label>
+                    <input required type="number" value={propGuests} onChange={e=>setPropGuests(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
                   </div>
                 </div>
-                <div className="bg-[#0e1626] p-3.5 rounded-xl border border-gray-800 space-y-1">
-                  <label className="text-[10px] font-bold text-rose-400 uppercase">Airbnb iCal Link</label>
-                  <input
-                    type="text"
-                    defaultValue="https://airbnb.com/calendar/ical/123456.ics"
-                    className="w-full bg-black/50 border border-gray-700 text-gray-300 text-[11px] p-2 rounded-lg"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Bedrooms</label>
+                    <input required type="number" value={propBeds} onChange={e=>setPropBeds(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Bathrooms</label>
+                    <input required type="number" value={propBaths} onChange={e=>setPropBaths(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                  </div>
                 </div>
-              </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Property Photo (Supabase Storage)</label>
+                  <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files?.[0] || null)} className="w-full text-xs text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-neutral-800 file:text-neutral-200 hover:file:bg-neutral-700" />
+                </div>
+                <button disabled={uploading} type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition disabled:opacity-50">
+                  {uploading ? 'Uploading Photo & Saving...' : 'Publish Property'}
+                </button>
+              </form>
+            </div>
+
+            {/* SERVICE FORM */}
+            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
+              <h2 className="text-xl font-bold text-white mb-4"> Add Concierge Service / Upsell</h2>
+              <form onSubmit={handleCreateService} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Service Title</label>
+                  <input required type="text" placeholder="e.g. VIP Airport Transfer" value={servTitle} onChange={e=>setServTitle(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Category</label>
+                    <select value={servCategory} onChange={e=>setServCategory(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white">
+                      <option value="Transport">Transport</option>
+                      <option value="Dining">Dining & Private Chef</option>
+                      <option value="Experiences">Safari & Experiences</option>
+                      <option value="Wellness">Wellness & Spa</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-neutral-400 mb-1">Price ($)</label>
+                    <input required type="number" placeholder="45" value={servPrice} onChange={e=>setServPrice(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Billing Type</label>
+                  <input required type="text" placeholder="e.g. per trip, per day, per stay" value={servPriceType} onChange={e=>setServPriceType(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-400 mb-1">Description</label>
+                  <textarea required rows={3} placeholder="Brief summary of what's included..." value={servDesc} onChange={e=>setServDesc(e.target.value)} className="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-lg text-sm text-white" />
+                </div>
+                <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-black font-semibold rounded-lg transition">
+                  Publish Concierge Offer
+                </button>
+              </form>
             </div>
           </div>
-        </div>
-      </main>
 
-      <footer className="border-t border-gray-800 bg-[#070b14] py-8 text-center text-xs text-gray-500">
-        <p>© 2026 EstanciaOS. Private Host System.</p>
-      </footer>
-    </div>
+          {/* ACTIVE MANAGEMENT TABLES */}
+          <div className="mt-12 space-y-8">
+            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
+              <h3 className="text-lg font-bold text-white mb-4">Active Properties ({propertiesList.length})</h3>
+              {propertiesList.length === 0 ? (
+                <p className="text-xs text-neutral-500">No properties in database.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-neutral-400">
+                    <thead className="text-xs uppercase bg-neutral-950 text-neutral-500">
+                      <tr>
+                        <th className="p-3">Title</th>
+                        <th className="p-3">Location</th>
+                        <th className="p-3">Price/Night</th>
+                        <th className="p-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {propertiesList.map(p => (
+                        <tr key={p.id} className="border-b border-neutral-800">
+                          <td className="p-3 font-semibold text-white">{p.title}</td>
+                          <td className="p-3">{p.location}</td>
+                          <td className="p-3 text-amber-500">${p.price_per_night}</td>
+                          <td className="p-3">
+                            <button onClick={()=>handleDeleteProperty(p.id)} className="text-xs text-red-400 hover:underline">Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <Footer />
+    </main>
   )
 }
