@@ -1,86 +1,91 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState } from 'react'
+import Link from 'next/link'
 
 export default function HeaderNav() {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-800 bg-slate-950/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-        {/* Brand Title */}
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="text-lg font-bold tracking-tight text-white">
-            La Estancia
-          </span>
-        </Link>
+    <header className="bg-neutral-950/90 backdrop-blur-md border-b border-neutral-800 sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-xl font-extrabold tracking-tight text-white">
+              La Estancia <span className="text-amber-500 font-light text-sm hidden sm:inline">Vacation Homes</span>
+            </span>
+          </Link>
 
-        {/* Desktop Links (Hidden on Mobile) */}
-        <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
-          <Link href="/" className="hover:text-white transition-colors">Home</Link>
-          <Link href="/properties" className="hover:text-white transition-colors">Stays</Link>
-          <Link href="/services" className="hover:text-white transition-colors">Services & Upsells</Link>
-          <Link href="/operations" className="hover:text-white transition-colors">Operations</Link>
-          <Link href="/bookings" className="hover:text-white transition-colors">Bookings</Link>
-        </nav>
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-300">
+            <Link href="/" className="hover:text-amber-500 transition">Home</Link>
+            <Link href="/properties" className="hover:text-amber-500 transition">Stays</Link>
+            <Link href="/services" className="hover:text-amber-500 transition">Concierge Services</Link>
+            <Link 
+              href="/operations" 
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:border-amber-500/50 text-amber-500 rounded-lg font-medium transition"
+            >
+              🔒 Host OS
+            </Link>
+          </nav>
 
-        {/* Mobile Hamburger Menu Toggle */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="md:hidden p-2 rounded-md text-slate-300 hover:text-white focus:outline-none"
-          aria-label="Toggle Navigation"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {isOpen ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+          {/* Mobile Hamburger Button */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              type="button"
+              className="p-2 text-neutral-400 hover:text-white focus:outline-none"
+              aria-label="Toggle navigation menu"
+            >
+              {isMobileMenuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Mobile Vertical Menu (Fits 100% Mobile Viewport) */}
-      {isOpen && (
-        <div className="md:hidden border-t border-slate-800 bg-slate-950 px-4 pt-2 pb-4 space-y-1 text-sm text-slate-300">
+      {/* Mobile Drawer */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-neutral-900 border-b border-neutral-800 px-4 pt-2 pb-6 space-y-3">
           <Link 
             href="/" 
-            onClick={() => setIsOpen(false)}
-            className="block py-2.5 px-3 rounded-md hover:bg-slate-900 hover:text-white font-medium"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block text-neutral-200 hover:text-amber-500 py-2 text-base font-medium border-b border-neutral-800/50"
           >
-            🏠 Home
+            Home
           </Link>
           <Link 
             href="/properties" 
-            onClick={() => setIsOpen(false)}
-            className="block py-2.5 px-3 rounded-md hover:bg-slate-900 hover:text-white font-medium"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block text-neutral-200 hover:text-amber-500 py-2 text-base font-medium border-b border-neutral-800/50"
           >
-            🏢 Stays
+            Stays
           </Link>
           <Link 
             href="/services" 
-            onClick={() => setIsOpen(false)}
-            className="block py-2.5 px-3 rounded-md hover:bg-slate-900 hover:text-white font-medium"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block text-neutral-200 hover:text-amber-500 py-2 text-base font-medium border-b border-neutral-800/50"
           >
-            ✨ Services & Upsells
+            Concierge Services
           </Link>
           <Link 
             href="/operations" 
-            onClick={() => setIsOpen(false)}
-            className="block py-2.5 px-3 rounded-md hover:bg-slate-900 hover:text-white font-medium"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="block text-amber-500 font-semibold py-2 text-base"
           >
-            🧹 Operations
-          </Link>
-          <Link 
-            href="/bookings" 
-            onClick={() => setIsOpen(false)}
-            className="block py-2.5 px-3 rounded-md hover:bg-slate-900 hover:text-white font-medium"
-          >
-            📅 Bookings
+            🔒 Host OS Operations
           </Link>
         </div>
       )}
     </header>
-  );
+  )
 }
