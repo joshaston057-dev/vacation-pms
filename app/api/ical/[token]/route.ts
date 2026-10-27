@@ -3,9 +3,10 @@ import { supabase } from '@/lib/supabase'
 
 export async function GET(
   request: Request,
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> | { token: string } }
 ) {
-  const { token } = params
+  const resolvedParams = await params
+  const token = resolvedParams.token
 
   const { data: property, error: propError } = await supabase
     .from('properties')
