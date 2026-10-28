@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
 
 interface Property {
   id: string
@@ -15,10 +16,13 @@ interface Property {
   bathrooms?: number
   guests?: number
   image_url?: string
+  owner_id?: string
 }
 
 export default function EstanciaOSOperations() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'daily' | 'bookings' | 'concierge' | 'properties'>('daily')
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   // --- Daily Operations State ---
   const [dailyNotes, setDailyNotes] = useState('')
@@ -52,6 +56,19 @@ export default function EstanciaOSOperations() {
   const [imageUrl, setImageUrl] = useState('')
   const [propMsg, setPropMsg] = useState('')
 
+  // --- Check Auth Session on Load ---
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+      } else {
+        setUserEmail(session.user.email ?? null)
+      }
+    }
+    checkUser()
+  }, [router])
+
   // --- Fetch Existing Properties for Management ---
   const fetchProperties = async () => {
     setLoadingProps(true)
@@ -80,6 +97,11 @@ export default function EstanciaOSOperations() {
   }, [activeTab])
 
   // --- Handlers ---
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault()
     setServiceMsg('')
@@ -130,6 +152,12 @@ export default function EstanciaOSOperations() {
     e.preventDefault()
     setPropMsg('')
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setPropMsg('❌ You must be logged in to add a property.')
+        return
+      }
+
       const { error } = await supabase.from('properties').insert([
         {
           title: propertyTitle,
@@ -139,6 +167,7 @@ export default function EstanciaOSOperations() {
           bathrooms: parseInt(bathrooms),
           guests: parseInt(maxGuests),
           image_url: imageUrl,
+          owner_id: user.id,
         },
       ])
       if (error) throw error
@@ -181,48 +210,59 @@ export default function EstanciaOSOperations() {
 
         <div className="max-w-6xl mx-auto p-4 md:p-8">
           
-          {/* Header */}
+          {/* Header & User Session Info */}
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 pb-6 border-b border-neutral-800 gap-4">
             <div>
               <h1 className="text-3xl font-extrabold text-amber-500 tracking-tight">EstanciaOS Host Operations</h1>
-              <p className="text-neutral-400 text-sm mt-1">Real-time control center for bookings, iCal sync, daily tasks, and property inventory.</p>
+              <p className="text-neutral-400 text-sm mt-1">
+                Logged in as: <span className="text-white font-medium">{userEmail || 'Loading...'}</span>
+              </p>
             </div>
 
-            {/* Navigation Tabs */}
-            <div className="flex flex-wrap bg-neutral-900 border border-neutral-800 p-1.5 rounded-xl gap-1">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => setActiveTab('daily')}
-                className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
-                  activeTab === 'daily' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                }`}
+                onClick={handleSignOut}
+                className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-red-400 text-xs font-semibold rounded-xl transition"
               >
-                Daily Operations
-              </button>
-              <button
-                onClick={() => setActiveTab('bookings')}
-                className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
-                  activeTab === 'bookings' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                Bookings & iCal
-              </button>
-              <button
-                onClick={() => setActiveTab('concierge')}
-                className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
-                  activeTab === 'concierge' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                Concierge Services
-              </button>
-              <button
-                onClick={() => setActiveTab('properties')}
-                className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
-                  activeTab === 'properties' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                }`}
-              >
-                Property Portfolio
+                Sign Out
               </button>
             </div>
+          </div>
+
+          {/* Navigation Tabs */}
+          <div className="flex flex-wrap bg-neutral-900 border border-neutral-800 p-1.5 rounded-xl gap-1 mb-8">
+            <button
+              onClick={() => setActiveTab('daily')}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
+                activeTab === 'daily' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Daily Operations
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
+                activeTab === 'bookings' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Bookings & iCal
+            </button>
+            <button
+              onClick={() => setActiveTab('concierge')}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
+                activeTab === 'concierge' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Concierge Services
+            </button>
+            <button
+              onClick={() => setActiveTab('properties')}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-semibold transition ${
+                activeTab === 'properties' ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              Property Portfolio
+            </button>
           </div>
 
           {/* --- TAB 1: DAILY OPERATIONS MONITOR --- */}
@@ -286,7 +326,6 @@ export default function EstanciaOSOperations() {
                   </button>
                 </form>
 
-                {/* Direct WhatsApp Action Section */}
                 <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
                   <div>
                     <p className="text-xs text-neutral-400">Direct Guest Dispatch</p>
@@ -465,7 +504,6 @@ export default function EstanciaOSOperations() {
           {/* --- TAB 4: PROPERTY PORTFOLIO & DELETE MANAGER --- */}
           {activeTab === 'properties' && (
             <div className="space-y-8">
-              {/* Add Property Form */}
               <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
                 <h2 className="text-xl font-bold text-white mb-2">Add New Vacation Property</h2>
                 <p className="text-neutral-400 text-sm mb-6">Publish apartments or villas directly to your public properties catalogue.</p>
