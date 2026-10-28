@@ -1,7 +1,6 @@
-@import "tailwindcss";
-
-@source "./app";
-@source "./components";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @layer base {
   a {
