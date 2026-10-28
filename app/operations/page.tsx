@@ -418,3 +418,287 @@ export default function EstanciaOSOperations() {
           )}
 
           {/* --- TAB 2: BOOKINGS & ICAL SYNC --- */}
+          {activeTab === 'bookings' && (
+            <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
+              <h2 className="text-xl font-bold text-white mb-2">Bookings & iCal Calendar Sync</h2>
+              <p className="text-neutral-400 text-sm mb-6">Manually input direct bookings or sync Airbnb/Booking.com iCal feeds.</p>
+
+              {bookingMsg && <p className="mb-4 p-3 bg-neutral-950 border border-neutral-800 text-amber-500 rounded-xl text-sm">{bookingMsg}</p>}
+
+              <form onSubmit={handleAddBooking} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Guest Name / Channel</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. John Doe (Direct Booking)"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Target Property Title</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Kololo Luxury Apartment"
+                      value={selectedProp}
+                      onChange={(e) => setSelectedProp(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Check-in Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Check-out Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">iCal Feed URL (Airbnb / VRBO / Booking.com)</label>
+                  <input
+                    type="url"
+                    placeholder="https://www.airbnb.com/calendar/ical/..."
+                    value={icalUrl}
+                    onChange={(e) => setIcalUrl(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl text-sm transition">
+                  Sync iCal & Save Booking
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* --- TAB 3: CONCIERGE SERVICES MANAGEMENT --- */}
+          {activeTab === 'concierge' && (
+            <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
+              <h2 className="text-xl font-bold text-white mb-2">Add Concierge Service</h2>
+              <p className="text-neutral-400 text-sm mb-6">Publish luxury experiences directly to your public guest menu.</p>
+
+              {serviceMsg && <p className="mb-4 p-3 bg-neutral-950 border border-neutral-800 text-amber-500 rounded-xl text-sm">{serviceMsg}</p>}
+
+              <form onSubmit={handleAddService} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Service Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. VIP Airport Transfer"
+                    value={serviceTitle}
+                    onChange={(e) => setServiceTitle(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Category</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    >
+                      <option value="Transport">Transport</option>
+                      <option value="Dining">Private Chef</option>
+                      <option value="Excursions">Tours</option>
+                      <option value="Wellness">Wellness</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Price ($ USD)</label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="75"
+                      value={servicePrice}
+                      onChange={(e) => setServicePrice(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Details about what the service includes..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <button type="submit" className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl text-sm transition">
+                  Publish Service Live
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* --- TAB 4: PROPERTY PORTFOLIO & DEVICE FILE UPLOAD --- */}
+          {activeTab === 'properties' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
+                <h2 className="text-xl font-bold text-white mb-2">Add New Vacation Property</h2>
+                <p className="text-neutral-400 text-sm mb-6">Publish apartments or villas directly to your public properties catalogue.</p>
+
+                {propMsg && <p className="mb-4 p-3 bg-neutral-950 border border-neutral-800 text-amber-500 rounded-xl text-sm">{propMsg}</p>}
+
+                <form onSubmit={handleAddProperty} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Property Title</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Kololo Luxury Apartment"
+                      value={propertyTitle}
+                      onChange={(e) => setPropertyTitle(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Location</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Kololo, Kampala"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Price per Night ($ USD)</label>
+                      <input
+                        type="number"
+                        required
+                        placeholder="150"
+                        value={pricePerNight}
+                        onChange={(e) => setPricePerNight(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Bedrooms</label>
+                      <input
+                        type="number"
+                        required
+                        value={bedrooms}
+                        onChange={(e) => setBedrooms(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Bathrooms</label>
+                      <input
+                        type="number"
+                        required
+                        value={bathrooms}
+                        onChange={(e) => setBathrooms(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Max Guests</label>
+                      <input
+                        type="number"
+                        required
+                        value={maxGuests}
+                        onChange={(e) => setMaxGuests(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Upload Photo from Device</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-black hover:file:bg-amber-600"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={uploadingImage}
+                    className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl text-sm transition disabled:opacity-50"
+                  >
+                    {uploadingImage ? 'Uploading Image & Saving...' : 'Publish Property Live'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Portfolio List */}
+              <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
+                <h2 className="text-xl font-bold text-white mb-2">Manage & Delete Active Listings</h2>
+                {loadingProps ? (
+                  <p className="text-neutral-500 text-sm py-4">Loading properties...</p>
+                ) : propertiesList.length === 0 ? (
+                  <p className="text-neutral-500 text-sm py-4">No active properties found.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {propertiesList.map((prop) => (
+                      <div key={prop.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          {prop.image_url ? (
+                            <img src={prop.image_url} alt={prop.title} className="w-14 h-14 object-cover rounded-lg" />
+                          ) : (
+                            <div className="w-14 h-14 bg-neutral-800 rounded-lg flex items-center justify-center text-xs text-neutral-500">No Img</div>
+                          )}
+                          <div>
+                            <p className="font-bold text-white text-sm">{prop.title}</p>
+                            <p className="text-xs text-neutral-400">{prop.location} • ${prop.price_per_night ?? prop.price ?? 0} / night</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteProperty(prop.id, prop.title)}
+                          className="px-4 py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white border border-red-600/30 rounded-lg text-xs font-semibold transition"
+                        >
+                          🗑️ Delete Listing
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      <Footer />
+    </main>
+  )
+}
