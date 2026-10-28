@@ -16,6 +16,7 @@ interface Property {
   bathrooms?: number
   guests?: number
   image_url?: string
+  image_urls?: string[]
   owner_id?: string
 }
 
@@ -54,7 +55,7 @@ export default function EstanciaOSOperations() {
   const [maxGuests, setMaxGuests] = useState('2')
   const [bedrooms, setBedrooms] = useState('1')
   const [bathrooms, setBathrooms] = useState('1')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [propMsg, setPropMsg] = useState('')
 
@@ -156,28 +157,46 @@ export default function EstanciaOSOperations() {
     }
   }
 
-  // Device file upload helper
-  const uploadPropertyImage = async (file: File): Promise<string | null> => {
-    try {
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-      const filePath = `listings/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, file)
-
-      if (uploadError) throw uploadError
-
-      const { data } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(filePath)
-
-      return data.publicUrl
-    } catch (error: any) {
-      console.error('Upload error:', error.message)
-      return null
+  // Handle Multi-file selector (Up to 5 files)
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArr = Array.from(e.target.files)
+      if (filesArr.length > 5) {
+        setPropMsg('⚠️ You can upload a maximum of 5 images. Only the first 5 selected will be kept.')
+        setSelectedFiles(filesArr.slice(0, 5))
+      } else {
+        setPropMsg('')
+        setSelectedFiles(filesArr)
+      }
     }
+  }
+
+  // Batch device file uploads helper
+  const uploadPropertyImages = async (files: File[]): Promise<string[]> => {
+    const uploadedUrls: string[] = []
+
+    for (const file of files) {
+      try {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `listings/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, file)
+
+        if (!uploadError) {
+          const { data } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(filePath)
+          uploadedUrls.push(data.publicUrl)
+        }
+      } catch (err) {
+        console.error('Error uploading individual file:', err)
+      }
+    }
+
+    return uploadedUrls
   }
 
   const handleAddProperty = async (e: React.FormEvent) => {
@@ -193,16 +212,17 @@ export default function EstanciaOSOperations() {
         return
       }
 
-      let finalImageUrl = ''
-      if (selectedFile) {
-        const uploadedUrl = await uploadPropertyImage(selectedFile)
-        if (!uploadedUrl) {
+      let imageUrls: string[] = []
+      if (selectedFiles.length > 0) {
+        imageUrls = await uploadPropertyImages(selectedFiles)
+        if (imageUrls.length === 0) {
           setPropMsg('❌ Image upload failed. Please try again.')
           setUploadingImage(false)
           return
         }
-        finalImageUrl = uploadedUrl
       }
+
+      const mainImageUrl = imageUrls[0] || ''
 
       const { error } = await supabase.from('properties').insert([
         {
@@ -212,7 +232,8 @@ export default function EstanciaOSOperations() {
           bedrooms: parseInt(bedrooms),
           bathrooms: parseInt(bathrooms),
           guests: parseInt(maxGuests),
-          image_url: finalImageUrl,
+          image_url: mainImageUrl,
+          image_urls: imageUrls,
           owner_id: user.id,
         },
       ])
@@ -226,7 +247,7 @@ export default function EstanciaOSOperations() {
       setMaxGuests('2')
       setBedrooms('1')
       setBathrooms('1')
-      setSelectedFile(null)
+      setSelectedFiles([])
       fetchProperties()
     } catch (err: any) {
       setPropMsg(`❌ Error: ${err.message}`)
@@ -286,7 +307,7 @@ export default function EstanciaOSOperations() {
             </div>
           </div>
 
-          {/* ALL 4 NAVIGATION TABS RESTORED */}
+          {/* NAVIGATION TABS */}
           <div className="flex flex-wrap bg-neutral-900 border border-neutral-800 p-1.5 rounded-xl gap-1 mb-8">
             <button
               onClick={() => setActiveTab('daily')}
@@ -558,7 +579,7 @@ export default function EstanciaOSOperations() {
             </div>
           )}
 
-          {/* --- TAB 4: PROPERTY PORTFOLIO & DEVICE FILE UPLOAD --- */}
+          {/* --- TAB 4: PROPERTY PORTFOLIO & UP TO 5 MULTI-PHOTO UPLOADS --- */}
           {activeTab === 'properties' && (
             <div className="space-y-8">
               <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
@@ -638,14 +659,23 @@ export default function EstanciaOSOperations() {
                     </div>
                   </div>
 
+                  {/* MULTI-PHOTO UPLOADER (UP TO 5 PHOTOS) */}
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">Upload Photo from Device</label>
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">
+                      Upload Photos from Device (Select Up to 5 Images)
+                    </label>
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      multiple
+                      onChange={handleFileChange}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-black hover:file:bg-amber-600"
                     />
+                    {selectedFiles.length > 0 && (
+                      <p className="text-xs text-amber-500 mt-2 font-medium">
+                        📸 {selectedFiles.length} photo(s) selected ready to upload.
+                      </p>
+                    )}
                   </div>
 
                   <button
@@ -653,7 +683,7 @@ export default function EstanciaOSOperations() {
                     disabled={uploadingImage}
                     className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl text-sm transition disabled:opacity-50"
                   >
-                    {uploadingImage ? 'Uploading Image & Saving...' : 'Publish Property Live'}
+                    {uploadingImage ? `Uploading ${selectedFiles.length} Photos & Saving...` : 'Publish Property Live'}
                   </button>
                 </form>
               </div>
@@ -677,7 +707,9 @@ export default function EstanciaOSOperations() {
                           )}
                           <div>
                             <p className="font-bold text-white text-sm">{prop.title}</p>
-                            <p className="text-xs text-neutral-400">{prop.location} • ${prop.price_per_night ?? prop.price ?? 0} / night</p>
+                            <p className="text-xs text-neutral-400">
+                              {prop.location} • {prop.bedrooms ?? 1} Bed • {prop.bathrooms ?? 1} Bath • ${prop.price_per_night ?? prop.price ?? 0} / night
+                            </p>
                           </div>
                         </div>
 
