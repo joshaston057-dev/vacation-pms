@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@source "./app";
+@source "./components";
+
 @layer base {
   a {
     color: inherit;
