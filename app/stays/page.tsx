@@ -84,7 +84,7 @@ export default function BrowseStaysPage() {
           </div>
         </section>
 
-        {/* Filter Bar (2-Column Layout on Mobile & Desktop) */}
+        {/* Filter Bar (Responsive for Mobile & Laptop) */}
         <section className="max-w-6xl mx-auto p-3 sm:p-6">
           <div className="bg-neutral-900 border border-neutral-800 p-3 sm:p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
             
@@ -132,7 +132,7 @@ export default function BrowseStaysPage() {
 
           </div>
 
-          {/* Results Grid (2 Columns on Mobile, 3 Columns on Laptop) */}
+          {/* 2-Column Grid on Mobile, 3-Column on Laptop */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -164,7 +164,7 @@ export default function BrowseStaysPage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* Photo Container */}
+                      {/* Taller photo viewport relative to card size */}
                       <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
                         <img
                           src={displayImg}
@@ -176,21 +176,21 @@ export default function BrowseStaysPage() {
                         </span>
                       </div>
 
-                      {/* Details Box */}
+                      {/* Compact details container */}
                       <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
                           <p className="text-[10px] sm:text-xs text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
                         </div>
 
-                        {/* Badges Bar */}
+                        {/* Room Badges Bar */}
                         <div className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs text-neutral-300 py-1 border-y border-neutral-800/80">
                           <span>🛏️ {prop.bedrooms ?? 1} Bed</span>
                           <span>🚿 {prop.bathrooms ?? 1} Bath</span>
                           <span>👥 {prop.guests ?? 2} Guests</span>
                         </div>
 
-                        {/* Description */}
+                        {/* Description snippet */}
                         {prop.description ? (
                           <p className="text-[10px] sm:text-xs text-neutral-300 leading-snug line-clamp-2">
                             {prop.description}
