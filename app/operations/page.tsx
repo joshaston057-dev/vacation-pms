@@ -19,6 +19,7 @@ interface Property {
   description: string
   amenities: string[]
   image_urls: string[]
+  ical_url?: string
 }
 
 interface Booking {
@@ -70,7 +71,7 @@ const AVAILABLE_AMENITIES = [
 
 export default function OperationsPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('properties')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('bookings')
   const [checkingAuth, setCheckingAuth] = useState(true)
 
   // Data States
@@ -101,6 +102,10 @@ export default function OperationsPage() {
   const [bCheckIn, setBCheckIn] = useState('')
   const [bCheckOut, setBCheckOut] = useState('')
   const [bTotalPrice, setBTotalPrice] = useState('')
+
+  // iCal Sync States
+  const [selectedIcalProperty, setSelectedIcalProperty] = useState('')
+  const [icalInputUrl, setIcalInputUrl] = useState('')
 
   // Task Form States
   const [tProperty, setTProperty] = useState('')
@@ -151,6 +156,17 @@ export default function OperationsPage() {
       setSelectedAmenities(selectedAmenities.filter((item) => item !== amenity))
     } else {
       setSelectedAmenities([...selectedAmenities, amenity])
+    }
+  }
+
+  // Save iCal URL to Property
+  const handleSaveIcal = async (propertyId: string, url: string) => {
+    const { error } = await supabase.from('properties').update({ ical_url: url }).eq('id', propertyId)
+    if (error) {
+      alert('Error saving iCal link: ' + error.message)
+    } else {
+      alert('iCal link updated successfully!')
+      fetchAllData()
     }
   }
 
@@ -249,7 +265,7 @@ export default function OperationsPage() {
                 Host Operations Management System
               </h1>
               <p className="text-neutral-400 text-xs mt-1 text-center sm:text-left">
-                Manage property listings, guest reservations, operational workflows, and concierge upsells.
+                Manage property listings, guest reservations, iCal calendar sync, operational workflows, and concierge upsells.
               </p>
             </div>
 
@@ -279,7 +295,7 @@ export default function OperationsPage() {
                 activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-md' : 'text-neutral-400 hover:text-white'
               }`}
             >
-              📅 Bookings Calendar
+              📅 Bookings & iCal Sync
             </button>
             <button
               onClick={() => setActiveTab('operations')}
@@ -365,7 +381,6 @@ export default function OperationsPage() {
                     />
                   </div>
 
-                  {/* Serviced Amenities Checkbox Section */}
                   <div>
                     <label className="block text-xs font-semibold text-neutral-300 mb-2">Select Serviced Amenities Available</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 bg-neutral-950 border border-neutral-800 p-3 rounded-xl max-h-48 overflow-y-auto">
@@ -401,7 +416,6 @@ export default function OperationsPage() {
                 </form>
               </div>
 
-              {/* Portfolio Grid */}
               <div>
                 <h3 className="text-base font-bold text-white mb-3">Active Portfolio ({properties.length})</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -431,9 +445,85 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* TAB 2: BOOKINGS SECTION */}
+          {/* TAB 2: BOOKINGS & ICAL CALENDAR SYNC */}
           {activeTab === 'bookings' && (
             <div className="space-y-8">
+              
+              {/* iCal Link Sync Management Box per Property */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl space-y-4">
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span>📅 Property iCal Calendar Links</span>
+                </h2>
+                <p className="text-xs text-neutral-400">
+                  Import external Airbnb or Booking.com calendar URLs to auto-block dates, or copy EstanciaOS iCal feeds.
+                </p>
+
+                <div className="space-y-3 pt-2">
+                  {properties.map((prop) => (
+                    <div key={prop.id} className="bg-neutral-950 border border-neutral-800 p-4 rounded-xl space-y-2">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <h4 className="font-bold text-amber-500 text-xs">{prop.title}</h4>
+                        <span className="text-[10px] bg-neutral-900 text-neutral-400 px-2 py-0.5 rounded border border-neutral-800">
+                          📍 {prop.location}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        {/* External iCal URL Input */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-neutral-400 uppercase">
+                            Import Airbnb / Booking.com iCal URL:
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="url"
+                              placeholder="https://www.airbnb.com/calendar/ical/..."
+                              defaultValue={prop.ical_url || ''}
+                              id={`ical-input-${prop.id}`}
+                              className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
+                            />
+                            <button
+                              onClick={() => {
+                                const inputEl = document.getElementById(`ical-input-${prop.id}`) as HTMLInputElement
+                                handleSaveIcal(prop.id, inputEl.value)
+                              }}
+                              className="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-lg transition flex-shrink-0"
+                            >
+                              Save Link
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Direct Export iCal Feed Link */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-neutral-400 uppercase">
+                            Export EstanciaOS iCal Feed:
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              readOnly
+                              value={`https://vacation-pms.vercel.app/api/ical/${prop.id}`}
+                              className="w-full bg-neutral-900/60 border border-neutral-800 rounded-lg p-2 text-neutral-400 text-xs outline-none"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(`https://vacation-pms.vercel.app/api/ical/${prop.id}`)
+                                alert('EstanciaOS iCal link copied to clipboard!')
+                              }}
+                              className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-bold text-xs rounded-lg transition flex-shrink-0"
+                            >
+                              📋 Copy Feed
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Add New Manual Reservation Box */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl">
                 <h2 className="text-lg font-bold text-white mb-4">📌 Add New Reservation</h2>
                 <form onSubmit={handleAddBooking} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
