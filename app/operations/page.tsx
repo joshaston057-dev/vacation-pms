@@ -21,6 +21,34 @@ interface Property {
   image_urls: string[]
 }
 
+interface Booking {
+  id: string
+  property_title: string
+  guest_name: string
+  guest_phone: string
+  check_in: string
+  check_out: string
+  total_price: number
+  status: string
+}
+
+interface OperationalTask {
+  id: string
+  property_title: string
+  task_type: string
+  assigned_to: string
+  due_date: string
+  completed: boolean
+}
+
+interface UpsellService {
+  id: string
+  title: string
+  category: string
+  price_usd: number
+  description: string
+}
+
 const AVAILABLE_AMENITIES = [
   'High-Speed WiFi',
   'Air Conditioning',
@@ -42,11 +70,17 @@ const AVAILABLE_AMENITIES = [
 
 export default function OperationsPage() {
   const router = useRouter()
-  const [properties, setProperties] = useState<Property[]>([])
-  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('properties')
   const [checkingAuth, setCheckingAuth] = useState(true)
 
-  // Form States
+  // Data States
+  const [properties, setProperties] = useState<Property[]>([])
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [tasks, setTasks] = useState<OperationalTask[]>([])
+  const [services, setServices] = useState<UpsellService[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Property Form States
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
   const [pricePerNight, setPricePerNight] = useState('')
@@ -60,30 +94,50 @@ export default function OperationsPage() {
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Booking Form States
+  const [bProperty, setBProperty] = useState('')
+  const [bGuestName, setBGuestName] = useState('')
+  const [bGuestPhone, setBGuestPhone] = useState('')
+  const [bCheckIn, setBCheckIn] = useState('')
+  const [bCheckOut, setBCheckOut] = useState('')
+  const [bTotalPrice, setBTotalPrice] = useState('')
+
+  // Task Form States
+  const [tProperty, setTProperty] = useState('')
+  const [tType, setTType] = useState('Housekeeping')
+  const [tAssigned, setTAssigned] = useState('Cleaners')
+  const [tDueDate, setTDueDate] = useState('')
+
+  // Service Form States
+  const [sTitle, setSTitle] = useState('')
+  const [sCategory, setSCategory] = useState('Transport')
+  const [sPrice, setSPrice] = useState('')
+  const [sDesc, setSDesc] = useState('')
+
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-
       if (!session) {
         router.push('/login')
       } else {
         setCheckingAuth(false)
-        fetchProperties()
+        fetchAllData()
       }
     }
-
     checkSession()
   }, [router])
 
-  const fetchProperties = async () => {
+  const fetchAllData = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('properties')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const { data: propsData } = await supabase.from('properties').select('*').order('created_at', { ascending: false })
+    const { data: booksData } = await supabase.from('bookings').select('*').order('created_at', { ascending: false })
+    const { data: tasksData } = await supabase.from('operational_tasks').select('*').order('created_at', { ascending: false })
+    const { data: servsData } = await supabase.from('upsell_services').select('*').order('created_at', { ascending: false })
 
-    if (error) console.error('Error fetching properties:', error.message)
-    else setProperties(data || [])
+    setProperties(propsData || [])
+    setBookings(booksData || [])
+    setTasks(tasksData || [])
+    setServices(servsData || [])
     setLoading(false)
   }
 
@@ -100,72 +154,75 @@ export default function OperationsPage() {
     }
   }
 
+  // Submit Handlers
   const handleAddProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
-
     try {
       let uploadedUrls: string[] = []
-
       if (imageFiles && imageFiles.length > 0) {
         for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
           const file = imageFiles[i]
           const fileName = `${Date.now()}-${file.name}`
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(fileName, file)
-
-          if (uploadError) {
-            console.error('Image upload failed:', uploadError.message)
-          } else if (uploadData) {
-            const { data: publicUrlData } = supabase.storage
-              .from('property-images')
-              .getPublicUrl(fileName)
+          const { data: uploadData } = await supabase.storage.from('property-images').upload(fileName, file)
+          if (uploadData) {
+            const { data: publicUrlData } = supabase.storage.from('property-images').getPublicUrl(fileName)
             uploadedUrls.push(publicUrlData.publicUrl)
           }
         }
       }
 
-      const { error } = await supabase.from('properties').insert([
-        {
-          title,
-          location,
-          price_per_night: parseFloat(pricePerNight) || 0,
-          bedrooms: parseInt(bedrooms),
-          bathrooms: parseInt(bathrooms),
-          guests: parseInt(guests),
-          property_type: propertyType,
-          whatsapp_number: whatsappNumber,
-          description,
-          amenities: selectedAmenities,
-          image_urls: uploadedUrls,
-        },
-      ])
+      await supabase.from('properties').insert([{
+        title, location, price_per_night: parseFloat(pricePerNight) || 0,
+        bedrooms: parseInt(bedrooms), bathrooms: parseInt(bathrooms), guests: parseInt(guests),
+        property_type: propertyType, whatsapp_number: whatsappNumber, description,
+        amenities: selectedAmenities, image_urls: uploadedUrls,
+      }])
 
-      if (error) {
-        alert('Error adding property: ' + error.message)
-      } else {
-        alert('Property added successfully!')
-        setTitle('')
-        setLocation('')
-        setPricePerNight('')
-        setDescription('')
-        setSelectedAmenities([])
-        setImageFiles(null)
-        fetchProperties()
-      }
-    } catch (err) {
-      console.error('Unexpected error:', err)
+      alert('Property published successfully!')
+      setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setImageFiles(null);
+      fetchAllData()
     } finally {
       setSubmitting(false)
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this property?')) return
-    const { error } = await supabase.from('properties').delete().eq('id', id)
-    if (error) alert('Error deleting: ' + error.message)
-    else fetchProperties()
+  const handleAddBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await supabase.from('bookings').insert([{
+      property_title: bProperty || properties[0]?.title || 'General Booking',
+      guest_name: bGuestName, guest_phone: bGuestPhone,
+      check_in: bCheckIn, check_out: bCheckOut, total_price: parseFloat(bTotalPrice) || 0
+    }])
+    alert('Booking recorded!')
+    setBGuestName(''); setBGuestPhone(''); setBCheckIn(''); setBCheckOut(''); setBTotalPrice('');
+    fetchAllData()
+  }
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await supabase.from('operational_tasks').insert([{
+      property_title: tProperty || properties[0]?.title || 'General Unit',
+      task_type: tType, assigned_to: tAssigned, due_date: tDueDate || new Date().toISOString().split('T')[0]
+    }])
+    alert('Operational task added!')
+    setTDueDate('');
+    fetchAllData()
+  }
+
+  const handleToggleTask = async (id: string, currentCompleted: boolean) => {
+    await supabase.from('operational_tasks').update({ completed: !currentCompleted }).eq('id', id)
+    fetchAllData()
+  }
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await supabase.from('upsell_services').insert([{
+      title: sTitle, category: sCategory, price_usd: parseFloat(sPrice) || 0, description: sDesc
+    }])
+    alert('Service/Upsell added!')
+    setSTitle(''); setSPrice(''); setSDesc('');
+    fetchAllData()
   }
 
   if (checkingAuth) {
@@ -184,17 +241,18 @@ export default function OperationsPage() {
       <div>
         <HeaderNav />
 
-        <section className="bg-neutral-900 border-b border-neutral-800 py-8 px-4">
+        {/* Portal Top Header */}
+        <section className="bg-neutral-900 border-b border-neutral-800 py-6 px-4">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-amber-500 text-center sm:text-left">
-                Host Operations Portal
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-amber-500 text-center sm:text-left">
+                Host Operations Management System
               </h1>
-              <p className="text-neutral-400 text-xs sm:text-sm mt-1 text-center sm:text-left">
-                Manage property portfolio, amenities, descriptions, and WhatsApp routing.
+              <p className="text-neutral-400 text-xs mt-1 text-center sm:text-left">
+                Manage property listings, guest reservations, operational workflows, and concierge upsells.
               </p>
             </div>
-            
+
             <button
               onClick={handleSignOut}
               className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 font-bold text-xs rounded-xl transition"
@@ -204,198 +262,366 @@ export default function OperationsPage() {
           </div>
         </section>
 
-        <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
+        {/* 4-SECTION NAVIGATION TABS */}
+        <section className="max-w-6xl mx-auto px-4 pt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-neutral-900 p-2 border border-neutral-800 rounded-2xl">
+            <button
+              onClick={() => setActiveTab('properties')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition ${
+                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-md' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              🏠 Property Listings
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition ${
+                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-md' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              📅 Bookings Calendar
+            </button>
+            <button
+              onClick={() => setActiveTab('operations')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition ${
+                activeTab === 'operations' ? 'bg-amber-500 text-black shadow-md' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              ⚙️ Day-to-Day Operations
+            </button>
+            <button
+              onClick={() => setActiveTab('services')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition ${
+                activeTab === 'services' ? 'bg-amber-500 text-black shadow-md' : 'text-neutral-400 hover:text-white'
+              }`}
+            >
+              💎 Services & Upsells
+            </button>
+          </div>
+        </section>
+
+        <div className="max-w-6xl mx-auto p-4 sm:p-6">
           
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 shadow-xl">
-            <h2 className="text-xl font-bold text-white mb-6">✨ Add New Property Listing</h2>
-            
-            <form onSubmit={handleAddProperty} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Property Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g., Luxury Kololo Penthouse"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Location / Neighborhood</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g., Kololo, Kampala"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Price / Night ($)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="120"
-                    value={pricePerNight}
-                    onChange={(e) => setPricePerNight(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Property Type</label>
-                  <select
-                    value={propertyType}
-                    onChange={(e) => setPropertyType(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  >
-                    <option value="Apartment">Apartment</option>
-                    <option value="Standalone House">Standalone House</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Mansion">Mansion</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Bedrooms</label>
-                  <select
-                    value={bedrooms}
-                    onChange={(e) => setBedrooms(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  >
-                    <option value="1">1 Bed</option>
-                    <option value="2">2 Beds</option>
-                    <option value="3">3 Beds</option>
-                    <option value="4">4+ Beds</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Max Guests</label>
-                  <input
-                    type="number"
-                    value={guests}
-                    onChange={(e) => setGuests(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Host WhatsApp Number for Inquiries</label>
-                  <input
-                    type="text"
-                    required
-                    value={whatsappNumber}
-                    onChange={(e) => setWhatsappNumber(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-neutral-300 mb-1">Upload Photos (Up to 5)</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={(e) => setImageFiles(e.target.files)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-500 file:text-black hover:file:bg-amber-400"
-                  />
-                </div>
-              </div>
-
-              {/* Amenities Selection Grid */}
-              <div>
-                <label className="block text-xs font-semibold text-neutral-300 mb-2">
-                  Select Serviced Amenities Available
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 bg-neutral-950 border border-neutral-800 p-4 rounded-xl">
-                  {AVAILABLE_AMENITIES.map((amenity) => {
-                    const isChecked = selectedAmenities.includes(amenity)
-                    return (
-                      <label
-                        key={amenity}
-                        onClick={() => handleAmenityToggle(amenity)}
-                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border text-xs font-medium transition ${
-                          isChecked
-                            ? 'bg-amber-500/10 border-amber-500 text-amber-500'
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="accent-amber-500"
-                        />
-                        <span>{amenity}</span>
-                      </label>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-neutral-300 mb-1">
-                  Full Property Description & Guest Details
-                </label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Describe the space, surroundings, check-in policies, etc."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-sm rounded-xl transition shadow-lg"
-              >
-                {submitting ? 'Publishing Listing...' : 'Publish Property Listing'}
-              </button>
-            </form>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-bold text-white mb-4">📋 Active Portfolio Listings</h2>
-            {loading ? (
-              <p className="text-xs text-neutral-400">Loading listings...</p>
-            ) : properties.length === 0 ? (
-              <p className="text-xs text-neutral-500 italic">No properties added yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {properties.map((p) => (
-                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 flex flex-col justify-between space-y-4">
-                    <div>
-                      <div className="h-40 bg-neutral-950 rounded-xl overflow-hidden mb-3">
-                        <img src={p.image_urls?.[0] || '/placeholder.jpg'} alt={p.title} className="w-full h-full object-cover" />
-                      </div>
-                      <h3 className="font-bold text-white text-base">{p.title}</h3>
-                      <p className="text-xs text-neutral-400">{p.location}</p>
-                      <p className="text-amber-500 font-bold text-xs mt-1">${p.price_per_night} / night</p>
-                    </div>
-                    <button
-                      onClick={() => handleDelete(p.id)}
-                      className="w-full py-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white font-semibold text-xs rounded-xl transition border border-red-800/50"
-                    >
-                      Delete Property
-                    </button>
+          {/* TAB 1: PROPERTY LISTINGS */}
+          {activeTab === 'properties' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl">
+                <h2 className="text-lg font-bold text-white mb-4">✨ Add New Property Listing</h2>
+                <form onSubmit={handleAddProperty} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text" required placeholder="Property Title (e.g., Luxury Kololo Penthouse)"
+                      value={title} onChange={(e) => setTitle(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
+                    <input
+                      type="text" required placeholder="Neighborhood / Location (e.g., Kisaasi, Kampala)"
+                      value={location} onChange={(e) => setLocation(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
                   </div>
-                ))}
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <input
+                      type="number" required placeholder="Price / Night ($)"
+                      value={pricePerNight} onChange={(e) => setPricePerNight(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
+                    <select
+                      value={propertyType} onChange={(e) => setPropertyType(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    >
+                      <option value="Apartment">Apartment</option>
+                      <option value="Standalone House">Standalone House</option>
+                      <option value="Villa">Villa</option>
+                      <option value="Mansion">Mansion</option>
+                    </select>
+                    <select
+                      value={bedrooms} onChange={(e) => setBedrooms(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    >
+                      <option value="1">1 Bed</option>
+                      <option value="2">2 Beds</option>
+                      <option value="3">3 Beds</option>
+                      <option value="4">4+ Beds</option>
+                    </select>
+                    <input
+                      type="number" placeholder="Max Guests"
+                      value={guests} onChange={(e) => setGuests(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                      type="text" required placeholder="Host WhatsApp Number"
+                      value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
+                    <input
+                      type="file" multiple accept="image/*"
+                      onChange={(e) => setImageFiles(e.target.files)}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-500 file:text-black font-semibold"
+                    />
+                  </div>
+
+                  {/* Serviced Amenities Checkbox Section */}
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-2">Select Serviced Amenities Available</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 bg-neutral-950 border border-neutral-800 p-3 rounded-xl max-h-48 overflow-y-auto">
+                      {AVAILABLE_AMENITIES.map((amenity) => {
+                        const isChecked = selectedAmenities.includes(amenity)
+                        return (
+                          <label
+                            key={amenity} onClick={() => handleAmenityToggle(amenity)}
+                            className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer border text-[11px] font-medium transition ${
+                              isChecked ? 'bg-amber-500/10 border-amber-500 text-amber-500' : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                            }`}
+                          >
+                            <input type="checkbox" checked={isChecked} onChange={() => {}} className="accent-amber-500" />
+                            <span>{amenity}</span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  <textarea
+                    rows={3} required placeholder="Full property write-up and details..."
+                    value={description} onChange={(e) => setDescription(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+
+                  <button
+                    type="submit" disabled={submitting}
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition"
+                  >
+                    {submitting ? 'Publishing...' : 'Publish Property Listing'}
+                  </button>
+                </form>
               </div>
-            )}
-          </div>
+
+              {/* Portfolio Grid */}
+              <div>
+                <h3 className="text-base font-bold text-white mb-3">Active Portfolio ({properties.length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {properties.map((p) => (
+                    <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col justify-between">
+                      <div>
+                        <img src={p.image_urls?.[0] || '/placeholder.jpg'} alt={p.title} className="w-full h-36 object-cover rounded-lg mb-3" />
+                        <h4 className="font-bold text-white text-sm">{p.title}</h4>
+                        <p className="text-xs text-neutral-400">{p.location}</p>
+                        <p className="text-amber-500 font-bold text-xs mt-1">${p.price_per_night} / night</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (confirm('Delete this listing?')) {
+                            await supabase.from('properties').delete().eq('id', p.id)
+                            fetchAllData()
+                          }
+                        }}
+                        className="mt-3 py-1.5 bg-red-600/20 text-red-400 text-xs rounded-lg hover:bg-red-600 hover:text-white transition"
+                      >
+                        Delete Listing
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: BOOKINGS SECTION */}
+          {activeTab === 'bookings' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl">
+                <h2 className="text-lg font-bold text-white mb-4">📌 Add New Reservation</h2>
+                <form onSubmit={handleAddBooking} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <select
+                    value={bProperty} onChange={(e) => setBProperty(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  >
+                    <option value="">Select Property</option>
+                    {properties.map((p) => (
+                      <option key={p.id} value={p.title}>{p.title}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text" required placeholder="Guest Name" value={bGuestName} onChange={(e) => setBGuestName(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="text" required placeholder="Guest Phone / WhatsApp" value={bGuestPhone} onChange={(e) => setBGuestPhone(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="date" required value={bCheckIn} onChange={(e) => setBCheckIn(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="date" required value={bCheckOut} onChange={(e) => setBCheckOut(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="number" required placeholder="Total Amount Paid ($)" value={bTotalPrice} onChange={(e) => setBTotalPrice(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <button type="submit" className="sm:col-span-3 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition">
+                    Save Reservation
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-white mb-3">Recorded Guest Reservations ({bookings.length})</h3>
+                <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-x-auto">
+                  <table className="w-full text-left text-xs text-neutral-300">
+                    <thead className="bg-neutral-950 text-neutral-400 uppercase text-[10px] border-b border-neutral-800">
+                      <tr>
+                        <th className="p-3">Property</th>
+                        <th className="p-3">Guest Name</th>
+                        <th className="p-3">Phone</th>
+                        <th className="p-3">Check-In</th>
+                        <th className="p-3">Check-Out</th>
+                        <th className="p-3">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-800">
+                      {bookings.map((b) => (
+                        <tr key={b.id} className="hover:bg-neutral-950/50">
+                          <td className="p-3 font-semibold text-white">{b.property_title}</td>
+                          <td className="p-3">{b.guest_name}</td>
+                          <td className="p-3">{b.guest_phone}</td>
+                          <td className="p-3 text-emerald-400">{b.check_in}</td>
+                          <td className="p-3 text-amber-400">{b.check_out}</td>
+                          <td className="p-3 font-bold text-amber-500">${b.total_price}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: DAY-TO-DAY OPERATIONS */}
+          {activeTab === 'operations' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl">
+                <h2 className="text-lg font-bold text-white mb-4">⚙️ Log Daily Operational Task</h2>
+                <form onSubmit={handleAddTask} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <select
+                    value={tProperty} onChange={(e) => setTProperty(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  >
+                    <option value="">Select Property Unit</option>
+                    {properties.map((p) => (
+                      <option key={p.id} value={p.title}>{p.title}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={tType} onChange={(e) => setTType(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  >
+                    <option value="Housekeeping">Housekeeping / Cleaning</option>
+                    <option value="Key Handover">Key Handover / Check-in</option>
+                    <option value="Maintenance">Maintenance & AC Repair</option>
+                    <option value="Restocking">Linen & Toiletries Restock</option>
+                  </select>
+                  <input
+                    type="text" placeholder="Assigned Staff (e.g., Sarah)" value={tAssigned} onChange={(e) => setTAssigned(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <input
+                    type="date" value={tDueDate} onChange={(e) => setTDueDate(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <button type="submit" className="sm:col-span-4 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition">
+                    Create Operational Task
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-white mb-3">Daily Operations Checklist ({tasks.length})</h3>
+                <div className="space-y-2">
+                  {tasks.map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => handleToggleTask(t.id, t.completed)}
+                      className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition ${
+                        t.completed ? 'bg-neutral-950 border-emerald-900/50 opacity-60' : 'bg-neutral-900 border-neutral-800 hover:border-neutral-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-lg ${t.completed ? 'text-emerald-500' : 'text-neutral-500'}`}>
+                          {t.completed ? '✓' : '⭕'}
+                        </span>
+                        <div>
+                          <p className={`text-xs font-bold ${t.completed ? 'line-through text-neutral-400' : 'text-white'}`}>{t.property_title} — {t.task_type}</p>
+                          <p className="text-[10px] text-neutral-400">Assigned: {t.assigned_to} | Due: {t.due_date}</p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${t.completed ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-500'}`}>
+                        {t.completed ? 'Completed' : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: SERVICES & UPSELLS SECTION */}
+          {activeTab === 'services' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 sm:p-7 shadow-xl">
+                <h2 className="text-lg font-bold text-white mb-4">💎 Add Concierge Service / Upsell</h2>
+                <form onSubmit={handleAddService} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <input
+                    type="text" required placeholder="Service Title (e.g., Airport Transfer)" value={sTitle} onChange={(e) => setSTitle(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <select
+                    value={sCategory} onChange={(e) => setSCategory(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  >
+                    <option value="Transport">Transport / Airport Transfer</option>
+                    <option value="Culinary">Private Chef & Catering</option>
+                    <option value="Housekeeping">Deep Cleaning / Laundry</option>
+                    <option value="Excursions">City Tour & Car Hire</option>
+                  </select>
+                  <input
+                    type="number" required placeholder="Price ($ USD)" value={sPrice} onChange={(e) => setSPrice(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <textarea
+                    rows={2} placeholder="Service description..." value={sDesc} onChange={(e) => setSDesc(e.target.value)}
+                    className="sm:col-span-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                  <button type="submit" className="sm:col-span-3 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition">
+                    Publish Upsell Service
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <h3 className="text-base font-bold text-white mb-3">Active Guest Concierge Services ({services.length})</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {services.map((s) => (
+                    <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md uppercase">{s.category}</span>
+                        <h4 className="font-bold text-white text-sm mt-2">{s.title}</h4>
+                        <p className="text-xs text-neutral-400 mt-1">{s.description}</p>
+                      </div>
+                      <p className="text-amber-500 font-extrabold text-sm mt-3">${s.price_usd}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
