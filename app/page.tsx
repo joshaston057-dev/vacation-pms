@@ -14,7 +14,7 @@ export default function HomePage() {
         <section className="relative py-16 sm:py-24 px-4 text-center overflow-hidden border-b border-neutral-800 bg-neutral-900/40">
           <div className="max-w-4xl mx-auto space-y-6 relative z-10">
             
-            {/* Clean Fixed Sub-title Badge */}
+            {/* Clean Sub-title Badge */}
             <div className="inline-flex items-center justify-center px-4 py-2 bg-amber-500/10 border border-amber-500/30 rounded-full">
               <span className="text-[10px] sm:text-xs font-bold text-amber-500 uppercase tracking-wider text-center leading-normal">
                 Global Short-Stay & Co-Hosting Services
@@ -51,7 +51,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Value Proposition / Services Overview Grid */}
+        {/* Services Overview Grid */}
         <section className="max-w-6xl mx-auto px-4 py-16 sm:py-20">
           <div className="text-center space-y-2 mb-12">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
@@ -63,8 +63,6 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            
-            {/* Card 1 */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-3 hover:border-neutral-700 transition">
               <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-xl text-amber-500">
                 🏡
@@ -75,7 +73,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Card 2 */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-3 hover:border-neutral-700 transition">
               <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-xl text-amber-500">
                 🔑
@@ -86,7 +83,6 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Card 3 */}
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-3 hover:border-neutral-700 transition">
               <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center text-xl text-amber-500">
                 📈
@@ -96,11 +92,10 @@ export default function HomePage() {
                 Custom web pages, high-converting property presentation, and targeted outreach to maximize occupancy and revenue.
               </p>
             </div>
-
           </div>
         </section>
 
-        {/* Quick CTA Banner */}
+        {/* CTA Banner */}
         <section className="bg-neutral-900 border-y border-neutral-800 py-12 px-4 text-center">
           <div className="max-w-3xl mx-auto space-y-4">
             <h2 className="text-2xl sm:text-3xl font-bold text-amber-500">

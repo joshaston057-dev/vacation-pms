@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
@@ -20,8 +21,10 @@ interface Property {
 }
 
 export default function OperationsPage() {
+  const router = useRouter()
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkingAuth, setCheckingAuth] = useState(true)
 
   // Form States
   const [title, setTitle] = useState('')
@@ -36,10 +39,22 @@ export default function OperationsPage() {
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Fetch properties on mount
+  // Enforce Route Protection
   useEffect(() => {
-    fetchProperties()
-  }, [])
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (!session) {
+        // Redirect to login if user is not authenticated
+        router.push('/login')
+      } else {
+        setCheckingAuth(false)
+        fetchProperties()
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   const fetchProperties = async () => {
     setLoading(true)
@@ -53,6 +68,11 @@ export default function OperationsPage() {
     setLoading(false)
   }
 
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   const handleAddProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
@@ -60,7 +80,6 @@ export default function OperationsPage() {
     try {
       let uploadedUrls: string[] = []
 
-      // Upload images if selected
       if (imageFiles && imageFiles.length > 0) {
         for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
           const file = imageFiles[i]
@@ -80,7 +99,6 @@ export default function OperationsPage() {
         }
       }
 
-      // Insert into Supabase
       const { error } = await supabase.from('properties').insert([
         {
           title,
@@ -121,14 +139,41 @@ export default function OperationsPage() {
     else fetchProperties()
   }
 
+  if (checkingAuth) {
+    return (
+      <main className="min-h-screen bg-neutral-950 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs text-neutral-400">Verifying host credentials...</p>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
         <HeaderNav />
 
-        <section className="bg-neutral-900 border-b border-neutral-800 py-10 px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500">Host Operations Dashboard</h1>
-          <p className="text-neutral-400 text-xs md:text-sm mt-1">Manage portfolio listings, property descriptions, and WhatsApp routing.</p>
+        {/* Banner with Sign Out Button */}
+        <section className="bg-neutral-900 border-b border-neutral-800 py-8 px-4">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-amber-500 text-center sm:text-left">
+                Host Operations Portal
+              </h1>
+              <p className="text-neutral-400 text-xs sm:text-sm mt-1 text-center sm:text-left">
+                Secure management dashboard for property listings, details, and inquiry routing.
+              </p>
+            </div>
+            
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 hover:text-white border border-neutral-700 font-bold text-xs rounded-xl transition"
+            >
+              🔒 Sign Out
+            </button>
+          </div>
         </section>
 
         <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
@@ -240,7 +285,6 @@ export default function OperationsPage() {
                 </div>
               </div>
 
-              {/* Property Description Text Area */}
               <div>
                 <label className="block text-xs font-medium text-neutral-300 mb-1">
                   Full Property Description & Guest Details
@@ -265,7 +309,7 @@ export default function OperationsPage() {
             </form>
           </div>
 
-          {/* Active Properties Management List */}
+          {/* Active Properties List */}
           <div>
             <h2 className="text-xl font-bold text-white mb-4">📋 Active Portfolio Listings</h2>
             {loading ? (

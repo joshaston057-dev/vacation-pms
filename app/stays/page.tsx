@@ -84,7 +84,7 @@ export default function BrowseStaysPage() {
           </div>
         </section>
 
-        {/* Filter Bar (Responsive for Mobile & Laptop) */}
+        {/* Filter Bar */}
         <section className="max-w-6xl mx-auto p-3 sm:p-6">
           <div className="bg-neutral-900 border border-neutral-800 p-3 sm:p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
             
@@ -132,7 +132,7 @@ export default function BrowseStaysPage() {
 
           </div>
 
-          {/* 2-Column Grid on Mobile, 3-Column on Laptop */}
+          {/* 2-Column Mobile Grid / 3-Column Desktop Grid */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -164,7 +164,7 @@ export default function BrowseStaysPage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* Taller photo viewport relative to card size */}
+                      {/* Photo Viewport */}
                       <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
                         <img
                           src={displayImg}
@@ -176,7 +176,7 @@ export default function BrowseStaysPage() {
                         </span>
                       </div>
 
-                      {/* Compact details container */}
+                      {/* Content Box */}
                       <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
@@ -190,7 +190,7 @@ export default function BrowseStaysPage() {
                           <span>👥 {prop.guests ?? 2} Guests</span>
                         </div>
 
-                        {/* Description snippet */}
+                        {/* Description */}
                         {prop.description ? (
                           <p className="text-[10px] sm:text-xs text-neutral-300 leading-snug line-clamp-2">
                             {prop.description}
