@@ -15,16 +15,17 @@ interface Property {
   bathrooms?: number
   guests?: number
   property_type?: string
+  description?: string
   whatsapp_number?: string
   image_url?: string
   image_urls?: string[]
 }
 
-export default function StaysPage() {
+export default function BrowseStaysPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
 
-  // --- FILTER STATES ---
+  // Filter states
   const [selectedType, setSelectedType] = useState<string>('All')
   const [selectedBedrooms, setSelectedBedrooms] = useState<string>('All')
 
@@ -37,7 +38,7 @@ export default function StaysPage() {
           .select('*')
           .order('created_at', { ascending: false })
 
-        if (error) console.error('Error loading properties:', error.message)
+        if (error) console.error('Error fetching properties:', error.message)
         else setProperties(data || [])
       } catch (err) {
         console.error('Unexpected error:', err)
@@ -49,14 +50,12 @@ export default function StaysPage() {
     fetchProperties()
   }, [])
 
-  // --- FILTER LOGIC ---
+  // Dynamic filter evaluation
   const filteredProperties = properties.filter((property) => {
-    // Filter by Property Type (Apartment, House, Villa, Mansion)
     const matchesType =
       selectedType === 'All' ||
       (property.property_type && property.property_type.toLowerCase() === selectedType.toLowerCase())
 
-    // Filter by Bedrooms
     let matchesBedrooms = true
     const beds = property.bedrooms || 1
 
@@ -73,25 +72,24 @@ export default function StaysPage() {
       <div>
         <HeaderNav />
 
-        {/* --- PAGE HEADER --- */}
-        <section className="bg-neutral-900 border-b border-neutral-800 py-10 px-4 text-center">
-          <div className="max-w-4xl mx-auto space-y-2">
-            <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-tight">
+        {/* Page Header */}
+        <section className="bg-neutral-900 border-b border-neutral-800 py-8 px-4 text-center">
+          <div className="max-w-4xl mx-auto space-y-1.5">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
               Browse La Estancia Catalogue
             </h1>
             <p className="text-neutral-400 text-xs md:text-sm max-w-xl mx-auto">
-              Use the category filters below to explore furnished apartments, standalone houses, serviced villas, and private mansions.
+              Filter through our furnished apartments, standalone houses, luxury mansions, and serviced villas.
             </p>
           </div>
         </section>
 
-        {/* --- DYNAMIC FILTER BAR --- */}
+        {/* Filter Bar */}
         <section className="max-w-6xl mx-auto p-4 md:p-8">
-          <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
+          <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
             
-            {/* Property Category Filter */}
             <div className="w-full md:w-1/2">
-              <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Property Category
               </label>
               <div className="flex flex-wrap gap-2">
@@ -99,7 +97,7 @@ export default function StaysPage() {
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                       selectedType === type
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -111,9 +109,8 @@ export default function StaysPage() {
               </div>
             </div>
 
-            {/* Bedroom Size Filter */}
             <div className="w-full md:w-1/2">
-              <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
+              <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Size / Bedrooms
               </label>
               <div className="flex flex-wrap gap-2">
@@ -121,7 +118,7 @@ export default function StaysPage() {
                   <button
                     key={beds}
                     onClick={() => setSelectedBedrooms(beds)}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
                       selectedBedrooms === beds
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -135,16 +132,16 @@ export default function StaysPage() {
 
           </div>
 
-          {/* --- RESULTS GRID --- */}
+          {/* Results Grid */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs text-neutral-400">Loading properties catalogue...</p>
+              <p className="text-xs text-neutral-400">Loading listings...</p>
             </div>
           ) : filteredProperties.length === 0 ? (
             <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl p-8">
-              <p className="text-amber-500 font-bold text-base mb-1">No Matching Properties Found</p>
-              <p className="text-neutral-400 text-xs mb-4">Try adjusting or clearing your filters above.</p>
+              <p className="text-amber-500 font-bold text-base mb-1">No Matching Properties</p>
+              <p className="text-neutral-400 text-xs mb-4">Try adjusting your search filters.</p>
               <button
                 onClick={() => {
                   setSelectedType('All')
@@ -167,35 +164,47 @@ export default function StaysPage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      <div className="relative h-48 bg-neutral-950 overflow-hidden">
+                      {/* TALLER PHOTO VIEWPORT (h-72 on mobile, h-80 on desktop) */}
+                      <div className="relative h-72 md:h-80 bg-neutral-950 overflow-hidden">
                         <img
                           src={displayImg}
                           alt={prop.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
-                        <span className="absolute top-3 right-3 bg-amber-500 text-black font-bold text-xs px-3 py-1 rounded-full shadow-md">
+                        <span className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md">
                           ${prop.price_per_night ?? prop.price ?? 0} / night
                         </span>
                       </div>
 
-                      <div className="p-5 space-y-3">
-                        <h3 className="font-bold text-white text-base leading-snug">{prop.title}</h3>
-                        <p className="text-xs text-neutral-400">{prop.location}</p>
+                      {/* COMPACT DETAILS CONTAINER */}
+                      <div className="p-4 space-y-2">
+                        <div>
+                          <h3 className="font-bold text-white text-sm md:text-base leading-tight line-clamp-2">{prop.title}</h3>
+                          <p className="text-[11px] text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
+                        </div>
 
-                        <div className="flex items-center gap-3 text-xs text-neutral-300 pt-2 border-t border-neutral-800">
+                        {/* Room Badges Bar */}
+                        <div className="flex items-center gap-3 text-xs text-neutral-300 py-1.5 border-y border-neutral-800/80">
                           <span>🛏️ {prop.bedrooms ?? 1} Bed</span>
                           <span>🚿 {prop.bathrooms ?? 1} Bath</span>
                           <span>👥 {prop.guests ?? 2} Guests</span>
                         </div>
+
+                        {/* Brief Property Description */}
+                        {prop.description ? (
+                          <p className="text-[11px] text-neutral-300 leading-snug line-clamp-2">
+                            {prop.description}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 
-                    <div className="p-5 pt-0">
+                    <div className="p-4 pt-0">
                       <a
                         href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Hi!%20I%20am%20interested%20in%20booking%20${encodeURIComponent(prop.title)}.`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full text-center py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition"
+                        className="block w-full text-center py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition"
                       >
                         💬 Inquire / Book on WhatsApp
                       </a>
