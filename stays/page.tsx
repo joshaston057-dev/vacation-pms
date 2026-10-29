@@ -51,12 +51,12 @@ export default function StaysPage() {
 
   // --- FILTER LOGIC ---
   const filteredProperties = properties.filter((property) => {
-    // Filter by Property Type
+    // Filter by Property Type (Apartment, House, Villa, Mansion)
     const matchesType =
       selectedType === 'All' ||
       (property.property_type && property.property_type.toLowerCase() === selectedType.toLowerCase())
 
-    // Filter by Bedroom Size
+    // Filter by Bedrooms
     let matchesBedrooms = true
     const beds = property.bedrooms || 1
 
@@ -74,32 +74,32 @@ export default function StaysPage() {
         <HeaderNav />
 
         {/* --- PAGE HEADER --- */}
-        <section className="bg-neutral-900 border-b border-neutral-800 py-12 px-4 text-center">
-          <div className="max-w-4xl mx-auto space-y-3">
-            <h1 className="text-3xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
+        <section className="bg-neutral-900 border-b border-neutral-800 py-10 px-4 text-center">
+          <div className="max-w-4xl mx-auto space-y-2">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-amber-500 tracking-tight">
               Browse La Estancia Catalogue
             </h1>
-            <p className="text-neutral-400 text-sm md:text-base max-w-2xl mx-auto">
-              Explore our curated portfolio of furnished luxury apartments, standalone houses, serviced villas, and private mansions.
+            <p className="text-neutral-400 text-xs md:text-sm max-w-xl mx-auto">
+              Use the category filters below to explore furnished apartments, standalone houses, serviced villas, and private mansions.
             </p>
           </div>
         </section>
 
-        {/* --- CATEGORY FILTER BAR --- */}
+        {/* --- DYNAMIC FILTER BAR --- */}
         <section className="max-w-6xl mx-auto p-4 md:p-8">
-          <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+          <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl">
             
-            {/* Property Type Filter */}
+            {/* Property Category Filter */}
             <div className="w-full md:w-1/2">
               <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
-                Property Category / Type
+                Property Category
               </label>
               <div className="flex flex-wrap gap-2">
                 {['All', 'Apartment', 'House', 'Villa', 'Mansion'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
                       selectedType === type
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -111,7 +111,7 @@ export default function StaysPage() {
               </div>
             </div>
 
-            {/* Bedroom / Size Filter */}
+            {/* Bedroom Size Filter */}
             <div className="w-full md:w-1/2">
               <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
                 Size / Bedrooms
@@ -121,7 +121,7 @@ export default function StaysPage() {
                   <button
                     key={beds}
                     onClick={() => setSelectedBedrooms(beds)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition ${
                       selectedBedrooms === beds
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -143,14 +143,14 @@ export default function StaysPage() {
             </div>
           ) : filteredProperties.length === 0 ? (
             <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl p-8">
-              <p className="text-amber-500 font-bold text-lg mb-1">No Matching Properties Found</p>
-              <p className="text-neutral-400 text-xs">Try clearing or adjusting your category filters above.</p>
+              <p className="text-amber-500 font-bold text-base mb-1">No Matching Properties Found</p>
+              <p className="text-neutral-400 text-xs mb-4">Try adjusting or clearing your filters above.</p>
               <button
                 onClick={() => {
                   setSelectedType('All')
                   setSelectedBedrooms('All')
                 }}
-                className="mt-4 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-xl transition"
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-xl transition"
               >
                 Reset Filters
               </button>
@@ -185,7 +185,7 @@ export default function StaysPage() {
                         <div className="flex items-center gap-3 text-xs text-neutral-300 pt-2 border-t border-neutral-800">
                           <span>🛏️ {prop.bedrooms ?? 1} Bed</span>
                           <span>🚿 {prop.bathrooms ?? 1} Bath</span>
-                          <span>👥 Up to {prop.guests ?? 2} Guests</span>
+                          <span>👥 {prop.guests ?? 2} Guests</span>
                         </div>
                       </div>
                     </div>
