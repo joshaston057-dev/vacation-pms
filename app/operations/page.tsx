@@ -15,6 +15,7 @@ interface Property {
   bedrooms?: number
   bathrooms?: number
   guests?: number
+  whatsapp_number?: string
   image_url?: string
   image_urls?: string[]
   owner_id?: string
@@ -29,7 +30,7 @@ export default function EstanciaOSOperations() {
   // --- Daily Operations State ---
   const [dailyNotes, setDailyNotes] = useState('')
   const [cleaningStatus, setCleaningStatus] = useState('Pending')
-  const [selectedProp, setSelectedProp] = useState('')
+  const [selectedPropId, setSelectedPropId] = useState('')
   const [dailyMsg, setDailyMsg] = useState('')
 
   // --- Bookings / iCal State ---
@@ -55,6 +56,7 @@ export default function EstanciaOSOperations() {
   const [maxGuests, setMaxGuests] = useState('2')
   const [bedrooms, setBedrooms] = useState('1')
   const [bathrooms, setBathrooms] = useState('1')
+  const [whatsappNumber, setWhatsappNumber] = useState('+256757386946')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadingImage, setUploadingImage] = useState(false)
   const [propMsg, setPropMsg] = useState('')
@@ -86,6 +88,9 @@ export default function EstanciaOSOperations() {
         console.error('Error fetching properties:', error.message)
       } else if (data) {
         setPropertiesList(data)
+        if (data.length > 0 && !selectedPropId) {
+          setSelectedPropId(data[0].id)
+        }
       }
     } catch (err) {
       console.error('Unexpected error:', err)
@@ -95,15 +100,18 @@ export default function EstanciaOSOperations() {
   }
 
   useEffect(() => {
-    if (activeTab === 'properties' && !loadingSession) {
+    if (!loadingSession) {
       fetchProperties()
     }
-  }, [activeTab, loadingSession])
+  }, [loadingSession])
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.replace('/login')
   }
+
+  // Active selected property helper for Daily Operations
+  const currentProperty = propertiesList.find((p) => p.id === selectedPropId) || propertiesList[0]
 
   // --- Handlers ---
   const handleLogDailyOp = async (e: React.FormEvent) => {
@@ -121,7 +129,7 @@ export default function EstanciaOSOperations() {
           check_in: checkIn,
           check_out: checkOut,
           ical_url: icalUrl,
-          property_title: selectedProp,
+          property_title: currentProperty?.title || '',
         },
       ])
       if (error) throw error
@@ -192,7 +200,7 @@ export default function EstanciaOSOperations() {
           uploadedUrls.push(data.publicUrl)
         }
       } catch (err) {
-        console.error('Error uploading individual file:', err)
+        console.error('Error uploading file:', err)
       }
     }
 
@@ -232,6 +240,7 @@ export default function EstanciaOSOperations() {
           bedrooms: parseInt(bedrooms),
           bathrooms: parseInt(bathrooms),
           guests: parseInt(maxGuests),
+          whatsapp_number: whatsappNumber,
           image_url: mainImageUrl,
           image_urls: imageUrls,
           owner_id: user.id,
@@ -247,6 +256,7 @@ export default function EstanciaOSOperations() {
       setMaxGuests('2')
       setBedrooms('1')
       setBathrooms('1')
+      setWhatsappNumber('+256757386946')
       setSelectedFiles([])
       fetchProperties()
     } catch (err: any) {
@@ -269,7 +279,6 @@ export default function EstanciaOSOperations() {
     }
   }
 
-  // --- Loading Guard ---
   if (loadingSession) {
     return (
       <main className="min-h-screen bg-neutral-950 text-neutral-100 flex items-center justify-center">
@@ -355,13 +364,17 @@ export default function EstanciaOSOperations() {
                 <form onSubmit={handleLogDailyOp} className="space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-neutral-300 mb-1">Select Property</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Kololo Luxury Apartment"
-                      value={selectedProp}
-                      onChange={(e) => setSelectedProp(e.target.value)}
+                    <select
+                      value={selectedPropId}
+                      onChange={(e) => setSelectedPropId(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                    />
+                    >
+                      {propertiesList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title} ({p.whatsapp_number || '+256757386946'})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -404,18 +417,21 @@ export default function EstanciaOSOperations() {
                   </button>
                 </form>
 
+                {/* DYNAMIC WHATSAPP DISPATCH PER HOST */}
                 <div className="p-4 bg-neutral-950 rounded-xl border border-neutral-800 flex flex-col sm:flex-row items-center justify-between mt-6 gap-3">
                   <div>
-                    <p className="text-xs text-neutral-400">Direct Guest Dispatch</p>
-                    <p className="text-sm font-semibold text-white">{selectedProp || 'Selected Property'}</p>
+                    <p className="text-xs text-neutral-400">Direct Host Dispatch Line</p>
+                    <p className="text-sm font-semibold text-white">
+                      {currentProperty?.title || 'Selected Property'} ({currentProperty?.whatsapp_number || '+256757386946'})
+                    </p>
                   </div>
                   <a
-                    href={`https://wa.me/256757386946?text=Hi!%20This%20is%20La%20Estancia%20Vacation%20Homes.%20Here%20are%20your%20check-in%20details%20and%20access%20information%20for%20${encodeURIComponent(selectedProp || 'your upcoming stay')}.`}
+                    href={`https://wa.me/${(currentProperty?.whatsapp_number || '+256757386946').replace(/[^0-9]/g, '')}?text=Hi!%20This%20is%20La%20Estancia%20Vacation%20Homes.%20Here%20are%20your%20check-in%20details%20for%20${encodeURIComponent(currentProperty?.title || 'your upcoming stay')}.`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg transition flex items-center gap-2"
                   >
-                    💬 WhatsApp Guest Arrival
+                    💬 WhatsApp Host Dispatch
                   </a>
                 </div>
               </div>
@@ -460,15 +476,16 @@ export default function EstanciaOSOperations() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-300 mb-1">Target Property Title</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Kololo Luxury Apartment"
-                      value={selectedProp}
-                      onChange={(e) => setSelectedProp(e.target.value)}
+                    <label className="block text-xs font-medium text-neutral-300 mb-1">Target Property</label>
+                    <select
+                      value={selectedPropId}
+                      onChange={(e) => setSelectedPropId(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
-                    />
+                    >
+                      {propertiesList.map((p) => (
+                        <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -579,7 +596,7 @@ export default function EstanciaOSOperations() {
             </div>
           )}
 
-          {/* --- TAB 4: PROPERTY PORTFOLIO & UP TO 5 MULTI-PHOTO UPLOADS --- */}
+          {/* --- TAB 4: PROPERTY PORTFOLIO --- */}
           {activeTab === 'properties' && (
             <div className="space-y-8">
               <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl">
@@ -626,7 +643,7 @@ export default function EstanciaOSOperations() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-neutral-300 mb-1">Bedrooms</label>
                       <input
@@ -654,6 +671,17 @@ export default function EstanciaOSOperations() {
                         required
                         value={maxGuests}
                         onChange={(e) => setMaxGuests(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-300 mb-1">Host WhatsApp Number</label>
+                      <input
+                        type="text"
+                        required
+                        value={whatsappNumber}
+                        onChange={(e) => setWhatsappNumber(e.target.value)}
+                        placeholder="+256757386946"
                         className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
                       />
                     </div>
@@ -708,7 +736,7 @@ export default function EstanciaOSOperations() {
                           <div>
                             <p className="font-bold text-white text-sm">{prop.title}</p>
                             <p className="text-xs text-neutral-400">
-                              {prop.location} • {prop.bedrooms ?? 1} Bed • {prop.bathrooms ?? 1} Bath • ${prop.price_per_night ?? prop.price ?? 0} / night
+                              {prop.location} • {prop.bedrooms ?? 1} Bed • {prop.bathrooms ?? 1} Bath • WhatsApp: {prop.whatsapp_number || '+256757386946'}
                             </p>
                           </div>
                         </div>
