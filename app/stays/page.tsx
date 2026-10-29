@@ -73,31 +73,31 @@ export default function BrowseStaysPage() {
         <HeaderNav />
 
         {/* Page Header */}
-        <section className="bg-neutral-900 border-b border-neutral-800 py-8 px-4 text-center">
+        <section className="bg-neutral-900 border-b border-neutral-800 py-6 sm:py-8 px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-1.5">
-            <h1 className="text-3xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
               Browse La Estancia Catalogue
             </h1>
-            <p className="text-neutral-400 text-xs md:text-sm max-w-xl mx-auto">
+            <p className="text-neutral-400 text-xs sm:text-sm max-w-xl mx-auto">
               Filter through our furnished apartments, standalone houses, luxury mansions, and serviced villas.
             </p>
           </div>
         </section>
 
-        {/* Filter Bar */}
-        <section className="max-w-6xl mx-auto p-4 md:p-8">
-          <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl mb-8 flex flex-col md:flex-row items-center justify-between gap-4 shadow-xl">
+        {/* Filter Bar (2-Column Layout on Mobile & Desktop) */}
+        <section className="max-w-6xl mx-auto p-3 sm:p-6">
+          <div className="bg-neutral-900 border border-neutral-800 p-3 sm:p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
             
-            <div className="w-full md:w-1/2">
-              <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+            <div className="w-full sm:w-1/2">
+              <label className="block text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Property Category
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {['All', 'Apartment', 'House', 'Villa', 'Mansion'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition ${
                       selectedType === type
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -109,16 +109,16 @@ export default function BrowseStaysPage() {
               </div>
             </div>
 
-            <div className="w-full md:w-1/2">
-              <label className="block text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
+            <div className="w-full sm:w-1/2">
+              <label className="block text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Size / Bedrooms
               </label>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {['All', '1', '2', '3', '4+'].map((beds) => (
                   <button
                     key={beds}
                     onClick={() => setSelectedBedrooms(beds)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition ${
                       selectedBedrooms === beds
                         ? 'bg-amber-500 text-black shadow-md'
                         : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
@@ -132,7 +132,7 @@ export default function BrowseStaysPage() {
 
           </div>
 
-          {/* Results Grid */}
+          {/* Results Grid (2 Columns on Mobile, 3 Columns on Laptop) */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -153,7 +153,7 @@ export default function BrowseStaysPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {filteredProperties.map((prop) => {
                 const whatsapp = prop.whatsapp_number || '+256757386946'
                 const displayImg = prop.image_urls?.[0] || prop.image_url || '/placeholder.jpg'
@@ -161,52 +161,52 @@ export default function BrowseStaysPage() {
                 return (
                   <div
                     key={prop.id}
-                    className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
+                    className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* TALLER PHOTO VIEWPORT (h-72 on mobile, h-80 on desktop) */}
-                      <div className="relative h-72 md:h-80 bg-neutral-950 overflow-hidden">
+                      {/* Photo Container */}
+                      <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
                         <img
                           src={displayImg}
                           alt={prop.title}
                           className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                         />
-                        <span className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md">
+                        <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-amber-500 text-black font-extrabold text-[10px] sm:text-xs px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md">
                           ${prop.price_per_night ?? prop.price ?? 0} / night
                         </span>
                       </div>
 
-                      {/* COMPACT DETAILS CONTAINER */}
-                      <div className="p-4 space-y-2">
+                      {/* Details Box */}
+                      <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
                         <div>
-                          <h3 className="font-bold text-white text-sm md:text-base leading-tight line-clamp-2">{prop.title}</h3>
-                          <p className="text-[11px] text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
+                          <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
+                          <p className="text-[10px] sm:text-xs text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
                         </div>
 
-                        {/* Room Badges Bar */}
-                        <div className="flex items-center gap-3 text-xs text-neutral-300 py-1.5 border-y border-neutral-800/80">
+                        {/* Badges Bar */}
+                        <div className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs text-neutral-300 py-1 border-y border-neutral-800/80">
                           <span>🛏️ {prop.bedrooms ?? 1} Bed</span>
                           <span>🚿 {prop.bathrooms ?? 1} Bath</span>
                           <span>👥 {prop.guests ?? 2} Guests</span>
                         </div>
 
-                        {/* Brief Property Description */}
+                        {/* Description */}
                         {prop.description ? (
-                          <p className="text-[11px] text-neutral-300 leading-snug line-clamp-2">
+                          <p className="text-[10px] sm:text-xs text-neutral-300 leading-snug line-clamp-2">
                             {prop.description}
                           </p>
                         ) : null}
                       </div>
                     </div>
 
-                    <div className="p-4 pt-0">
+                    <div className="p-2.5 sm:p-4 pt-0">
                       <a
                         href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Hi!%20I%20am%20interested%20in%20booking%20${encodeURIComponent(prop.title)}.`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full text-center py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition"
+                        className="block w-full text-center py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] sm:text-xs rounded-lg sm:rounded-xl transition"
                       >
-                        💬 Inquire / Book on WhatsApp
+                        💬 WhatsApp Inquire
                       </a>
                     </div>
                   </div>
