@@ -16,6 +16,7 @@ interface Property {
   guests?: number
   property_type?: string
   description?: string
+  amenities?: string[]
   whatsapp_number?: string
   image_url?: string
   image_urls?: string[]
@@ -24,6 +25,7 @@ interface Property {
 export default function BrowseStaysPage() {
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeImageIndexes, setActiveImageIndexes] = useState<{ [key: string]: number }>({})
 
   // Filter states
   const [selectedType, setSelectedType] = useState<string>('All')
@@ -50,7 +52,6 @@ export default function BrowseStaysPage() {
     fetchProperties()
   }, [])
 
-  // Dynamic filter evaluation
   const filteredProperties = properties.filter((property) => {
     const matchesType =
       selectedType === 'All' ||
@@ -66,6 +67,10 @@ export default function BrowseStaysPage() {
 
     return matchesType && matchesBedrooms
   })
+
+  const setCardActiveImage = (propertyId: string, index: number) => {
+    setActiveImageIndexes((prev) => ({ ...prev, [propertyId]: index }))
+  }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
@@ -93,7 +98,7 @@ export default function BrowseStaysPage() {
                 Property Category
               </label>
               <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {['All', 'Apartment', 'House', 'Villa', 'Mansion'].map((type) => (
+                {['All', 'Apartment', 'Standalone House', 'Villa', 'Mansion'].map((type) => (
                   <button
                     key={type}
                     onClick={() => setSelectedType(type)}
@@ -132,7 +137,7 @@ export default function BrowseStaysPage() {
 
           </div>
 
-          {/* 2-Column Mobile Grid / 3-Column Desktop Grid */}
+          {/* Results Grid */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -156,7 +161,12 @@ export default function BrowseStaysPage() {
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {filteredProperties.map((prop) => {
                 const whatsapp = prop.whatsapp_number || '+256757386946'
-                const displayImg = prop.image_urls?.[0] || prop.image_url || '/placeholder.jpg'
+                const images = prop.image_urls && prop.image_urls.length > 0 
+                  ? prop.image_urls 
+                  : [prop.image_url || '/placeholder.jpg']
+                
+                const activeIdx = activeImageIndexes[prop.id] || 0
+                const currentImg = images[activeIdx] || images[0]
 
                 return (
                   <div
@@ -164,20 +174,37 @@ export default function BrowseStaysPage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* Photo Viewport */}
+                      {/* Main Active Photo Viewport */}
                       <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
                         <img
-                          src={displayImg}
+                          src={currentImg}
                           alt={prop.title}
-                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                          className="w-full h-full object-cover transition-opacity duration-300"
                         />
                         <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-amber-500 text-black font-extrabold text-[10px] sm:text-xs px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md">
                           ${prop.price_per_night ?? prop.price ?? 0} / night
                         </span>
                       </div>
 
-                      {/* Content Box */}
-                      <div className="p-2.5 sm:p-4 space-y-1.5 sm:space-y-2">
+                      {/* Photo Thumbnail Navigation Strip for all 5 images */}
+                      {images.length > 1 && (
+                        <div className="flex items-center gap-1.5 p-2 bg-neutral-950/80 overflow-x-auto border-b border-neutral-800">
+                          {images.map((imgUrl, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setCardActiveImage(prop.id, idx)}
+                              className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${
+                                activeIdx === idx ? 'border-amber-500 scale-95' : 'border-transparent opacity-60 hover:opacity-100'
+                              }`}
+                            >
+                              <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Content Details */}
+                      <div className="p-2.5 sm:p-4 space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
                           <p className="text-[10px] sm:text-xs text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
@@ -196,6 +223,25 @@ export default function BrowseStaysPage() {
                             {prop.description}
                           </p>
                         ) : null}
+
+                        {/* Amenities Badges Display */}
+                        {prop.amenities && prop.amenities.length > 0 && (
+                          <div className="pt-1">
+                            <span className="block text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">
+                              Included Amenities
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {prop.amenities.map((item, i) => (
+                                <span
+                                  key={i}
+                                  className="text-[9px] sm:text-[10px] bg-neutral-950 border border-neutral-800 text-amber-500 font-medium px-2 py-0.5 rounded-md"
+                                >
+                                  ✓ {item}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

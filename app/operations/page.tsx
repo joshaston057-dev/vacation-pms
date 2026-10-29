@@ -17,8 +17,28 @@ interface Property {
   property_type: string
   whatsapp_number: string
   description: string
+  amenities: string[]
   image_urls: string[]
 }
+
+const AVAILABLE_AMENITIES = [
+  'High-Speed WiFi',
+  'Air Conditioning',
+  'Hot Water Shower',
+  'Smart TV / Netflix',
+  'Standby Generator / Inverter',
+  'Fully Equipped Kitchen',
+  'Washing Machine',
+  'Daily Housekeeping',
+  'Swimming Pool',
+  'Private Parking',
+  '24/7 Security / CCTV',
+  'Balcony / City View',
+  'Gym / Fitness Center',
+  'Elevator Access',
+  'Perimeter Wall / Gate',
+  'Dedicated Workspace'
+]
 
 export default function OperationsPage() {
   const router = useRouter()
@@ -36,16 +56,15 @@ export default function OperationsPage() {
   const [propertyType, setPropertyType] = useState('Apartment')
   const [whatsappNumber, setWhatsappNumber] = useState('+256757386946')
   const [description, setDescription] = useState('')
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Enforce Route Protection
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (!session) {
-        // Redirect to login if user is not authenticated
         router.push('/login')
       } else {
         setCheckingAuth(false)
@@ -71,6 +90,14 @@ export default function OperationsPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  const handleAmenityToggle = (amenity: string) => {
+    if (selectedAmenities.includes(amenity)) {
+      setSelectedAmenities(selectedAmenities.filter((item) => item !== amenity))
+    } else {
+      setSelectedAmenities([...selectedAmenities, amenity])
+    }
   }
 
   const handleAddProperty = async (e: React.FormEvent) => {
@@ -110,6 +137,7 @@ export default function OperationsPage() {
           property_type: propertyType,
           whatsapp_number: whatsappNumber,
           description,
+          amenities: selectedAmenities,
           image_urls: uploadedUrls,
         },
       ])
@@ -122,6 +150,7 @@ export default function OperationsPage() {
         setLocation('')
         setPricePerNight('')
         setDescription('')
+        setSelectedAmenities([])
         setImageFiles(null)
         fetchProperties()
       }
@@ -155,7 +184,6 @@ export default function OperationsPage() {
       <div>
         <HeaderNav />
 
-        {/* Banner with Sign Out Button */}
         <section className="bg-neutral-900 border-b border-neutral-800 py-8 px-4">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
@@ -163,7 +191,7 @@ export default function OperationsPage() {
                 Host Operations Portal
               </h1>
               <p className="text-neutral-400 text-xs sm:text-sm mt-1 text-center sm:text-left">
-                Secure management dashboard for property listings, details, and inquiry routing.
+                Manage property portfolio, amenities, descriptions, and WhatsApp routing.
               </p>
             </div>
             
@@ -178,7 +206,6 @@ export default function OperationsPage() {
 
         <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-12">
           
-          {/* Add Property Form */}
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 shadow-xl">
             <h2 className="text-xl font-bold text-white mb-6">✨ Add New Property Listing</h2>
             
@@ -230,7 +257,7 @@ export default function OperationsPage() {
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
                   >
                     <option value="Apartment">Apartment</option>
-                    <option value="House">House</option>
+                    <option value="Standalone House">Standalone House</option>
                     <option value="Villa">Villa</option>
                     <option value="Mansion">Mansion</option>
                   </select>
@@ -285,6 +312,37 @@ export default function OperationsPage() {
                 </div>
               </div>
 
+              {/* Amenities Selection Grid */}
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-2">
+                  Select Serviced Amenities Available
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 bg-neutral-950 border border-neutral-800 p-4 rounded-xl">
+                  {AVAILABLE_AMENITIES.map((amenity) => {
+                    const isChecked = selectedAmenities.includes(amenity)
+                    return (
+                      <label
+                        key={amenity}
+                        onClick={() => handleAmenityToggle(amenity)}
+                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer border text-xs font-medium transition ${
+                          isChecked
+                            ? 'bg-amber-500/10 border-amber-500 text-amber-500'
+                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="accent-amber-500"
+                        />
+                        <span>{amenity}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-neutral-300 mb-1">
                   Full Property Description & Guest Details
@@ -292,7 +350,7 @@ export default function OperationsPage() {
                 <textarea
                   rows={4}
                   required
-                  placeholder="Describe the space, key amenities, surroundings, check-in policies, etc."
+                  placeholder="Describe the space, surroundings, check-in policies, etc."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-sm outline-none focus:border-amber-500"
@@ -309,7 +367,6 @@ export default function OperationsPage() {
             </form>
           </div>
 
-          {/* Active Properties List */}
           <div>
             <h2 className="text-xl font-bold text-white mb-4">📋 Active Portfolio Listings</h2>
             {loading ? (
