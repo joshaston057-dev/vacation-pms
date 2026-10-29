@@ -71,7 +71,7 @@ const AVAILABLE_AMENITIES = [
 
 export default function OperationsPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('bookings')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('properties')
   const [checkingAuth, setCheckingAuth] = useState(true)
 
   // Data States
@@ -102,10 +102,6 @@ export default function OperationsPage() {
   const [bCheckIn, setBCheckIn] = useState('')
   const [bCheckOut, setBCheckOut] = useState('')
   const [bTotalPrice, setBTotalPrice] = useState('')
-
-  // iCal Sync States
-  const [selectedIcalProperty, setSelectedIcalProperty] = useState('')
-  const [icalInputUrl, setIcalInputUrl] = useState('')
 
   // Task Form States
   const [tProperty, setTProperty] = useState('')
@@ -159,7 +155,6 @@ export default function OperationsPage() {
     }
   }
 
-  // Save iCal URL to Property
   const handleSaveIcal = async (propertyId: string, url: string) => {
     const { error } = await supabase.from('properties').update({ ical_url: url }).eq('id', propertyId)
     if (error) {
@@ -325,62 +320,91 @@ export default function OperationsPage() {
                 <h2 className="text-lg font-bold text-white mb-4">✨ Add New Property Listing</h2>
                 <form onSubmit={handleAddProperty} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text" required placeholder="Property Title (e.g., Luxury Kololo Penthouse)"
-                      value={title} onChange={(e) => setTitle(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                    <input
-                      type="text" required placeholder="Neighborhood / Location (e.g., Kisaasi, Kampala)"
-                      value={location} onChange={(e) => setLocation(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Property Title</label>
+                      <input
+                        type="text" required placeholder="Property Title (e.g., Luxury Kololo Penthouse)"
+                        value={title} onChange={(e) => setTitle(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Neighborhood / Location</label>
+                      <input
+                        type="text" required placeholder="Neighborhood / Location (e.g., Kisaasi, Kampala)"
+                        value={location} onChange={(e) => setLocation(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <input
-                      type="number" required placeholder="Price / Night ($)"
-                      value={pricePerNight} onChange={(e) => setPricePerNight(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                    <select
-                      value={propertyType} onChange={(e) => setPropertyType(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="Apartment">Apartment</option>
-                      <option value="Standalone House">Standalone House</option>
-                      <option value="Villa">Villa</option>
-                      <option value="Mansion">Mansion</option>
-                    </select>
-                    <select
-                      value={bedrooms} onChange={(e) => setBedrooms(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="1">1 Bed</option>
-                      <option value="2">2 Beds</option>
-                      <option value="3">3 Beds</option>
-                      <option value="4">4+ Beds</option>
-                    </select>
-                    <input
-                      type="number" placeholder="Max Guests"
-                      value={guests} onChange={(e) => setGuests(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Price / Night ($)</label>
+                      <input
+                        type="number" required placeholder="Price / Night ($)"
+                        value={pricePerNight} onChange={(e) => setPricePerNight(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Category</label>
+                      <select
+                        value={propertyType} onChange={(e) => setPropertyType(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      >
+                        <option value="Apartment">Apartment</option>
+                        <option value="Standalone House">Standalone House</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Mansion">Mansion</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Bedrooms</label>
+                      <select
+                        value={bedrooms} onChange={(e) => setBedrooms(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      >
+                        <option value="1">1 Bed</option>
+                        <option value="2">2 Beds</option>
+                        <option value="3">3 Beds</option>
+                        <option value="4">4+ Beds</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Max Guests</label>
+                      <input
+                        type="number" placeholder="Max Guests"
+                        value={guests} onChange={(e) => setGuests(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text" required placeholder="Host WhatsApp Number"
-                      value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                    <input
-                      type="file" multiple accept="image/*"
-                      onChange={(e) => setImageFiles(e.target.files)}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-500 file:text-black font-semibold"
-                    />
+                    {/* EXPLICIT HOST WHATSAPP CONTACT FIELD WITH CLEAR LABEL */}
+                    <div>
+                      <label className="block text-xs font-semibold text-amber-500 mb-1">
+                        📲 Host WhatsApp Contact Number
+                      </label>
+                      <input
+                        type="text" required placeholder="e.g., +256757386946"
+                        value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-neutral-300 mb-1">Upload Photos (Up to 5)</label>
+                      <input
+                        type="file" multiple accept="image/*"
+                        onChange={(e) => setImageFiles(e.target.files)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:bg-amber-500 file:text-black font-semibold"
+                      />
+                    </div>
                   </div>
 
+                  {/* Serviced Amenities Checkbox Section */}
                   <div>
                     <label className="block text-xs font-semibold text-neutral-300 mb-2">Select Serviced Amenities Available</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 bg-neutral-950 border border-neutral-800 p-3 rounded-xl max-h-48 overflow-y-auto">
@@ -401,11 +425,14 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
-                  <textarea
-                    rows={3} required placeholder="Full property write-up and details..."
-                    value={description} onChange={(e) => setDescription(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                  />
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-1">Full Property Description & Guest Write-Up</label>
+                    <textarea
+                      rows={3} required placeholder="Full property write-up and details..."
+                      value={description} onChange={(e) => setDescription(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
+                  </div>
 
                   <button
                     type="submit" disabled={submitting}
@@ -416,6 +443,7 @@ export default function OperationsPage() {
                 </form>
               </div>
 
+              {/* Portfolio Grid */}
               <div>
                 <h3 className="text-base font-bold text-white mb-3">Active Portfolio ({properties.length})</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -426,6 +454,7 @@ export default function OperationsPage() {
                         <h4 className="font-bold text-white text-sm">{p.title}</h4>
                         <p className="text-xs text-neutral-400">{p.location}</p>
                         <p className="text-amber-500 font-bold text-xs mt-1">${p.price_per_night} / night</p>
+                        <p className="text-[11px] text-emerald-400 mt-1">💬 WhatsApp: {p.whatsapp_number}</p>
                       </div>
                       <button
                         onClick={async () => {
