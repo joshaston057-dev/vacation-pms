@@ -11,19 +11,19 @@ export default function HeaderNav() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex flex-col">
-            <span className="text-amber-500 font-extrabold text-sm sm:text-base tracking-tight leading-none">
+        <Link href="/" className="flex items-center">
+          <div className="flex flex-col justify-center">
+            <span className="text-amber-500 font-extrabold text-base tracking-tight leading-tight">
               La Estancia
             </span>
-            <span className="text-[10px] text-neutral-400 tracking-wider uppercase font-medium">
-              Vacation Homes
+            <span className="text-[10px] text-neutral-400 tracking-wider uppercase font-medium leading-none">
+              VACATION HOMES
             </span>
           </div>
         </Link>
 
-        {/* Desktop & Tablet Nav Links */}
-        <nav className="hidden md:flex items-center gap-5 lg:gap-6 text-xs sm:text-sm font-semibold text-neutral-300">
+        {/* Desktop Links */}
+        <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-semibold text-neutral-300">
           <Link href="/stays" className="hover:text-amber-500 transition">
             Browse Properties
           </Link>
@@ -38,7 +38,7 @@ export default function HeaderNav() {
           </Link>
         </nav>
 
-        {/* Host Portal CTA Button */}
+        {/* Host Portal Link Button */}
         <div className="hidden md:block">
           <Link
             href="/operations"
@@ -48,10 +48,11 @@ export default function HeaderNav() {
           </Link>
         </div>
 
-        {/* Mobile Menu Toggle Button */}
+        {/* Mobile Hamburger Button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-neutral-300 hover:text-white focus:outline-none"
+          className="md:hidden p-1.5 text-neutral-300 hover:text-white focus:outline-none flex items-center justify-center"
+          aria-label="Toggle Navigation Menu"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {mobileMenuOpen ? (
@@ -66,7 +67,7 @@ export default function HeaderNav() {
 
       {/* Mobile Dropdown Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-neutral-900 border-t border-neutral-800 px-4 py-4 space-y-3">
+        <div className="md:hidden bg-neutral-900 border-t border-neutral-800 px-5 py-4 space-y-3">
           <Link
             href="/stays"
             onClick={() => setMobileMenuOpen(false)}
