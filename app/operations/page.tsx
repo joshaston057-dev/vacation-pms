@@ -52,6 +52,13 @@ interface UpsellService {
   description: string
 }
 
+const AVAILABLE_AMENITIES = [
+  'High-Speed WiFi', 'Air Conditioning', 'Hot Water Shower', 'Smart TV / Netflix',
+  'Standby Generator / Inverter', 'Fully Equipped Kitchen', 'Washing Machine',
+  'Daily Housekeeping', 'Swimming Pool', 'Private Parking', '24/7 Security / CCTV',
+  'Balcony / City View', 'Gym / Fitness Center', 'Elevator Access', 'Perimeter Wall / Gate', 'Dedicated Workspace'
+]
+
 export default function OperationsPage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('properties')
@@ -94,6 +101,16 @@ export default function OperationsPage() {
   const [editNotes, setEditNotes] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
 
+  // Task & Service Forms
+  const [tProperty, setTProperty] = useState('')
+  const [tType, setTType] = useState('Housekeeping')
+  const [tAssigned, setTAssigned] = useState('Cleaners')
+  const [tDueDate, setTDueDate] = useState('')
+  const [sTitle, setSTitle] = useState('')
+  const [sCategory, setSCategory] = useState('Transport')
+  const [sPrice, setSPrice] = useState('')
+  const [sDesc, setSDesc] = useState('')
+
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -135,6 +152,14 @@ export default function OperationsPage() {
     router.push('/login')
   }
 
+  const handleAmenityToggle = (amenity: string) => {
+    if (selectedAmenities.includes(amenity)) {
+      setSelectedAmenities(selectedAmenities.filter((item) => item !== amenity))
+    } else {
+      setSelectedAmenities([...selectedAmenities, amenity])
+    }
+  }
+
   const handleOpenEditModal = (booking: Booking) => {
     setEditingBooking(booking)
     setEditPrice((booking.total_price ?? booking.total_amount ?? 0).toString())
@@ -168,6 +193,29 @@ export default function OperationsPage() {
     } else {
       setEditingBooking(null)
       fetchAllData()
+    }
+  }
+
+  const handleApproveBooking = async (bookingId: string) => {
+    if (!bookingId) {
+      alert('Error: Target booking ID is missing.')
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'Confirmed' })
+        .eq('id', bookingId)
+
+      if (error) {
+        alert('Error approving booking: ' + error.message)
+      } else {
+        alert('Reservation successfully approved & confirmed!')
+        fetchAllData()
+      }
+    } catch (err: any) {
+      alert('Network error approving booking: ' + (err.message || 'Failed to fetch'))
     }
   }
 
@@ -223,6 +271,31 @@ export default function OperationsPage() {
     fetchAllData()
   }
 
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await supabase.from('operational_tasks').insert([{
+      property_title: tProperty || properties[0]?.title || 'General Unit',
+      task_type: tType, assigned_to: tAssigned, due_date: tDueDate || new Date().toISOString().split('T')[0]
+    }])
+    alert('Task added!')
+    fetchAllData()
+  }
+
+  const handleToggleTask = async (id: string, currentCompleted: boolean) => {
+    await supabase.from('operational_tasks').update({ completed: !currentCompleted }).eq('id', id)
+    fetchAllData()
+  }
+
+  const handleAddService = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await supabase.from('upsell_services').insert([{
+      title: sTitle, category: sCategory, price_usd: parseFloat(sPrice) || 0, description: sDesc
+    }])
+    alert('Service added!')
+    setSTitle(''); setSPrice(''); setSDesc('');
+    fetchAllData()
+  }
+
   if (checkingAuth) {
     return (
       <main className="min-h-screen bg-neutral-950 flex items-center justify-center">
@@ -275,6 +348,28 @@ export default function OperationsPage() {
                     <input type="text" required placeholder="Host WhatsApp Number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
                     <input type="file" multiple accept="image/*" onChange={(e) => setImageFiles(e.target.files)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs" />
                   </div>
+                  
+                  <div>
+                    <label className="block text-xs font-semibold text-neutral-300 mb-2">Amenities Included</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                      {AVAILABLE_AMENITIES.map((amenity) => (
+                        <button
+                          type="button"
+                          key={amenity}
+                          onClick={() => handleAmenityToggle(amenity)}
+                          className={`p-2 rounded-xl text-left text-[11px] font-medium border transition ${
+                            selectedAmenities.includes(amenity)
+                              ? 'bg-amber-500/10 border-amber-500 text-amber-400'
+                              : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                          }`}
+                        >
+                          {selectedAmenities.includes(amenity) ? '✓ ' : '+ '}
+                          {amenity}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <textarea rows={3} required placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
                   <button type="submit" disabled={submitting} className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">{submitting ? 'Publishing...' : 'Publish Listing'}</button>
                 </form>
@@ -347,18 +442,7 @@ export default function OperationsPage() {
                             </button>
                             {booking.status !== 'Confirmed' && (
                               <button
-                                onClick={async () => {
-                                  const { error } = await supabase
-                                    .from('bookings')
-                                    .update({ status: 'Confirmed' })
-                                    .eq('id', booking.id)
-                                  
-                                  if (error) {
-                                    alert('Error approving booking: ' + error.message)
-                                  } else {
-                                    fetchAllData()
-                                  }
-                                }}
+                                onClick={() => handleApproveBooking(booking.id)}
                                 className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg transition shadow-md"
                               >
                                 ✓ Approve Booking
@@ -370,6 +454,62 @@ export default function OperationsPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'operations' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Assign Operational Task</h2>
+                <form onSubmit={handleAddTask} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <select value={tProperty} onChange={(e) => setTProperty(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
+                    {properties.map((p) => (<option key={p.id} value={p.title}>{p.title}</option>))}
+                  </select>
+                  <select value={tType} onChange={(e) => setTType(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
+                    <option value="Housekeeping">Housekeeping</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Check-In Prep">Check-In Prep</option>
+                  </select>
+                  <input type="text" required placeholder="Assigned Staff" value={tAssigned} onChange={(e) => setTAssigned(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
+                  <input type="date" required value={tDueDate} onChange={(e) => setTDueDate(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
+                  <button type="submit" className="sm:col-span-4 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Add Task</button>
+                </form>
+              </div>
+
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Task Dispatch Checklist</h2>
+                <div className="space-y-3">
+                  {tasks.map((task) => (
+                    <div key={task.id} className="bg-neutral-950 border border-neutral-800 p-3 rounded-xl flex justify-between items-center text-xs">
+                      <div>
+                        <span className="font-bold text-amber-500">{task.task_type}</span> - {task.property_title} (Assigned: {task.assigned_to})
+                      </div>
+                      <button onClick={() => handleToggleTask(task.id, task.completed)} className={`px-3 py-1 rounded-lg font-bold ${task.completed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-neutral-800 text-neutral-400'}`}>
+                        {task.completed ? '✓ Done' : 'Pending'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'services' && (
+            <div className="space-y-8">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Add Guest Concierge Service</h2>
+                <form onSubmit={handleAddService} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <input type="text" required placeholder="Service Title" value={sTitle} onChange={(e) => setSTitle(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
+                  <select value={sCategory} onChange={(e) => setSCategory(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
+                    <option value="Transport">Airport Transfer / Car Rental</option>
+                    <option value="Catering">Private Chef / Grocery Stocking</option>
+                    <option value="Excursions">City Tour / Safari</option>
+                  </select>
+                  <input type="number" required placeholder="Price ($)" value={sPrice} onChange={(e) => setSPrice(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
+                  <textarea rows={2} placeholder="Description..." value={sDesc} onChange={(e) => setSDesc(e.target.value)} className="sm:col-span-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
+                  <button type="submit" className="sm:col-span-3 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Service</button>
+                </form>
               </div>
             </div>
           )}
