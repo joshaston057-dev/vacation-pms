@@ -131,7 +131,6 @@ export default function HomePage() {
       <div>
         <HeaderNav />
 
-        {/* Hero Banner */}
         <section className="bg-neutral-900 border-b border-neutral-800 py-10 sm:py-16 px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-3">
             <span className="text-amber-500 font-extrabold text-xs uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
@@ -146,7 +145,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Properties Section */}
         <section className="max-w-6xl mx-auto p-4 sm:p-6">
           <h2 className="text-xl font-bold text-white mb-6">Featured Properties</h2>
 
@@ -173,7 +171,6 @@ export default function HomePage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* Photo Viewport */}
                       <div className="relative h-60 bg-neutral-950 overflow-hidden">
                         <img
                           src={currentImg}
@@ -185,7 +182,6 @@ export default function HomePage() {
                         </span>
                       </div>
 
-                      {/* Photo Thumbnail Strip */}
                       {images.length > 1 && (
                         <div className="flex items-center gap-1.5 p-2 bg-neutral-950/80 overflow-x-auto border-b border-neutral-800">
                           {images.map((imgUrl, idx) => (
@@ -202,7 +198,6 @@ export default function HomePage() {
                         </div>
                       )}
 
-                      {/* Details */}
                       <div className="p-4 space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-base leading-tight">{prop.title}</h3>
@@ -241,7 +236,6 @@ export default function HomePage() {
                       </div>
                     </div>
 
-                    {/* BOOK NOW PRIVACY BUTTON */}
                     <div className="p-4 pt-0">
                       <button
                         onClick={() => handleOpenBookingModal(prop)}
@@ -258,11 +252,9 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* GUEST PRIVACY BOOKING FORM MODAL */}
       {selectedPropertyForBooking && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative my-8">
-            
             <button
               onClick={handleCloseBookingModal}
               className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
