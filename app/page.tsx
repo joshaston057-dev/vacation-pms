@@ -109,17 +109,20 @@ export default function HomePage() {
           check_in: checkInDate,
           check_out: checkOutDate,
           total_price: totalAmount,
+          total_amount: totalAmount,
           status: 'Pending Host Review',
           notes: `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`,
         },
       ])
 
       if (error) {
+        console.error('Supabase booking error:', error.message)
         alert('Booking error: ' + error.message)
       } else {
         setBookingSuccess(true)
       }
     } catch (err: any) {
+      console.error('Unexpected booking error:', err)
       alert('Error: ' + (err.message || 'Unable to submit booking inquiry.'))
     } finally {
       setSubmittingInquiry(false)

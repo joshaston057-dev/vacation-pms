@@ -26,11 +26,9 @@ export default function BrowseStaysPage() {
   const [loading, setLoading] = useState(true)
   const [activeImageIndexes, setActiveImageIndexes] = useState<{ [key: string]: number }>({})
 
-  // Filter states
   const [selectedType, setSelectedType] = useState<string>('All')
   const [selectedBedrooms, setSelectedBedrooms] = useState<string>('All')
 
-  // Booking Modal States
   const [selectedPropertyForBooking, setSelectedPropertyForBooking] = useState<Property | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
@@ -100,7 +98,6 @@ export default function BrowseStaysPage() {
     setBookingSuccess(false)
   }
 
-  // AUTOMATIC SUBMISSION DIRECTLY INTO HOST BOOKINGS TABLE
   const handleBookNowSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPropertyForBooking) return
@@ -109,7 +106,6 @@ export default function BrowseStaysPage() {
     try {
       const pricePerNight = selectedPropertyForBooking.price_per_night || selectedPropertyForBooking.price || 0
       
-      // Calculate Total Amount based on Check-in and Check-out dates
       let totalAmount = pricePerNight
       if (checkInDate && checkOutDate) {
         const start = new Date(checkInDate)
@@ -123,7 +119,6 @@ export default function BrowseStaysPage() {
 
       const occupantsText = `${adultsCount} Adult(s), ${childrenCount} Child(ren)`
 
-      // Insert directly into host bookings table
       const { error } = await supabase.from('bookings').insert([
         {
           property_title: selectedPropertyForBooking.title,
@@ -132,17 +127,20 @@ export default function BrowseStaysPage() {
           check_in: checkInDate,
           check_out: checkOutDate,
           total_price: totalAmount,
+          total_amount: totalAmount,
           status: 'Pending Host Review',
           notes: `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`,
         },
       ])
 
       if (error) {
+        console.error('Supabase booking error:', error.message)
         alert('Booking error: ' + error.message)
       } else {
         setBookingSuccess(true)
       }
     } catch (err: any) {
+      console.error('Unexpected booking error:', err)
       alert('Error: ' + (err.message || 'Unable to submit booking inquiry.'))
     } finally {
       setSubmittingInquiry(false)
@@ -154,7 +152,6 @@ export default function BrowseStaysPage() {
       <div>
         <HeaderNav />
 
-        {/* Page Header */}
         <section className="bg-neutral-900 border-b border-neutral-800 py-6 sm:py-8 px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-1.5">
             <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
@@ -166,10 +163,8 @@ export default function BrowseStaysPage() {
           </div>
         </section>
 
-        {/* Filter Bar */}
         <section className="max-w-6xl mx-auto p-3 sm:p-6">
           <div className="bg-neutral-900 border border-neutral-800 p-3 sm:p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-            
             <div className="w-full sm:w-1/2">
               <label className="block text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
                 Property Category
@@ -211,10 +206,8 @@ export default function BrowseStaysPage() {
                 ))}
               </div>
             </div>
-
           </div>
 
-          {/* Results Grid */}
           {loading ? (
             <div className="text-center py-16 space-y-3">
               <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -225,10 +218,7 @@ export default function BrowseStaysPage() {
               <p className="text-amber-500 font-bold text-base mb-1">No Matching Properties</p>
               <p className="text-neutral-400 text-xs mb-4">Try adjusting your search filters.</p>
               <button
-                onClick={() => {
-                  setSelectedType('All')
-                  setSelectedBedrooms('All')
-                }}
+                onClick={() => { setSelectedType('All'); setSelectedBedrooms('All') }}
                 className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-xl transition"
               >
                 Reset Filters
@@ -250,7 +240,6 @@ export default function BrowseStaysPage() {
                     className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
                   >
                     <div>
-                      {/* Photo Viewport */}
                       <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
                         <img
                           src={currentImg}
@@ -262,7 +251,6 @@ export default function BrowseStaysPage() {
                         </span>
                       </div>
 
-                      {/* Photo Thumbnail Strip */}
                       {images.length > 1 && (
                         <div className="flex items-center gap-1.5 p-2 bg-neutral-950/80 overflow-x-auto border-b border-neutral-800">
                           {images.map((imgUrl, idx) => (
@@ -279,7 +267,6 @@ export default function BrowseStaysPage() {
                         </div>
                       )}
 
-                      {/* Details */}
                       <div className="p-2.5 sm:p-4 space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
@@ -318,7 +305,6 @@ export default function BrowseStaysPage() {
                       </div>
                     </div>
 
-                    {/* BOOK NOW CALL TO ACTION */}
                     <div className="p-2.5 sm:p-4 pt-0">
                       <button
                         onClick={() => handleOpenBookingModal(prop)}
@@ -335,11 +321,9 @@ export default function BrowseStaysPage() {
         </section>
       </div>
 
-      {/* GUEST PRIVACY BOOKING FORM MODAL */}
       {selectedPropertyForBooking && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative my-8">
-            
             <button
               onClick={handleCloseBookingModal}
               className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
@@ -356,10 +340,6 @@ export default function BrowseStaysPage() {
                 <p className="text-xs text-neutral-300 leading-relaxed max-w-sm mx-auto">
                   Your reservation request for <strong className="text-amber-500">{selectedPropertyForBooking.title}</strong> has been logged into the host operations portal.
                 </p>
-                <div className="bg-neutral-950 p-4 rounded-xl text-left border border-neutral-800 text-xs space-y-1 text-neutral-400">
-                  <p className="text-white font-semibold">🔒 What Happens Next:</p>
-                  <p>The host will review your requested dates and occupant count on their dashboard, then reach out directly via phone or email to confirm.</p>
-                </div>
                 <button
                   onClick={handleCloseBookingModal}
                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition"
@@ -387,7 +367,7 @@ export default function BrowseStaysPage() {
                   <div>
                     <label className="block text-[11px] font-medium text-neutral-300 mb-1">Email or WhatsApp Phone</label>
                     <input
-                      type="text" required placeholder="e.g. +256... or name@email.com"
+                      type="text" required placeholder="e.g. +256..."
                       value={guestContact} onChange={(e) => setGuestContact(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
                     />
@@ -411,7 +391,6 @@ export default function BrowseStaysPage() {
                   </div>
                 </div>
 
-                {/* NUMBER OF OCCUPANTS */}
                 <div className="grid grid-cols-2 gap-3 bg-neutral-950 p-3 border border-neutral-800 rounded-xl">
                   <div>
                     <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Adult Occupants</label>
@@ -419,11 +398,7 @@ export default function BrowseStaysPage() {
                       value={adultsCount} onChange={(e) => setAdultsCount(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
                     >
-                      <option value="1">1 Adult</option>
-                      <option value="2">2 Adults</option>
-                      <option value="3">3 Adults</option>
-                      <option value="4">4 Adults</option>
-                      <option value="5+">5+ Adults</option>
+                      <option value="1">1 Adult</option><option value="2">2 Adults</option><option value="3">3 Adults</option><option value="4">4 Adults</option><option value="5+">5+ Adults</option>
                     </select>
                   </div>
                   <div>
@@ -432,10 +407,7 @@ export default function BrowseStaysPage() {
                       value={childrenCount} onChange={(e) => setChildrenCount(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
                     >
-                      <option value="0">0 Children</option>
-                      <option value="1">1 Child</option>
-                      <option value="2">2 Children</option>
-                      <option value="3+">3+ Children</option>
+                      <option value="0">0 Children</option><option value="1">1 Child</option><option value="2">2 Children</option><option value="3+">3+ Children</option>
                     </select>
                   </div>
                 </div>
@@ -443,7 +415,7 @@ export default function BrowseStaysPage() {
                 <div>
                   <label className="block text-[11px] font-medium text-neutral-300 mb-1">Message to Host (Optional)</label>
                   <textarea
-                    rows={3} placeholder="Ask about check-in time, airport pickup, or special preferences..."
+                    rows={3} placeholder="Ask about check-in time or special preferences..."
                     value={guestMessage} onChange={(e) => setGuestMessage(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
                   />
@@ -453,7 +425,7 @@ export default function BrowseStaysPage() {
                   type="submit" disabled={submittingInquiry}
                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
                 >
-                  {submittingInquiry ? 'Submitting to Host...' : 'Confirm & Submit Reservation Request'}
+                  {submittingInquiry ? 'Submitting...' : 'Confirm & Submit Reservation Request'}
                 </button>
               </form>
             )}
