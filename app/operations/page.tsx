@@ -268,7 +268,11 @@ export default function OperationsPage() {
                       <div key={booking.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-[10px] px-2 py-0.5 rounded-md">
+                            <span className={`font-bold text-[10px] px-2 py-0.5 rounded-md border ${
+                              booking.status === 'Confirmed' 
+                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                            }`}>
                               {booking.status || 'Pending Host Review'}
                             </span>
                             <h3 className="font-bold text-white text-sm">{booking.property_title}</h3>
@@ -286,9 +290,29 @@ export default function OperationsPage() {
                           )}
                         </div>
 
-                        <div className="text-right flex sm:flex-col justify-between w-full sm:w-auto items-center sm:items-end border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800">
-                          <span className="text-amber-500 font-extrabold text-base">${booking.total_price ?? booking.total_amount ?? 0}</span>
-                          <span className="text-[10px] text-neutral-500">Logged automatically</span>
+                        <div className="text-right flex sm:flex-col justify-between w-full sm:w-auto items-center sm:items-end border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800 gap-2">
+                          <div>
+                            <span className="text-amber-500 font-extrabold text-base">${booking.total_price ?? booking.total_amount ?? 0}</span>
+                          </div>
+                          {booking.status !== 'Confirmed' && (
+                            <button
+                              onClick={async () => {
+                                const { error } = await supabase
+                                  .from('bookings')
+                                  .update({ status: 'Confirmed' })
+                                  .eq('id', booking.id)
+                                
+                                if (error) {
+                                  alert('Error approving booking: ' + error.message)
+                                } else {
+                                  fetchAllData()
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg transition shadow-md"
+                            >
+                              ✓ Approve Booking
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
