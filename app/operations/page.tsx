@@ -76,7 +76,7 @@ export default function OperationsPage() {
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Booking Form State
+  // Manual Booking Form State
   const [bPropertyId, setBPropertyId] = useState('')
   const [bPropertyTitle, setBPropertyTitle] = useState('')
   const [bGuestName, setBGuestName] = useState('')
@@ -85,6 +85,14 @@ export default function OperationsPage() {
   const [bCheckOut, setBCheckOut] = useState('')
   const [bNightlyRate, setBNightlyRate] = useState<number>(0)
   const [bTotalPrice, setBTotalPrice] = useState('')
+
+  // Edit Booking Modal State
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
+  const [editPrice, setEditPrice] = useState('')
+  const [editCheckIn, setEditCheckIn] = useState('')
+  const [editCheckOut, setEditCheckOut] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   useEffect(() => {
     const checkSession = async () => {
@@ -125,6 +133,42 @@ export default function OperationsPage() {
   const handleSignOut = async () => {
     await supabase.auth.signOut()
     router.push('/login')
+  }
+
+  const handleOpenEditModal = (booking: Booking) => {
+    setEditingBooking(booking)
+    setEditPrice((booking.total_price ?? booking.total_amount ?? 0).toString())
+    setEditCheckIn(booking.check_in || '')
+    setEditCheckOut(booking.check_out || '')
+    setEditNotes(booking.notes || '')
+  }
+
+  const handleSaveBookingEdits = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingBooking) return
+
+    setSavingEdit(true)
+    const numericPrice = parseFloat(editPrice) || 0
+
+    const { error } = await supabase
+      .from('bookings')
+      .update({
+        total_price: numericPrice,
+        total_amount: numericPrice,
+        check_in: editCheckIn,
+        check_out: editCheckOut,
+        notes: editNotes,
+      })
+      .eq('id', editingBooking.id)
+
+    setSavingEdit(false)
+
+    if (error) {
+      alert('Error updating booking: ' + error.message)
+    } else {
+      setEditingBooking(null)
+      fetchAllData()
+    }
   }
 
   const handleAddProperty = async (e: React.FormEvent) => {
@@ -294,25 +338,33 @@ export default function OperationsPage() {
                           <div>
                             <span className="text-amber-500 font-extrabold text-base">${booking.total_price ?? booking.total_amount ?? 0}</span>
                           </div>
-                          {booking.status !== 'Confirmed' && (
+                          <div className="flex items-center gap-2">
                             <button
-                              onClick={async () => {
-                                const { error } = await supabase
-                                  .from('bookings')
-                                  .update({ status: 'Confirmed' })
-                                  .eq('id', booking.id)
-                                
-                                if (error) {
-                                  alert('Error approving booking: ' + error.message)
-                                } else {
-                                  fetchAllData()
-                                }
-                              }}
-                              className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg transition shadow-md"
+                              onClick={() => handleOpenEditModal(booking)}
+                              className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-[11px] rounded-lg transition border border-neutral-700"
                             >
-                              ✓ Approve Booking
+                              ✏️ Edit Details
                             </button>
-                          )}
+                            {booking.status !== 'Confirmed' && (
+                              <button
+                                onClick={async () => {
+                                  const { error } = await supabase
+                                    .from('bookings')
+                                    .update({ status: 'Confirmed' })
+                                    .eq('id', booking.id)
+                                  
+                                  if (error) {
+                                    alert('Error approving booking: ' + error.message)
+                                  } else {
+                                    fetchAllData()
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg transition shadow-md"
+                              >
+                                ✓ Approve Booking
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -323,6 +375,81 @@ export default function OperationsPage() {
           )}
         </div>
       </div>
+
+      {/* EDIT BOOKING MODAL FOR NEGOTIATION / ADJUSTMENTS */}
+      {editingBooking && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
+            <button
+              onClick={() => setEditingBooking(null)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
+            >
+              ✕
+            </button>
+
+            <h3 className="text-base font-extrabold text-white mb-1">Edit Reservation Details</h3>
+            <p className="text-xs text-neutral-400 mb-4">
+              Adjust negotiated pricing, stay dates, or terms for <strong className="text-amber-500">{editingBooking.guest_name}</strong>.
+            </p>
+
+            <form onSubmit={handleSaveBookingEdits} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-300 mb-1">Total Negotiated Price ($)</label>
+                <input
+                  type="number"
+                  required
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-In Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editCheckIn}
+                    onChange={(e) => setEditCheckIn(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-Out Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={editCheckOut}
+                    onChange={(e) => setEditCheckOut(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-neutral-300 mb-1">Host Notes / Special Terms</label>
+                <textarea
+                  rows={3}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                  placeholder="Record custom discounts or guest agreement notes..."
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingEdit}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
+              >
+                {savingEdit ? 'Saving Adjustments...' : 'Save Reservation Changes'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </main>
   )
