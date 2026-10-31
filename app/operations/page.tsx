@@ -81,6 +81,7 @@ export default function OperationsPage() {
   const [description, setDescription] = useState('')
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
 
   // Manual Booking Form State
@@ -150,6 +151,20 @@ export default function OperationsPage() {
       }
     }
   }, [editCheckIn, editCheckOut, editNightlyRate])
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    setImageFiles(files)
+    if (files && files.length > 0) {
+      const previews: string[] = []
+      for (let i = 0; i < files.length; i++) {
+        previews.push(URL.createObjectURL(files[i]))
+      }
+      setImagePreviews(previews)
+    } else {
+      setImagePreviews([])
+    }
+  }
 
   const handleSelectPropertyForBooking = (propertyId: string) => {
     setBPropertyId(propertyId)
@@ -273,7 +288,7 @@ export default function OperationsPage() {
       if (error) alert('Error: ' + error.message)
       else {
         alert('Property published successfully!')
-        setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setImageFiles(null);
+        setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setImageFiles(null); setImagePreviews([]);
         fetchAllData()
       }
     } finally {
@@ -371,11 +386,42 @@ export default function OperationsPage() {
                     </select>
                     <input type="number" placeholder="Guests" value={guests} onChange={(e) => setGuests(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
                   </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input type="text" required placeholder="Host WhatsApp Number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                    <input type="file" multiple accept="image/*" onChange={(e) => setImageFiles(e.target.files)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-400 text-xs" />
+                    
+                    {/* PHOTO INPUT WITH PREVIEW FUNCTION */}
+                    <div className="space-y-2">
+                      <label className="block text-[11px] font-semibold text-neutral-300">Upload Property Pictures (Up to 5)</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-neutral-400 text-xs file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black cursor-pointer"
+                      />
+                    </div>
                   </div>
-                  
+
+                  {/* VISUAL IMAGE PREVIEWS GRID */}
+                  {imagePreviews.length > 0 && (
+                    <div className="space-y-1.5 pt-2">
+                      <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
+                        Selected Photos Preview ({imagePreviews.length})
+                      </span>
+                      <div className="flex flex-wrap gap-3 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                        {imagePreviews.map((src, index) => (
+                          <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-neutral-700 shadow-md">
+                            <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                            <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-bold py-0.5">
+                              Photo #{index + 1}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-semibold text-neutral-300 mb-2">Amenities Included</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
