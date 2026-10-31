@@ -166,6 +166,21 @@ export default function OperationsPage() {
     }
   }
 
+  const handleRemoveImage = (indexToRemove: number) => {
+    // Remove preview URL from display
+    const updatedPreviews = imagePreviews.filter((_, idx) => idx !== indexToRemove)
+    setImagePreviews(updatedPreviews)
+
+    // Remove actual file object from state list
+    if (imageFiles) {
+      const dt = new DataTransfer()
+      Array.from(imageFiles).forEach((file, idx) => {
+        if (idx !== indexToRemove) dt.items.add(file)
+      })
+      setImageFiles(dt.files.length > 0 ? dt.files : null)
+    }
+  }
+
   const handleSelectPropertyForBooking = (propertyId: string) => {
     setBPropertyId(propertyId)
     const selectedProp = properties.find((p) => p.id === propertyId)
@@ -403,7 +418,7 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
-                  {/* VISUAL IMAGE PREVIEWS GRID */}
+                  {/* VISUAL IMAGE PREVIEWS GRID WITH UNSELECT/REMOVE BADGES */}
                   {imagePreviews.length > 0 && (
                     <div className="space-y-1.5 pt-2">
                       <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
@@ -411,8 +426,19 @@ export default function OperationsPage() {
                       </span>
                       <div className="flex flex-wrap gap-3 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
                         {imagePreviews.map((src, index) => (
-                          <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-neutral-700 shadow-md">
+                          <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-neutral-700 shadow-md group">
                             <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                            
+                            {/* UNSELECT / REMOVE PHOTO BUTTON */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-lg transition"
+                              title="Unselect photo"
+                            >
+                              ✕
+                            </button>
+
                             <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-bold py-0.5">
                               Photo #{index + 1}
                             </span>
@@ -632,42 +658,4 @@ export default function OperationsPage() {
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text-[11px] font-medium text-neutral-300">Total Price ($)</label>
-                  <span className="text-[10px] text-amber-500 font-semibold">Auto-calculated (${editNightlyRate}/night)</span>
-                </div>
-                <input
-                  type="number"
-                  required
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-amber-400 font-bold text-xs outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-neutral-300 mb-1">Host Notes / Terms</label>
-                <textarea
-                  rows={3}
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                  placeholder="Record custom discounts or guest agreement notes..."
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={savingEdit}
-                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
-              >
-                {savingEdit ? 'Saving Adjustments...' : 'Save Reservation Changes'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <Footer />
-    </main>
-  )
-}
+                  <label className="block text
