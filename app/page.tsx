@@ -21,13 +21,25 @@ interface Property {
   image_urls?: string[]
 }
 
+interface UpsellService {
+  id: string
+  title: string
+  category: string
+  price_usd: number
+  description: string
+}
+
 export default function HomePage() {
   const [properties, setProperties] = useState<Property[]>([])
+  const [services, setServices] = useState<UpsellService[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeImageIndexes, setActiveImageIndexes] = useState<{ [key: string]: number }>({})
 
-  // Booking Modal States
+  // Booking Modal & Motion Gallery States
   const [selectedPropertyForBooking, setSelectedPropertyForBooking] = useState<Property | null>(null)
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0)
+  const [showAmenitiesDropdown, setShowAmenitiesDropdown] = useState(false)
+
+  // Guest Form States
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
   const [checkInDate, setCheckInDate] = useState('')
@@ -39,32 +51,35 @@ export default function HomePage() {
   const [bookingSuccess, setBookingSuccess] = useState(false)
 
   useEffect(() => {
-    const fetchProperties = async () => {
+    const fetchData = async () => {
       setLoading(true)
       try {
-        const { data, error } = await supabase
+        const { data: propsData } = await supabase
           .from('properties')
           .select('*')
           .order('created_at', { ascending: false })
 
-        if (error) console.error('Error fetching properties:', error.message)
-        else setProperties(data || [])
+        const { data: servsData } = await supabase
+          .from('upsell_services')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        setProperties(propsData || [])
+        setServices(servsData || [])
       } catch (err) {
-        console.error('Unexpected error:', err)
+        console.error('Error fetching data:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchProperties()
+    fetchData()
   }, [])
-
-  const setCardActiveImage = (propertyId: string, index: number) => {
-    setActiveImageIndexes((prev) => ({ ...prev, [propertyId]: index }))
-  }
 
   const handleOpenBookingModal = (property: Property) => {
     setSelectedPropertyForBooking(property)
+    setActivePhotoIndex(0)
+    setShowAmenitiesDropdown(false)
     setBookingSuccess(false)
     setGuestName('')
     setGuestContact('')
@@ -116,13 +131,11 @@ export default function HomePage() {
       ])
 
       if (error) {
-        console.error('Supabase booking error:', error.message)
         alert('Booking error: ' + error.message)
       } else {
         setBookingSuccess(true)
       }
     } catch (err: any) {
-      console.error('Unexpected booking error:', err)
       alert('Error: ' + (err.message || 'Unable to submit booking inquiry.'))
     } finally {
       setSubmittingInquiry(false)
@@ -134,22 +147,40 @@ export default function HomePage() {
       <div>
         <HeaderNav />
 
-        <section className="bg-neutral-900 border-b border-neutral-800 py-10 sm:py-16 px-4 text-center">
+        {/* HERO SECTION */}
+        <section className="bg-neutral-900 border-b border-neutral-800 py-12 px-4 text-center">
           <div className="max-w-4xl mx-auto space-y-3">
             <span className="text-amber-500 font-extrabold text-xs uppercase tracking-widest bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
               La Estancia Vacation Homes
             </span>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight">
-              Exclusive Short-Stay Properties
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+              Exclusive Short-Stay Properties in Uganda
             </h1>
             <p className="text-neutral-400 text-xs sm:text-base max-w-xl mx-auto">
-              Furnished apartments, standalone houses, luxury mansions, and villas.
+              Apartments, standalone houses, mansions, and villas with premium guest concierge services.
             </p>
           </div>
         </section>
 
+        {/* MOVING / SLIDING UPSELL SERVICES TICKER */}
+        {services.length > 0 && (
+          <div className="bg-amber-500/10 border-y border-amber-500/20 py-2.5 overflow-hidden whitespace-nowrap">
+            <div className="inline-flex space-x-8 animate-marquee text-xs font-semibold text-amber-400">
+              {services.map((serv) => (
+                <span key={serv.id} className="flex items-center gap-2">
+                  ✨ <strong className="text-white">{serv.title}</strong> (${serv.price_usd}) — {serv.description}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STREAMLINED PROPERTY GRID */}
         <section className="max-w-6xl mx-auto p-4 sm:p-6">
-          <h2 className="text-xl font-bold text-white mb-6">Featured Properties</h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-white">Featured Properties</h2>
+            <a href="/stays" className="text-xs text-amber-500 hover:underline font-semibold">Browse All Stays →</a>
+          </div>
 
           {loading ? (
             <div className="text-center py-16 space-y-3">
@@ -164,43 +195,31 @@ export default function HomePage() {
                 const images = prop.image_urls && prop.image_urls.length > 0 
                   ? prop.image_urls 
                   : [prop.image_url || '/placeholder.jpg']
-                
-                const activeIdx = activeImageIndexes[prop.id] || 0
-                const currentImg = images[activeIdx] || images[0]
 
                 return (
                   <div
                     key={prop.id}
-                    className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
+                    className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between shadow-xl"
                   >
                     <div>
-                      <div className="relative h-60 bg-neutral-950 overflow-hidden">
+                      {/* Main Image Preview */}
+                      <div className="relative h-56 bg-neutral-950 overflow-hidden group cursor-pointer" onClick={() => handleOpenBookingModal(prop)}>
                         <img
-                          src={currentImg}
+                          src={images[0]}
                           alt={prop.title}
-                          className="w-full h-full object-cover transition-opacity duration-300"
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                         />
                         <span className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1 rounded-full shadow-md">
                           ${prop.price_per_night ?? prop.price ?? 0} / night
                         </span>
+                        {images.length > 1 && (
+                          <span className="absolute bottom-3 left-3 bg-black/70 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-sm">
+                            📷 {images.length} Photos
+                          </span>
+                        )}
                       </div>
 
-                      {images.length > 1 && (
-                        <div className="flex items-center gap-1.5 p-2 bg-neutral-950/80 overflow-x-auto border-b border-neutral-800">
-                          {images.map((imgUrl, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setCardActiveImage(prop.id, idx)}
-                              className={`relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${
-                                activeIdx === idx ? 'border-amber-500 scale-95' : 'border-transparent opacity-60 hover:opacity-100'
-                              }`}
-                            >
-                              <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
+                      {/* Property Info (No bulky amenities here anymore to save space) */}
                       <div className="p-4 space-y-2">
                         <div>
                           <h3 className="font-bold text-white text-base leading-tight">{prop.title}</h3>
@@ -218,24 +237,6 @@ export default function HomePage() {
                             {prop.description}
                           </p>
                         ) : null}
-
-                        {prop.amenities && prop.amenities.length > 0 && (
-                          <div className="pt-1">
-                            <span className="block text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-                              Included Amenities
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {prop.amenities.map((item, i) => (
-                                <span
-                                  key={i}
-                                  className="text-[10px] bg-neutral-950 border border-neutral-800 text-amber-500 font-medium px-2 py-0.5 rounded-md"
-                                >
-                                  ✓ {item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     </div>
 
@@ -244,7 +245,7 @@ export default function HomePage() {
                         onClick={() => handleOpenBookingModal(prop)}
                         className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-md transition"
                       >
-                        ✨ Book Now / Reserve
+                        ✨ View Gallery & Book Now
                       </button>
                     </div>
                   </div>
@@ -255,12 +256,13 @@ export default function HomePage() {
         </section>
       </div>
 
+      {/* IMMERSIVE BOOKING & MOTION GALLERY MODAL */}
       {selectedPropertyForBooking && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative my-8">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-2xl rounded-2xl p-6 shadow-2xl relative my-8">
             <button
               onClick={handleCloseBookingModal}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold z-10 bg-neutral-950 p-2 rounded-full border border-neutral-800"
             >
               ✕
             </button>
@@ -282,95 +284,175 @@ export default function HomePage() {
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleBookNowSubmit} className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Reserve Stay</span>
-                  <h3 className="text-lg font-extrabold text-white">{selectedPropertyForBooking.title}</h3>
-                  <p className="text-xs text-neutral-400">📍 {selectedPropertyForBooking.location} • ${selectedPropertyForBooking.price_per_night ?? selectedPropertyForBooking.price ?? 0} / night</p>
+                  <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Property Showcase & Reservation</span>
+                  <h3 className="text-xl font-extrabold text-white">{selectedPropertyForBooking.title}</h3>
+                  <p className="text-xs text-neutral-400">📍 {selectedPropertyForBooking.location} • <strong className="text-amber-400">${selectedPropertyForBooking.price_per_night ?? selectedPropertyForBooking.price ?? 0} / night</strong></p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* MOTION PHOTO GALLERY SLIDESHOW */}
+                <div className="space-y-2">
+                  {(() => {
+                    const images = selectedPropertyForBooking.image_urls && selectedPropertyForBooking.image_urls.length > 0 
+                      ? selectedPropertyForBooking.image_urls 
+                      : [selectedPropertyForBooking.image_url || '/placeholder.jpg']
+
+                    return (
+                      <div>
+                        <div className="relative h-72 bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800 shadow-inner">
+                          <img
+                            src={images[activePhotoIndex] || images[0]}
+                            alt="Property Slide"
+                            className="w-full h-full object-cover transition-all duration-300"
+                          />
+                          {images.length > 1 && (
+                            <div className="absolute inset-x-0 bottom-3 flex justify-between px-4">
+                              <button
+                                onClick={() => setActivePhotoIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))}
+                                className="bg-black/70 hover:bg-black text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-neutral-700 backdrop-blur-sm transition"
+                              >
+                                ← Prev
+                              </button>
+                              <span className="bg-black/70 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-bold border border-neutral-700 backdrop-blur-sm">
+                                {activePhotoIndex + 1} / {images.length}
+                              </span>
+                              <button
+                                onClick={() => setActivePhotoIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))}
+                                className="bg-black/70 hover:bg-black text-white px-3 py-1.5 rounded-lg text-xs font-bold border border-neutral-700 backdrop-blur-sm transition"
+                              >
+                                Next →
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Thumbnail Selector */}
+                        {images.length > 1 && (
+                          <div className="flex gap-2 overflow-x-auto pt-2">
+                            {images.map((img, idx) => (
+                              <button
+                                key={idx}
+                                onClick={() => setActivePhotoIndex(idx)}
+                                className={`w-14 h-14 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${
+                                  activePhotoIndex === idx ? 'border-amber-500 scale-95' : 'border-transparent opacity-60 hover:opacity-100'
+                                }`}
+                              >
+                                <img src={img} alt="Thumb" className="w-full h-full object-cover" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* UNFOLDING AMENITIES SECTION */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAmenitiesDropdown(!showAmenitiesDropdown)}
+                    className="w-full flex justify-between items-center text-xs font-bold text-amber-400"
+                  >
+                    <span>✨ Included Amenities & Features ({selectedPropertyForBooking.amenities?.length || 0})</span>
+                    <span>{showAmenitiesDropdown ? '▲ Hide' : '▼ Unfold Amenities'}</span>
+                  </button>
+
+                  {showAmenitiesDropdown && (
+                    <div className="grid grid-cols-2 gap-2 pt-3 mt-3 border-t border-neutral-800">
+                      {selectedPropertyForBooking.amenities && selectedPropertyForBooking.amenities.length > 0 ? (
+                        selectedPropertyForBooking.amenities.map((item, i) => (
+                          <span key={i} className="text-[11px] text-neutral-300 flex items-center gap-1.5">
+                            <span className="text-amber-500">✓</span> {item}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-neutral-500 italic">Standard luxury amenities included.</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* BOOKING FORM */}
+                <form onSubmit={handleBookNowSubmit} className="space-y-4 pt-2 border-t border-neutral-800">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Submit Reservation Dates</h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-neutral-300 mb-1">Your Full Name</label>
+                      <input
+                        type="text" required placeholder="e.g. Alex Morgan"
+                        value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-neutral-300 mb-1">Email or WhatsApp Phone</label>
+                      <input
+                        type="text" required placeholder="Contact info"
+                        value={guestContact} onChange={(e) => setGuestContact(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-In Date</label>
+                      <input
+                        type="date" required value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-Out Date</label>
+                      <input
+                        type="date" required min={checkInDate} value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 bg-neutral-950 p-3 border border-neutral-800 rounded-xl">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Adult Occupants</label>
+                      <select
+                        value={adultsCount} onChange={(e) => setAdultsCount(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
+                      >
+                        <option value="1">1 Adult</option><option value="2">2 Adults</option><option value="3">3 Adults</option><option value="4">4+ Adults</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Children</label>
+                      <select
+                        value={childrenCount} onChange={(e) => setChildrenCount(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
+                      >
+                        <option value="0">0 Children</option><option value="1">1 Child</option><option value="2">2+ Children</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Your Full Name</label>
-                    <input
-                      type="text" required placeholder="e.g. Alex Morgan"
-                      value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Message to Host (Optional)</label>
+                    <textarea
+                      rows={2} placeholder="Ask about check-in time or special preferences..."
+                      value={guestMessage} onChange={(e) => setGuestMessage(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Email or Phone</label>
-                    <input
-                      type="text" required placeholder="Contact info"
-                      value={guestContact} onChange={(e) => setGuestContact(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-In Date</label>
-                    <input
-                      type="date" required value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-Out Date</label>
-                    <input
-                      type="date" required value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 bg-neutral-950 p-3 border border-neutral-800 rounded-xl">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Adult Occupants</label>
-                    <select
-                      value={adultsCount} onChange={(e) => setAdultsCount(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="1">1 Adult</option>
-                      <option value="2">2 Adults</option>
-                      <option value="3">3 Adults</option>
-                      <option value="4">4 Adults</option>
-                      <option value="5+">5+ Adults</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Children</label>
-                    <select
-                      value={childrenCount} onChange={(e) => setChildrenCount(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="0">0 Children</option>
-                      <option value="1">1 Child</option>
-                      <option value="2">2 Children</option>
-                      <option value="3+">3+ Children</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Message to Host (Optional)</label>
-                  <textarea
-                    rows={3} placeholder="Provide preferences or questions..."
-                    value={guestMessage} onChange={(e) => setGuestMessage(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <button
-                  type="submit" disabled={submittingInquiry}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
-                >
-                  {submittingInquiry ? 'Submitting...' : 'Confirm & Submit Reservation Request'}
-                </button>
-              </form>
+                  <button
+                    type="submit" disabled={submittingInquiry}
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
+                  >
+                    {submittingInquiry ? 'Submitting Reservation...' : 'Confirm & Submit Reservation Request'}
+                  </button>
+                </form>
+              </div>
             )}
-
           </div>
         </div>
       )}
