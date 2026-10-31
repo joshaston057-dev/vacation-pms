@@ -80,7 +80,9 @@ export default function OperationsPage() {
   const [whatsappNumber, setWhatsappNumber] = useState('+256757386946')
   const [description, setDescription] = useState('')
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
-  const [imageFiles, setImageFiles] = useState<FileList | null>(null)
+  
+  // Robust Photo Selection State
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -154,31 +156,18 @@ export default function OperationsPage() {
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    setImageFiles(files)
     if (files && files.length > 0) {
-      const previews: string[] = []
-      for (let i = 0; i < files.length; i++) {
-        previews.push(URL.createObjectURL(files[i]))
-      }
-      setImagePreviews(previews)
-    } else {
-      setImagePreviews([])
+      const fileArray = Array.from(files)
+      setSelectedFiles((prev) => [...prev, ...fileArray])
+
+      const newPreviews = fileArray.map((file) => URL.createObjectURL(file))
+      setImagePreviews((prev) => [...prev, ...newPreviews])
     }
   }
 
   const handleRemoveImage = (indexToRemove: number) => {
-    // Remove preview URL from display
-    const updatedPreviews = imagePreviews.filter((_, idx) => idx !== indexToRemove)
-    setImagePreviews(updatedPreviews)
-
-    // Remove actual file object from state list
-    if (imageFiles) {
-      const dt = new DataTransfer()
-      Array.from(imageFiles).forEach((file, idx) => {
-        if (idx !== indexToRemove) dt.items.add(file)
-      })
-      setImageFiles(dt.files.length > 0 ? dt.files : null)
-    }
+    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+    setImagePreviews((prev) => prev.filter((_, idx) => idx !== indexToRemove))
   }
 
   const handleSelectPropertyForBooking = (propertyId: string) => {
@@ -281,9 +270,9 @@ export default function OperationsPage() {
     setSubmitting(true)
     try {
       let uploadedUrls: string[] = []
-      if (imageFiles && imageFiles.length > 0) {
-        for (let i = 0; i < Math.min(imageFiles.length, 5); i++) {
-          const file = imageFiles[i]
+      if (selectedFiles && selectedFiles.length > 0) {
+        for (let i = 0; i < Math.min(selectedFiles.length, 5); i++) {
+          const file = selectedFiles[i]
           const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
           const { data: uploadData } = await supabase.storage.from('property-images').upload(fileName, file)
           if (uploadData) {
@@ -303,7 +292,7 @@ export default function OperationsPage() {
       if (error) alert('Error: ' + error.message)
       else {
         alert('Property published successfully!')
-        setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setImageFiles(null); setImagePreviews([]);
+        setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setSelectedFiles([]); setImagePreviews([]);
         fetchAllData()
       }
     } finally {
@@ -405,7 +394,7 @@ export default function OperationsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input type="text" required placeholder="Host WhatsApp Number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
                     
-                    {/* PHOTO INPUT WITH PREVIEW FUNCTION */}
+                    {/* PHOTO INPUT WITH MULTI-SELECTION SUPPORT */}
                     <div className="space-y-2">
                       <label className="block text-[11px] font-semibold text-neutral-300">Upload Property Pictures (Up to 5)</label>
                       <input
@@ -418,30 +407,30 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
-                  {/* VISUAL IMAGE PREVIEWS GRID WITH UNSELECT/REMOVE BADGES */}
+                  {/* VISUAL IMAGE PREVIEWS GRID WITH VISIBLE UNSELECT BUTTONS */}
                   {imagePreviews.length > 0 && (
-                    <div className="space-y-1.5 pt-2">
+                    <div className="space-y-2 pt-2">
                       <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
                         Selected Photos Preview ({imagePreviews.length})
                       </span>
-                      <div className="flex flex-wrap gap-3 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                      <div className="flex flex-wrap gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
                         {imagePreviews.map((src, index) => (
-                          <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-neutral-700 shadow-md group">
-                            <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                            
-                            {/* UNSELECT / REMOVE PHOTO BUTTON */}
+                          <div key={index} className="relative flex flex-col items-center gap-1.5">
+                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-neutral-700 shadow-xl">
+                              <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-extrabold py-0.5">
+                                Photo #{index + 1}
+                              </span>
+                            </div>
+
+                            {/* CLEAR & VISIBLE REMOVE BUTTON */}
                             <button
                               type="button"
                               onClick={() => handleRemoveImage(index)}
-                              className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-lg transition"
-                              title="Unselect photo"
+                              className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white font-extrabold text-[10px] rounded-lg shadow-md transition flex items-center gap-1"
                             >
-                              ✕
+                              ✕ Remove
                             </button>
-
-                            <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-bold py-0.5">
-                              Photo #{index + 1}
-                            </span>
                           </div>
                         ))}
                       </div>
@@ -658,4 +647,11 @@ export default function OperationsPage() {
 
               <div>
                 <div className="flex justify-between items-center mb-1">
-                  <label className="block text
+                  <label className="block text-[11px] font-medium text-neutral-300">Total Price ($)</label>
+                  <span className="text-[10px] text-amber-500 font-semibold">Auto-calculated (${editNightlyRate}/night)</span>
+                </div>
+                <input
+                  type="number"
+                  required
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
