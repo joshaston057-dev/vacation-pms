@@ -5,89 +5,103 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
-interface Task {
+interface Property {
   id: string
   title: string
-  property_name: string
-  assigned_to: string
-  status: 'Pending' | 'In Progress' | 'Completed'
-  due_date: string
-  priority: 'Low' | 'Medium' | 'High'
+  description: string
+  price_per_night: number
+  location: string
+  category: string
+  image_urls: string[]
 }
 
-interface Booking {
-  id: string
-  guest_name: string
-  property_name: string
-  check_in: string
-  check_out: string
-  total_price: number
-  status: 'Confirmed' | 'Pending' | 'Cancelled'
-}
-
-export default function OperationsPage() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [bookings, setBookings] = useState<Booking[]>([])
+export default function PropertiesPage() {
+  const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
 
-  // Task Form State
-  const [taskTitle, setTaskTitle] = useState('')
-  const [propertyName, setPropertyName] = useState('')
-  const [assignedTo, setAssignedTo] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium')
-
-  // Price Adjustment State
-  const [editPrice, setEditPrice] = useState('')
+  // Property Form State
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
+  const [location, setLocation] = useState('Kampala')
+  const [category, setCategory] = useState('Apartment')
+  const [images, setImages] = useState<File[]>([])
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
-    fetchOperationsData()
+    fetchProperties()
   }, [])
 
-  const fetchOperationsData = async () => {
+  const fetchProperties = async () => {
     setLoading(true)
-    const { data: taskData } = await supabase
-      .from('tasks')
+    const { data, error } = await supabase
+      .from('properties')
       .select('*')
       .order('created_at', { ascending: false })
 
-    const { data: bookingData } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    setTasks(taskData || [])
-    setBookings(bookingData || [])
+    if (!error) setProperties(data || [])
     setLoading(false)
   }
 
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const { error } = await supabase.from('tasks').insert([
-      {
-        title: taskTitle,
-        property_name: propertyName,
-        assigned_to: assignedTo,
-        due_date: dueDate,
-        priority,
-        status: 'Pending',
-      },
-    ])
-
-    if (error) {
-      alert('Error creating task: ' + error.message)
-    } else {
-      setTaskTitle('')
-      setPropertyName('')
-      setAssignedTo('')
-      setDueDate('')
-      fetchOperationsData()
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files).slice(0, 5) // Max 5 pictures limit
+      setImages(filesArray)
     }
   }
 
-  const handleUpdateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
-    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
-    fetchOperationsData()
+  const handlePropertySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setUploading(true)
+
+    try {
+      const uploadedUrls: string[] = []
+
+      // 1. Upload up to 5 photos to Supabase Storage bucket 'property-images'
+      for (const file of images) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random()}.${fileExt}`
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrlData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(fileName)
+
+        uploadedUrls.push(publicUrlData.publicUrl)
+      }
+
+      // 2. Save property record in Supabase Database
+      const { error: dbError } = await supabase.from('properties').insert([
+        {
+          title,
+          description,
+          price_per_night: parseFloat(price),
+          location,
+          category,
+          image_urls: uploadedUrls,
+        },
+      ])
+
+      if (dbError) throw dbError
+
+      // Reset Form & Close Modal
+      setTitle('')
+      setDescription('')
+      setPrice('')
+      setImages([])
+      setShowModal(false)
+      fetchProperties()
+      alert('Property listed successfully!')
+    } catch (err: any) {
+      alert('Upload failed: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -96,182 +110,165 @@ export default function OperationsPage() {
         <HeaderNav />
 
         <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-8">
-          {/* HEADER SUMMARY */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
+          {/* PAGE HEADER */}
+          <div className="flex justify-between items-center bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
             <div>
-              <h1 className="text-2xl font-extrabold text-white">Operations & Task Tracking</h1>
-              <p className="text-xs text-neutral-400 mt-1">Manage housekeeping, maintenance, and booking schedules across properties.</p>
+              <h1 className="text-2xl font-extrabold text-white">Short-Stay Properties</h1>
+              <p className="text-xs text-neutral-400 mt-1">Browse and manage short-stay stays and furnished apartments.</p>
             </div>
-            <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-xs rounded-full">
-              Active Ops Center
-            </span>
+
+            <button
+              onClick={() => setShowModal(true)}
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg cursor-pointer"
+            >
+              + Submit New Property
+            </button>
           </div>
 
-          {/* TASK CREATION & LISTING GRID */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* TASK FORM */}
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl h-fit">
-              <h2 className="text-lg font-bold text-amber-500 mb-4">Assign New Task</h2>
-              <form onSubmit={handleCreateTask} className="space-y-4">
-                <div>
-                  <label className="block text-[11px] text-neutral-400 mb-1">Task Details</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Deep Clean & Refill Amenities"
-                    value={taskTitle}
-                    onChange={(e) => setTaskTitle(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] text-neutral-400 mb-1">Property</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Property Title or Address"
-                    value={propertyName}
-                    onChange={(e) => setPropertyName(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-neutral-400 mb-1">Assignee</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Staff Name"
-                      value={assignedTo}
-                      onChange={(e) => setAssignedTo(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
+          {/* PROPERTY LISTINGS GRID */}
+          {loading ? (
+            <div className="py-12 text-center">
+              <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            </div>
+          ) : properties.length === 0 ? (
+            <p className="text-center text-xs text-neutral-500 py-12 italic">No properties listed yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {properties.map((property) => (
+                <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+                  <div className="h-48 bg-neutral-950 relative">
+                    {property.image_urls && property.image_urls.length > 0 ? (
+                      <img
+                        src={property.image_urls[0]}
+                        alt={property.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-xs text-neutral-600">No Image Available</div>
+                    )}
+                    <span className="absolute top-3 right-3 bg-amber-500 text-black text-[11px] font-extrabold px-3 py-1 rounded-full shadow">
+                      ${property.price_per_night} / night
+                    </span>
                   </div>
-                  <div>
-                    <label className="block text-[11px] text-neutral-400 mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={dueDate}
-                      onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                    />
+
+                  <div className="p-5 space-y-3">
+                    <span className="text-[10px] uppercase font-bold text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
+                      {property.category}
+                    </span>
+                    <h3 className="font-extrabold text-white text-base leading-tight">{property.title}</h3>
+                    <p className="text-xs text-neutral-400 line-clamp-2">{property.description}</p>
+                    <p className="text-[11px] text-neutral-500 font-semibold">📍 {property.location}</p>
+
+                    {/* DIRECT WHATSAPP INQUIRY BUTTON */}
+                    <a
+                      href={`https://wa.me/256757386946?text=${encodeURIComponent(`Hello La Estancia, I want to book: ${property.title}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-center py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow"
+                    >
+                      💬 Book via WhatsApp
+                    </a>
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
-                <div>
-                  <label className="block text-[11px] text-neutral-400 mb-1">Priority</label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High')}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
-                  >
-                    <option value="Low">Low Priority</option>
-                    <option value="Medium">Medium Priority</option>
-                    <option value="High">High Priority</option>
-                  </select>
-                </div>
+      {/* SUBMIT PROPERTY MODAL */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-4">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h2 className="text-base font-extrabold text-white">Add New Property Listing</h2>
+              <button onClick={() => setShowModal(false)} className="text-neutral-400 hover:text-white text-sm">✕</button>
+            </div>
 
+            <form onSubmit={handlePropertySubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] text-neutral-400 mb-1">Property Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Modern Furnished Apartment in Kampala"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] text-neutral-400 mb-1">Adjustment Rate ($)</label>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Price Per Night ($)</label>
                   <input
                     type="number"
                     required
-                    value={editPrice}
-                    onChange={(e) => setEditPrice(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                    placeholder="45"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500"
+                  >
+                    <option value="Apartment">Apartment</option>
+                    <option value="Standalone House">Standalone House</option>
+                    <option value="Mansion">Mansion</option>
+                    <option value="Villa">Villa</option>
+                  </select>
+                </div>
+              </div>
 
+              <div>
+                <label className="block text-[11px] text-neutral-400 mb-1">Description</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Describe amenities, bedrooms, Wifi, parking..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-neutral-400 mb-1">Upload Photos (Up to 5)</label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-neutral-800 file:text-amber-500 hover:file:bg-neutral-700 cursor-pointer"
+                />
+                <p className="text-[10px] text-neutral-500 mt-1">{images.length} photo(s) selected.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="w-1/2 py-2.5 bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg mt-2 cursor-pointer"
+                  disabled={uploading}
+                  className="w-1/2 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow"
                 >
-                  Create Operations Task
+                  {uploading ? 'Uploading...' : 'Publish Property'}
                 </button>
-              </form>
-            </div>
-
-            {/* TASK DISPLAY QUEUE */}
-            <div className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-              <h2 className="text-lg font-bold text-white mb-4">Task Queue ({tasks.length})</h2>
-
-              {loading ? (
-                <div className="py-8 text-center">
-                  <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                </div>
-              ) : tasks.length === 0 ? (
-                <p className="text-xs text-neutral-500 italic">No operational tasks created yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {tasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-white text-sm">{task.title}</span>
-                          <span
-                            className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                              task.priority === 'High'
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : task.priority === 'Medium'
-                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                            }`}
-                          >
-                            {task.priority}
-                          </span>
-                        </div>
-                        <p className="text-xs text-neutral-400">📍 {task.property_name} • Assigned: {task.assigned_to}</p>
-                        <p className="text-[10px] text-neutral-500">Due: {task.due_date}</p>
-                      </div>
-
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <select
-                          value={task.status}
-                          onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
-                          className="bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs font-bold text-amber-400 outline-none cursor-pointer"
-                        >
-                          <option value="Pending">Pending</option>
-                          <option value="In Progress">In Progress</option>
-                          <option value="Completed">Completed</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ACTIVE BOOKINGS SUMMARY (LINE 252 FIXED & FULLY CLOSED) */}
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Current Verified Bookings</h2>
-            {bookings.length === 0 ? (
-              <p className="text-xs text-neutral-500 italic">No bookings recorded in system.</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bookings.map((b) => (
-                  <div key={b.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-white text-xs">{b.guest_name}</h3>
-                      <p className="text-[11px] text-neutral-400">{b.property_name}</p>
-                      <p className="text-[10px] text-neutral-500">{b.check_in} ➔ {b.check_out}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-amber-500 font-extrabold text-xs">${b.total_price}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
-            )}
+            </form>
           </div>
         </div>
-      </div>
+      )}
 
       <Footer />
     </main>
