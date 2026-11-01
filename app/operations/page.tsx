@@ -8,6 +8,19 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
+const AVAILABLE_AMENITIES = [
+  '📶 High-Speed Wi-Fi',
+  '🏊 Swimming Pool',
+  '⚡ Backup Generator / Solar',
+  '❄️ Air Conditioning',
+  '🛡️ 24/7 Security Guard',
+  '🌅 Balcony / City View',
+  '🚗 Free Parking',
+  '🍳 Fully Equipped Kitchen',
+  '🧺 Washing Machine',
+  '📺 Smart TV / Netflix'
+]
+
 export default function OperationsPage() {
   const [isLocked, setIsLocked] = useState(false)
   const [passcode, setPasscode] = useState('')
@@ -19,10 +32,12 @@ export default function OperationsPage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
 
-  // Property Form + Photos
+  // Property Form + Photos + Description + Amenities
   const [newPropTitle, setNewPropTitle] = useState('')
   const [newPropPrice, setNewPropPrice] = useState('')
   const [newPropLocation, setNewPropLocation] = useState('')
+  const [newPropDesc, setNewPropDesc] = useState('')
+  const [newPropAmenities, setNewPropAmenities] = useState<string[]>([])
   const [newPropImages, setNewPropImages] = useState<string[]>([])
 
   // Booking Form + iCal
@@ -73,6 +88,14 @@ export default function OperationsPage() {
     if (e) setExpenses(e)
   }
 
+  const handleAmenityToggle = (amenity: string) => {
+    if (newPropAmenities.includes(amenity)) {
+      setNewPropAmenities(newPropAmenities.filter(a => a !== amenity))
+    } else {
+      setNewPropAmenities([...newPropAmenities, amenity])
+    }
+  }
+
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5)
     const promises = files.map(file => {
@@ -95,12 +118,14 @@ export default function OperationsPage() {
       title: newPropTitle, 
       price_per_night: parseFloat(newPropPrice) || 0, 
       location: newPropLocation || 'Kampala', 
+      description: newPropDesc,
+      amenities: newPropAmenities,
       is_occupied: false,
       images: newPropImages
     }
     setProperties([item, ...properties])
     await supabase.from('properties').insert([item])
-    setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropImages([])
+    setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropDesc(''); setNewPropAmenities([]); setNewPropImages([])
   }
 
   const toggleOccupancy = async (id: string, current: boolean) => {
@@ -254,15 +279,46 @@ export default function OperationsPage() {
             ))}
           </div>
 
-          {/* TAB 1: PROPERTIES WITH PHOTO UPLOAD */}
+          {/* TAB 1: PROPERTIES WITH PHOTO UPLOAD, DESCRIPTION & AMENITIES */}
           {activeTab === 'properties' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addProperty} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
                 <h3 className="font-extrabold text-amber-500 text-sm">+ Add New Property</h3>
-                <input type="text" required placeholder="Title (e.g. Luxury Villa)" value={newPropTitle} onChange={e => setNewPropTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="Title (e.g. 1 Bed Luxury Apartment)" value={newPropTitle} onChange={e => setNewPropTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                <input type="text" placeholder="Location (e.g. Kololo, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" placeholder="Location (e.g. Kisaasi, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 
+                {/* DESCRIPTION FIELD */}
+                <div>
+                  <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Description</label>
+                  <textarea 
+                    rows={3} 
+                    placeholder="Describe the stay, views, neighborhood, and guest access..." 
+                    value={newPropDesc} 
+                    onChange={e => setNewPropDesc(e.target.value)} 
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" 
+                  />
+                </div>
+
+                {/* AMENITIES CHECKLIST */}
+                <div>
+                  <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Amenities Checklist</label>
+                  <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2">
+                    {AVAILABLE_AMENITIES.map(amenity => (
+                      <label key={amenity} className="flex items-center gap-2 text-[11px] text-neutral-300 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={newPropAmenities.includes(amenity)}
+                          onChange={() => handleAmenityToggle(amenity)}
+                          className="accent-amber-500 rounded"
+                        />
+                        {amenity}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* PHOTOS UPLOAD */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
@@ -293,6 +349,21 @@ export default function OperationsPage() {
                       <span className="text-amber-500 font-bold text-xs">${p.price_per_night}/n</span>
                     </div>
                     <p className="text-xs text-neutral-400">📍 {p.location || 'Kampala'}</p>
+                    
+                    {p.description && (
+                      <p className="text-[11px] text-neutral-400 line-clamp-2 italic">"{p.description}"</p>
+                    )}
+
+                    {p.amenities && p.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {p.amenities.map((a: string, idx: number) => (
+                          <span key={idx} className="text-[9px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-md">
+                            {a}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
                       <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
                         {p.is_occupied ? '🔴 Occupied' : '🟢 Available'}
@@ -305,7 +376,7 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* TAB 2: BOOKINGS WITH ICAL INTEGRATION */}
+          {/* TAB 2: BOOKINGS */}
           {activeTab === 'bookings' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addManualBooking} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
@@ -349,12 +420,6 @@ export default function OperationsPage() {
                         </div>
                       </div>
                     </div>
-                    {b.ical_link && (
-                      <div className="bg-neutral-950 p-2 rounded-lg text-[10px] text-amber-400 flex justify-between items-center border border-neutral-800">
-                        <span className="truncate">📅 iCal Feed: {b.ical_link}</span>
-                        <button onClick={() => navigator.clipboard.writeText(b.ical_link)} className="ml-2 text-neutral-300 font-bold hover:text-white">Copy Link</button>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
