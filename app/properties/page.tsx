@@ -19,36 +19,23 @@ export default function PublicPropertiesPage() {
     const { data } = await supabase.from('properties').select('*')
     
     if (data && data.length > 0) {
-      setProperties(data)
-    } else {
-      setProperties([
-        {
-          id: '1',
-          title: '1 bedroom fully furnished apartment for rent in kisaasi',
-          price_per_night: 45,
-          location: 'Kisaasi, Kampala',
-          description: 'Spacious, high-security 1 bedroom apartment with full modern amenities, fast Wi-Fi, and private balcony view.',
-          amenities: ['📶 High-Speed Wi-Fi', '⚡ Backup Generator / Solar', '🛡️ 24/7 Security Guard', '🍳 Fully Equipped Kitchen'],
-          is_occupied: false,
-          images: [
-            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
-          ]
-        },
-        {
-          id: '2',
-          title: '5 bedroom fully furnished Mansion for rent in Entebbe',
-          price_per_night: 500,
-          location: 'Entebbe',
-          description: 'Luxury lakeside retreat featuring private pool, expansive gardens, chef services, and full 24/7 concierge.',
-          amenities: ['🏊 Swimming Pool', '❄️ Air Conditioning', '🌅 Balcony / City View', '🚗 Free Parking'],
-          is_occupied: false,
-          images: [
-            'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80'
+      // Map properties and attach fallback photos if images array is empty
+      const processed = data.map((item: any) => {
+        let imgs = item.images
+        if (typeof imgs === 'string') {
+          try { imgs = JSON.parse(imgs) } catch (e) { imgs = [imgs] }
+        }
+        if (!Array.isArray(imgs) || imgs.length === 0) {
+          imgs = [
+            'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80'
           ]
         }
-      ])
+        return { ...item, parsedImages: imgs }
+      })
+      setProperties(processed)
+    } else {
+      setProperties([])
     }
     setLoading(false)
   }
@@ -78,15 +65,7 @@ export default function PublicPropertiesPage() {
                   `Hello La Estancia, I am interested in reserving "${p.title}" located in ${p.location}. Is it available?`
                 )
                 const directLink = `https://wa.me/256757386946?text=${inquiryMsg}`
-
-                let imgList: string[] = []
-                if (Array.isArray(p.images) && p.images.length > 0) {
-                  imgList = p.images
-                } else if (typeof p.images === 'string' && p.images.startsWith('[')) {
-                  try { imgList = JSON.parse(p.images) } catch (e) { imgList = [p.images] }
-                } else if (typeof p.images === 'string' && p.images.length > 0) {
-                  imgList = [p.images]
-                }
+                const imgList: string[] = p.parsedImages || []
 
                 return (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-neutral-700 transition">
@@ -117,32 +96,31 @@ export default function PublicPropertiesPage() {
                       </div>
                     </div>
 
-                    {/* CARD BODY */}
+                    {/* CARD DETAILS */}
                     <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">📍 {p.location || 'Kampala'}</span>
                         <h3 className="font-extrabold text-white text-sm line-clamp-2">{p.title}</h3>
                         
-                        {/* DESCRIPTION */}
                         {p.description && (
-                          <p className="text-xs text-neutral-400 line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-neutral-400 leading-relaxed">
                             {p.description}
                           </p>
                         )}
                       </div>
 
-                      {/* AMENITIES BADGES */}
+                      {/* AMENITIES */}
                       {p.amenities && p.amenities.length > 0 && (
                         <div className="flex flex-wrap gap-1 pt-1">
                           {p.amenities.map((amenity: string, idx: number) => (
-                            <span key={idx} className="text-[10px] bg-neutral-950 border border-neutral-800 text-neutral-300 px-2.5 py-0.5 rounded-md font-medium">
+                            <span key={idx} className="text-[10px] bg-neutral-950 border border-neutral-800 text-neutral-300 px-2.5 py-1 rounded-md font-medium">
                               {amenity}
                             </span>
                           ))}
                         </div>
                       )}
 
-                      {/* MULTI-PHOTO PREVIEWS */}
+                      {/* THUMBNAILS */}
                       {imgList.length > 1 && (
                         <div className="flex gap-1.5 overflow-x-auto pt-1">
                           {imgList.slice(0, 5).map((imgUrl: string, idx: number) => (
@@ -161,7 +139,7 @@ export default function PublicPropertiesPage() {
                           href={directLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition"
+                          className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition text-center block"
                         >
                           Check Availability & Book
                         </a>
