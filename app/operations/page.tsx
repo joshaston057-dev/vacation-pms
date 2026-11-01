@@ -9,12 +9,22 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function OperationsPage() {
-  const [activeTab, setActiveTab] = useState('properties')
+  const [activeTab, setActiveTab] = useState('bookings')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
   
+  // Modal & Manual Booking States
+  const [editingBooking, setEditingBooking] = useState<any | null>(null)
+  
+  // Manual Booking Form States
+  const [manualGuest, setManualGuest] = useState('')
+  const [manualProp, setManualProp] = useState('')
+  const [manualCheckIn, setManualCheckIn] = useState('')
+  const [manualCheckOut, setManualCheckOut] = useState('')
+  const [manualPrice, setManualPrice] = useState('')
+
   const [services, setServices] = useState([
     { id: '1', category: 'Transportation', name: 'Airport Pickup & Dropoff', price: 45, whatsapp_number: '256757386946' },
     { id: '2', category: 'Dining', name: 'Private Chef Meal Prep', price: 60, whatsapp_number: '256780564778' },
@@ -34,13 +44,11 @@ export default function OperationsPage() {
   const [expAmount, setExpAmount] = useState('')
 
   useEffect(() => {
-    // Security check: Redirect to login if unauthenticated
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         window.location.href = '/login'
       }
     })
-
     loadData()
   }, [])
 
@@ -65,6 +73,50 @@ export default function OperationsPage() {
   const confirmBooking = async (id: string) => {
     setBookings(bookings.map(item => item.id === id ? { ...item, status: 'Confirmed' } : item))
     await supabase.from('bookings').update({ status: 'Confirmed' }).eq('id', id)
+  }
+
+  const addManualBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const item = {
+      id: Date.now().toString(),
+      guest_name: manualGuest,
+      property_name: manualProp,
+      check_in: manualCheckIn,
+      check_out: manualCheckOut,
+      total_price: parseFloat(manualPrice) || 0,
+      status: 'Confirmed'
+    }
+    setBookings([item, ...bookings])
+    await supabase.from('bookings').insert([item])
+
+    setManualGuest('')
+    setManualProp('')
+    setManualCheckIn('')
+    setManualCheckOut('')
+    setManualPrice('')
+  }
+
+  const deleteBooking = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this booking?')) return
+    setBookings(bookings.filter(item => item.id !== id))
+    await supabase.from('bookings').delete().eq('id', id)
+  }
+
+  const handleUpdateBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingBooking) return
+
+    setBookings(bookings.map(b => b.id === editingBooking.id ? editingBooking : b))
+    
+    await supabase.from('bookings').update({
+      guest_name: editingBooking.guest_name,
+      check_in: editingBooking.check_in,
+      check_out: editingBooking.check_out,
+      total_price: editingBooking.total_price,
+      status: editingBooking.status,
+    }).eq('id', editingBooking.id)
+
+    setEditingBooking(null)
   }
 
   const addTask = async (e: React.FormEvent) => {
@@ -173,25 +225,137 @@ export default function OperationsPage() {
 
           {/* TAB 2: BOOKINGS */}
           {activeTab === 'bookings' && (
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white">Guest Reservations</h2>
-              <div className="space-y-3">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Manual Booking Creation Form */}
+              <form onSubmit={addManualBooking} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
+                <h3 className="font-extrabold text-amber-500 text-sm">+ Add Manual Booking</h3>
+                <input type="text" required placeholder="Guest Name" value={manualGuest} onChange={e => setManualGuest(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="Property Name" value={manualProp} onChange={e => setManualProp(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <div className="grid grid-cols-2 gap-2">
+                  <input type="date" required value={manualCheckIn} onChange={e => setManualCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                  <input type="date" required value={manualCheckOut} onChange={e => setManualCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                </div>
+                <input type="number" required placeholder="Agreed / Negotiated Rate ($)" value={manualPrice} onChange={e => setManualPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                  Save & Confirm Booking
+                </button>
+              </form>
+
+              {/* Bookings List */}
+              <div className="lg:col-span-2 space-y-3">
+                <h2 className="text-sm font-bold text-white">All Reservations</h2>
                 {bookings.map(b => (
-                  <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex justify-between items-center">
+                  <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                     <div>
-                      <h4 className="font-extrabold text-white text-xs">{b.guest_name} ({b.status})</h4>
-                      <p className="text-xs text-neutral-400">{b.property_name} | {b.check_in} to {b.check_out}</p>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-extrabold text-white text-sm">{b.guest_name}</h4>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          b.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                        }`}>
+                          {b.status || 'Pending Host Review'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-400 mt-1">
+                        📅 {b.check_in} to {b.check_out} {b.property_name ? `| 📍 ${b.property_name}` : ''}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-amber-500 font-extrabold text-xs">${b.total_price}</span>
-                      {b.status === 'Pending' && (
-                        <button onClick={() => confirmBooking(b.id)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer">
-                          Confirm
+
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                      <span className="text-amber-500 font-extrabold text-base">${b.total_price}</span>
+                      
+                      <div className="flex items-center gap-2">
+                        {b.status !== 'Confirmed' && (
+                          <button onClick={() => confirmBooking(b.id)} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg cursor-pointer">
+                            Approve
+                          </button>
+                        )}
+                        <button onClick={() => setEditingBooking(b)} className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">
+                          Edit / Negotiate Rate
                         </button>
-                      )}
+                        <button onClick={() => deleteBooking(b.id)} className="px-2 py-1.5 bg-red-950/50 hover:bg-red-900 text-red-400 text-xs font-bold rounded-lg cursor-pointer">
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* EDIT & NEGOTIATE RATE MODAL */}
+          {editingBooking && (
+            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+              <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl max-w-md w-full space-y-4">
+                <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                  <h3 className="font-extrabold text-white text-base">Edit / Negotiate Booking</h3>
+                  <button onClick={() => setEditingBooking(null)} className="text-neutral-400 hover:text-white text-sm">✕</button>
+                </div>
+                <form onSubmit={handleUpdateBooking} className="space-y-3">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1">Guest Name</label>
+                    <input 
+                      type="text" 
+                      value={editingBooking.guest_name || ''} 
+                      onChange={e => setEditingBooking({ ...editingBooking, guest_name: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" 
+                      required 
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-neutral-400 block mb-1">Check In</label>
+                      <input 
+                        type="date" 
+                        value={editingBooking.check_in || ''} 
+                        onChange={e => setEditingBooking({ ...editingBooking, check_in: e.target.value })}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-neutral-400 block mb-1">Check Out</label>
+                      <input 
+                        type="date" 
+                        value={editingBooking.check_out || ''} 
+                        onChange={e => setEditingBooking({ ...editingBooking, check_out: e.target.value })}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" 
+                        required 
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1">Negotiated Total Price ($)</label>
+                    <input 
+                      type="number" 
+                      value={editingBooking.total_price || ''} 
+                      onChange={e => setEditingBooking({ ...editingBooking, total_price: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1">Approval Status</label>
+                    <select 
+                      value={editingBooking.status || 'Pending'} 
+                      onChange={e => setEditingBooking({ ...editingBooking, status: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white"
+                    >
+                      <option value="Pending Host Review">Pending Host Review</option>
+                      <option value="Confirmed">Confirmed</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2 border-t border-neutral-800">
+                    <button type="button" onClick={() => setEditingBooking(null)} className="px-4 py-2 bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl cursor-pointer">
+                      Cancel
+                    </button>
+                    <button type="submit" className="px-4 py-2 bg-amber-500 text-black text-xs font-extrabold rounded-xl cursor-pointer">
+                      Save & Update
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
