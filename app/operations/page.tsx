@@ -9,44 +9,56 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function OperationsPage() {
+  const [isLocked, setIsLocked] = useState(false)
+  const [passcode, setPasscode] = useState('')
+  const [passError, setPassError] = useState(false)
+
   const [activeTab, setActiveTab] = useState('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
-  
-  // Forms & Modal states
+
+  // Property Form + Photos
   const [newPropTitle, setNewPropTitle] = useState('')
   const [newPropPrice, setNewPropPrice] = useState('')
   const [newPropLocation, setNewPropLocation] = useState('')
+  const [newPropImages, setNewPropImages] = useState<string[]>([])
 
+  // Booking Form + iCal
   const [manualGuest, setManualGuest] = useState('')
+  const [manualPhone, setManualPhone] = useState('256757386946')
   const [manualProp, setManualProp] = useState('')
   const [manualCheckIn, setManualCheckIn] = useState('')
   const [manualCheckOut, setManualCheckOut] = useState('')
   const [manualPrice, setManualPrice] = useState('')
+  const [manualIcal, setManualIcal] = useState('')
   const [editingBooking, setEditingBooking] = useState<any | null>(null)
 
+  // Tasks Form
   const [taskTitle, setTaskTitle] = useState('')
   const [taskProp, setTaskProp] = useState('')
   const [taskAssignee, setTaskAssignee] = useState('')
   const [taskPhone, setTaskPhone] = useState('256757386946')
   const [taskDueDate, setTaskDueDate] = useState('')
 
+  // Financials Form
   const [expDesc, setExpDesc] = useState('')
   const [expCategory, setExpCategory] = useState('Rent')
   const [expAmount, setExpAmount] = useState('')
 
-  const [services, setServices] = useState([
+  // Upsell Services Form
+  const [serviceName, setServiceName] = useState('')
+  const [serviceCategory, setServiceCategory] = useState('Transportation')
+  const [servicePrice, setServicePrice] = useState('')
+  const [servicePhone, setServicePhone] = useState('256757386946')
+  const [services, setServices] = useState<any[]>([
     { id: '1', category: 'Transportation', name: 'Airport Pickup & Dropoff', price: 45, whatsapp_number: '256757386946' },
     { id: '2', category: 'Dining', name: 'Private Chef Meal Prep', price: 60, whatsapp_number: '256780564778' },
     { id: '3', category: 'Cleaning', name: 'Mid-Stay Deep Cleaning', price: 25, whatsapp_number: '256757386946' },
   ])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) window.location.href = '/login'
-    })
     loadData()
   }, [])
 
@@ -62,31 +74,77 @@ export default function OperationsPage() {
     if (e) setExpenses(e)
   }
 
+  // Handle Photo File Select (Up to 5 images preview converted to base64)
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).slice(0, 5)
+    const promises = files.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+    })
+
+    Promise.all(promises).then(images => {
+      setNewPropImages(images)
+    })
+  }
+
+  const addProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const item = { 
+      id: Date.now().toString(), 
+      title: newPropTitle, 
+      price_per_night: parseFloat(newPropPrice) || 0, 
+      location: newPropLocation || 'Kampala', 
+      is_occupied: false,
+      images: newPropImages
+    }
+    setProperties([item, ...properties])
+    await supabase.from('properties').insert([item])
+    setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropImages([])
+  }
+
   const toggleOccupancy = async (id: string, current: boolean) => {
     const next = !current
     setProperties(properties.map(item => item.id === id ? { ...item, is_occupied: next } : item))
     await supabase.from('properties').update({ is_occupied: next }).eq('id', id)
   }
 
-  const addProperty = async (e: React.FormEvent) => {
+  const addManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
-    const item = { id: Date.now().toString(), title: newPropTitle, price_per_night: parseFloat(newPropPrice) || 0, location: newPropLocation || 'Kampala', is_occupied: false }
-    setProperties([item, ...properties])
-    await supabase.from('properties').insert([item])
-    setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation('')
+    const item = { 
+      id: Date.now().toString(), 
+      guest_name: manualGuest, 
+      phone_number: manualPhone,
+      property_name: manualProp, 
+      check_in: manualCheckIn, 
+      check_out: manualCheckOut, 
+      total_price: parseFloat(manualPrice) || 0, 
+      status: 'Confirmed',
+      ical_link: manualIcal
+    }
+    setBookings([item, ...bookings])
+    await supabase.from('bookings').insert([item])
+    setManualGuest(''); setManualProp(''); setManualCheckIn(''); setManualCheckOut(''); setManualPrice(''); setManualIcal('')
+  }
+
+  const addCustomService = (e: React.FormEvent) => {
+    e.preventDefault()
+    const item = {
+      id: Date.now().toString(),
+      name: serviceName,
+      category: serviceCategory,
+      price: parseFloat(servicePrice) || 0,
+      whatsapp_number: servicePhone
+    }
+    setServices([item, ...services])
+    setServiceName(''); setServicePrice('')
   }
 
   const confirmBooking = async (id: string) => {
     setBookings(bookings.map(item => item.id === id ? { ...item, status: 'Confirmed' } : item))
     await supabase.from('bookings').update({ status: 'Confirmed' }).eq('id', id)
-  }
-
-  const addManualBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const item = { id: Date.now().toString(), guest_name: manualGuest, property_name: manualProp, check_in: manualCheckIn, check_out: manualCheckOut, total_price: parseFloat(manualPrice) || 0, status: 'Confirmed' }
-    setBookings([item, ...bookings])
-    await supabase.from('bookings').insert([item])
-    setManualGuest(''); setManualProp(''); setManualCheckIn(''); setManualCheckOut(''); setManualPrice('')
   }
 
   const deleteBooking = async (id: string) => {
@@ -95,17 +153,9 @@ export default function OperationsPage() {
     await supabase.from('bookings').delete().eq('id', id)
   }
 
-  const handleUpdateBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingBooking) return
-    setBookings(bookings.map(b => b.id === editingBooking.id ? editingBooking : b))
-    await supabase.from('bookings').update({ guest_name: editingBooking.guest_name, check_in: editingBooking.check_in, check_out: editingBooking.check_out, total_price: editingBooking.total_price, status: editingBooking.status }).eq('id', editingBooking.id)
-    setEditingBooking(null)
-  }
-
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault()
-    const item = { id: Date.now().toString(), title: taskTitle, property_name: taskProp, assigned_to: taskAssignee, phone_number: taskPhone, due_date: taskDueDate, priority: 'Medium', status: 'Unfinished' }
+    const item = { id: Date.now().toString(), title: taskTitle, property_name: taskProp, assigned_to: taskAssignee, phone_number: taskPhone, due_date: taskDueDate, status: 'Unfinished' }
     setTasks([item, ...tasks])
     await supabase.from('tasks').insert([item])
     setTaskTitle(''); setTaskProp(''); setTaskAssignee(''); setTaskDueDate('')
@@ -129,6 +179,41 @@ export default function OperationsPage() {
   const totalBills = expenses.reduce((s, e) => s + (e.amount || 0), 0)
   const netIncome = totalEarned - totalBills
 
+  const unlockPortal = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (passcode === '1234' || passcode === 'admin') {
+      setIsLocked(false)
+      setPassError(false)
+    } else {
+      setPassError(true)
+    }
+  }
+
+  if (isLocked) {
+    return (
+      <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
+        <HeaderNav />
+        <div className="max-w-md mx-auto p-8 bg-neutral-900 border border-neutral-800 rounded-2xl my-20 space-y-4 text-center">
+          <span className="text-4xl">🔒</span>
+          <h2 className="text-xl font-extrabold text-white">Host Security Gateway</h2>
+          <p className="text-xs text-neutral-400">Portal is currently locked. Enter passcode to access operations.</p>
+          <form onSubmit={unlockPortal} className="space-y-3">
+            <input 
+              type="password" 
+              placeholder="Enter passcode" 
+              value={passcode} 
+              onChange={e => setPasscode(e.target.value)} 
+              className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-center text-xs text-white"
+            />
+            {passError && <p className="text-xs text-red-400 font-bold">Incorrect passcode.</p>}
+            <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Unlock Portal</button>
+          </form>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
@@ -140,16 +225,21 @@ export default function OperationsPage() {
               <h1 className="text-2xl font-extrabold text-white">La Estancia Host Operations Portal</h1>
               <p className="text-xs text-neutral-400 mt-1">Centralized PMS: Manage Properties, Bookings, Staff, Finances, and Services.</p>
             </div>
-            <Link href="/properties" className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
-              View Public Catalog
-            </Link>
+            <div className="flex gap-2">
+              <button onClick={() => setIsLocked(true)} className="px-3 py-2 bg-neutral-800 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl">
+                🔒 Lock Portal
+              </button>
+              <Link href="/properties" className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
+                View Public Catalog
+              </Link>
+            </div>
           </div>
 
           {/* 5 TABS NAVIGATION */}
           <div className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
             {[
-              { id: 'properties', label: '🏠 Properties & Occupancy' },
-              { id: 'bookings', label: '📅 Bookings & Approvals' },
+              { id: 'properties', label: '🏠 Properties & Photos' },
+              { id: 'bookings', label: '📅 Bookings & iCal' },
               { id: 'tasks', label: '🧹 Tasks & Staff' },
               { id: 'financials', label: '💰 Financials & Ledger' },
               { id: 'services', label: '✨ Upsell Services' },
@@ -166,7 +256,7 @@ export default function OperationsPage() {
             ))}
           </div>
 
-          {/* TAB 1: PROPERTIES */}
+          {/* TAB 1: PROPERTIES WITH PHOTO UPLOAD */}
           {activeTab === 'properties' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addProperty} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
@@ -174,11 +264,33 @@ export default function OperationsPage() {
                 <input type="text" required placeholder="Title (e.g. Luxury Villa)" value={newPropTitle} onChange={e => setNewPropTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" placeholder="Location (e.g. Kololo, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                
+                {/* PHOTO UPLOAD INPUT (UP TO 5 PICTURES) */}
+                <div>
+                  <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
+                  <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
+                  {newPropImages.length > 0 && (
+                    <div className="flex gap-1 mt-2 overflow-x-auto">
+                      {newPropImages.map((img, idx) => (
+                        <img key={idx} src={img} className="w-12 h-12 object-cover rounded-lg border border-neutral-700" alt="Preview" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save Property</button>
               </form>
+
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
                 {properties.map(p => (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
+                    {p.images && p.images.length > 0 && (
+                      <div className="grid grid-cols-5 gap-1 rounded-xl overflow-hidden mb-2">
+                        {p.images.slice(0, 5).map((img: string, i: number) => (
+                          <img key={i} src={img} className="h-16 w-full object-cover" alt="Property" />
+                        ))}
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
                       <span className="text-amber-500 font-bold text-xs">${p.price_per_night}/n</span>
@@ -196,74 +308,55 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* TAB 2: BOOKINGS */}
+          {/* TAB 2: BOOKINGS WITH ICAL INTEGRATION */}
           {activeTab === 'bookings' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addManualBooking} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
                 <h3 className="font-extrabold text-amber-500 text-sm">+ Add Manual Booking</h3>
                 <input type="text" required placeholder="Guest Name" value={manualGuest} onChange={e => setManualGuest(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp / Phone" value={manualPhone} onChange={e => setManualPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Property Name" value={manualProp} onChange={e => setManualProp(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <div className="grid grid-cols-2 gap-2">
                   <input type="date" required value={manualCheckIn} onChange={e => setManualCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                   <input type="date" required value={manualCheckOut} onChange={e => setManualCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 </div>
                 <input type="number" required placeholder="Agreed Rate ($)" value={manualPrice} onChange={e => setManualPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="url" placeholder="iCal Link (Airbnb / VRBO Sync)" value={manualIcal} onChange={e => setManualIcal(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save & Confirm</button>
               </form>
+
               <div className="lg:col-span-2 space-y-3">
-                <h2 className="text-sm font-bold text-white">All Reservations & Approvals</h2>
+                <h2 className="text-sm font-bold text-white">All Reservations & iCal Feeds</h2>
                 {bookings.map(b => (
-                  <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-white text-sm">{b.guest_name}</h4>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                          {b.status || 'Pending Host Review'}
-                        </span>
+                  <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-2">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-extrabold text-white text-sm">{b.guest_name}</h4>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                            {b.status || 'Pending Host Review'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-400 mt-1">📅 {b.check_in} to {b.check_out} | 📍 {b.property_name}</p>
                       </div>
-                      <p className="text-xs text-neutral-400 mt-1">📅 {b.check_in} to {b.check_out} | 📍 {b.property_name}</p>
-                    </div>
-                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-                      <span className="text-amber-500 font-extrabold text-base">${b.total_price}</span>
-                      <div className="flex items-center gap-2">
-                        {b.status !== 'Confirmed' && (
-                          <button onClick={() => confirmBooking(b.id)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer">Approve</button>
-                        )}
-                        <button onClick={() => setEditingBooking(b)} className="px-3 py-1.5 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">Edit Rate</button>
-                        <button onClick={() => deleteBooking(b.id)} className="px-2 py-1.5 bg-red-950 text-red-400 text-xs font-bold rounded-lg cursor-pointer">🗑️</button>
+                      <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                        <span className="text-amber-500 font-extrabold text-base">${b.total_price}</span>
+                        <div className="flex items-center gap-2">
+                          {b.status !== 'Confirmed' && (
+                            <button onClick={() => confirmBooking(b.id)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer">Approve</button>
+                          )}
+                          <button onClick={() => deleteBooking(b.id)} className="px-2 py-1.5 bg-red-950 text-red-400 text-xs font-bold rounded-lg cursor-pointer">🗑️</button>
+                        </div>
                       </div>
                     </div>
+                    {b.ical_link && (
+                      <div className="bg-neutral-950 p-2 rounded-lg text-[10px] text-amber-400 flex justify-between items-center border border-neutral-800">
+                        <span className="truncate">📅 iCal Feed: {b.ical_link}</span>
+                        <button onClick={() => navigator.clipboard.writeText(b.ical_link)} className="ml-2 text-neutral-300 font-bold hover:text-white">Copy Link</button>
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* EDIT BOOKING MODAL */}
-          {editingBooking && (
-            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-              <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl max-w-md w-full space-y-4">
-                <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-                  <h3 className="font-extrabold text-white text-base">Edit / Negotiate Booking</h3>
-                  <button onClick={() => setEditingBooking(null)} className="text-neutral-400 hover:text-white">✕</button>
-                </div>
-                <form onSubmit={handleUpdateBooking} className="space-y-3">
-                  <input type="text" value={editingBooking.guest_name || ''} onChange={e => setEditingBooking({ ...editingBooking, guest_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" required />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="date" value={editingBooking.check_in || ''} onChange={e => setEditingBooking({ ...editingBooking, check_in: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" required />
-                    <input type="date" value={editingBooking.check_out || ''} onChange={e => setEditingBooking({ ...editingBooking, check_out: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" required />
-                  </div>
-                  <input type="number" value={editingBooking.total_price || ''} onChange={e => setEditingBooking({ ...editingBooking, total_price: parseFloat(e.target.value) || 0 })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" required />
-                  <select value={editingBooking.status || 'Pending'} onChange={e => setEditingBooking({ ...editingBooking, status: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
-                    <option value="Pending Host Review">Pending Host Review</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="Cancelled">Cancelled</option>
-                  </select>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <button type="button" onClick={() => setEditingBooking(null)} className="px-4 py-2 bg-neutral-800 text-xs font-bold rounded-xl">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-amber-500 text-black text-xs font-extrabold rounded-xl">Save Changes</button>
-                  </div>
-                </form>
               </div>
             </div>
           )}
@@ -276,7 +369,7 @@ export default function OperationsPage() {
                 <input type="text" required placeholder="Task Title" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Property Name" value={taskProp} onChange={e => setTaskProp(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Staff Name" value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                <input type="text" required placeholder="WhatsApp Phone (e.g. 256757386946)" value={taskPhone} onChange={e => setTaskPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp Phone" value={taskPhone} onChange={e => setTaskPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="date" required value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Assign Task</button>
               </form>
@@ -329,13 +422,24 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* TAB 5: SERVICES */}
+          {/* TAB 5: UPSELL SERVICES WITH MANUAL ENTRY FORM */}
           {activeTab === 'services' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
-                <h3 className="font-extrabold text-amber-500 text-sm">Upsell Services Manager</h3>
-                <p className="text-xs text-neutral-400">Offer extra guest services like airport pickups, private chefs, and mid-stay cleanings.</p>
-              </div>
+              <form onSubmit={addCustomService} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
+                <h3 className="font-extrabold text-amber-500 text-sm">+ Add Custom Service</h3>
+                <p className="text-xs text-neutral-400 mb-2">Create custom upsell services for guests.</p>
+                <input type="text" required placeholder="Service Name (e.g. Airport Pickup)" value={serviceName} onChange={e => setServiceName(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
+                  <option value="Transportation">Transportation</option>
+                  <option value="Dining">Dining</option>
+                  <option value="Cleaning">Cleaning</option>
+                  <option value="Concierge">Concierge</option>
+                </select>
+                <input type="number" required placeholder="Price ($)" value={servicePrice} onChange={e => setServicePrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp Number" value={servicePhone} onChange={e => setServicePhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Add Service</button>
+              </form>
+
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
                 {services.map(s => (
                   <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
