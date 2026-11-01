@@ -33,7 +33,6 @@ export default function OperationsPage() {
   const [manualCheckOut, setManualCheckOut] = useState('')
   const [manualPrice, setManualPrice] = useState('')
   const [manualIcal, setManualIcal] = useState('')
-  const [editingBooking, setEditingBooking] = useState<any | null>(null)
 
   // Tasks Form
   const [taskTitle, setTaskTitle] = useState('')
@@ -74,7 +73,6 @@ export default function OperationsPage() {
     if (e) setExpenses(e)
   }
 
-  // Handle Photo File Select (Up to 5 images preview converted to base64)
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5)
     const promises = files.map(file => {
@@ -226,7 +224,7 @@ export default function OperationsPage() {
               <p className="text-xs text-neutral-400 mt-1">Centralized PMS: Manage Properties, Bookings, Staff, Finances, and Services.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setIsLocked(true)} className="px-3 py-2 bg-neutral-800 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl">
+              <button onClick={() => setIsLocked(true)} className="px-3 py-2 bg-neutral-800 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl cursor-pointer">
                 🔒 Lock Portal
               </button>
               <Link href="/properties" className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
@@ -265,7 +263,6 @@ export default function OperationsPage() {
                 <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" placeholder="Location (e.g. Kololo, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 
-                {/* PHOTO UPLOAD INPUT (UP TO 5 PICTURES) */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
@@ -314,7 +311,7 @@ export default function OperationsPage() {
               <form onSubmit={addManualBooking} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
                 <h3 className="font-extrabold text-amber-500 text-sm">+ Add Manual Booking</h3>
                 <input type="text" required placeholder="Guest Name" value={manualGuest} onChange={e => setManualGuest(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                <input type="text" required placeholder="WhatsApp / Phone" value={manualPhone} onChange={e => setManualPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp Contact" value={manualPhone} onChange={e => setManualPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Property Name" value={manualProp} onChange={e => setManualProp(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <div className="grid grid-cols-2 gap-2">
                   <input type="date" required value={manualCheckIn} onChange={e => setManualCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
@@ -345,6 +342,9 @@ export default function OperationsPage() {
                           {b.status !== 'Confirmed' && (
                             <button onClick={() => confirmBooking(b.id)} className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg cursor-pointer">Approve</button>
                           )}
+                          <a href={`https://wa.me/${b.phone_number || '256757386946'}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-lg flex items-center gap-1">
+                            💬 Message
+                          </a>
                           <button onClick={() => deleteBooking(b.id)} className="px-2 py-1.5 bg-red-950 text-red-400 text-xs font-bold rounded-lg cursor-pointer">🗑️</button>
                         </div>
                       </div>
@@ -369,7 +369,7 @@ export default function OperationsPage() {
                 <input type="text" required placeholder="Task Title" value={taskTitle} onChange={e => setTaskTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Property Name" value={taskProp} onChange={e => setTaskProp(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" required placeholder="Staff Name" value={taskAssignee} onChange={e => setTaskAssignee(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                <input type="text" required placeholder="WhatsApp Phone" value={taskPhone} onChange={e => setTaskPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp Contact" value={taskPhone} onChange={e => setTaskPhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="date" required value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Assign Task</button>
               </form>
@@ -381,7 +381,7 @@ export default function OperationsPage() {
                       <p className="text-xs text-neutral-400">{t.property_name} - Staff: {t.assigned_to}</p>
                     </div>
                     <div className="flex gap-2">
-                      <a href={`https://wa.me/${t.phone_number}?text=${encodeURIComponent(`Hello ${t.assigned_to}, task: ${t.title}`)}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg">💬 WhatsApp</a>
+                      <a href={`https://wa.me/${t.phone_number}?text=${encodeURIComponent(`Hello ${t.assigned_to}, task update: ${t.title}`)}`} target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-lg">💬 WhatsApp Staff</a>
                       <button onClick={() => toggleTask(t.id, t.status)} className="px-3 py-1.5 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">{t.status}</button>
                     </div>
                   </div>
@@ -422,7 +422,7 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* TAB 5: UPSELL SERVICES WITH MANUAL ENTRY FORM */}
+          {/* TAB 5: UPSELL SERVICES */}
           {activeTab === 'services' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addCustomService} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
@@ -436,7 +436,7 @@ export default function OperationsPage() {
                   <option value="Concierge">Concierge</option>
                 </select>
                 <input type="number" required placeholder="Price ($)" value={servicePrice} onChange={e => setServicePrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                <input type="text" required placeholder="WhatsApp Number" value={servicePhone} onChange={e => setServicePhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required placeholder="WhatsApp Contact" value={servicePhone} onChange={e => setServicePhone(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Add Service</button>
               </form>
 
@@ -446,7 +446,7 @@ export default function OperationsPage() {
                     <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">{s.category}</span>
                     <h4 className="font-bold text-white text-sm">{s.name}</h4>
                     <p className="text-amber-500 font-bold text-xs">${s.price}</p>
-                    <a href={`https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent(`Service request: ${s.name}`)}`} target="_blank" rel="noopener noreferrer" className="block text-center py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">💬 WhatsApp Service</a>
+                    <a href={`https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent(`Service request: ${s.name}`)}`} target="_blank" rel="noopener noreferrer" className="block text-center py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">💬 Contact Provider</a>
                   </div>
                 ))}
               </div>
