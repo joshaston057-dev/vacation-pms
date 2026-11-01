@@ -198,12 +198,120 @@ export default function PropertiesPage() {
                   className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
                 />
                 
-                {/* PHOTO SELECTION INPUT */}
+                {/* CLEAN FILE INPUT ELEMENT */}
                 <div className="space-y-2">
-                  <label className="block text-[11px] font-semibold text-neutral-300">Upload Property Pictures (Up to 5)</label>
+                  <label className="block text-[11px] font-semibold text-neutral-300">
+                    Upload Property Pictures (Up to 5)
+                  </label>
                   <input
                     type="file"
                     multiple
                     accept="image/*"
                     onChange={handleImageChange}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-neutral-400 text-xs file:mr-4 file:py-1 file:px-3 files
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-neutral-400 text-xs file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* VISUAL IMAGE PREVIEWS WITH UNSELECT BUTTONS */}
+              {imagePreviews.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
+                    Selected Photos Preview ({imagePreviews.length})
+                  </span>
+                  <div className="flex flex-wrap gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
+                    {imagePreviews.map((src, index) => (
+                      <div key={index} className="relative flex flex-col items-center gap-1.5">
+                        <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-neutral-700 shadow-xl">
+                          <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-extrabold py-0.5">
+                            Photo #{index + 1}
+                          </span>
+                        </div>
+
+                        {/* REMOVE BUTTON */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white font-extrabold text-[10px] rounded-lg shadow-md transition flex items-center gap-1 cursor-pointer"
+                        >
+                          ✕ Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-300 mb-2">Amenities Included</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {AVAILABLE_AMENITIES.map((amenity) => (
+                    <button
+                      type="button"
+                      key={amenity}
+                      onClick={() => handleAmenityToggle(amenity)}
+                      className={`p-2 rounded-xl text-left text-[11px] font-medium border transition ${
+                        selectedAmenities.includes(amenity)
+                          ? 'bg-amber-500/10 border-amber-500 text-amber-400'
+                          : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                      }`}
+                    >
+                      {selectedAmenities.includes(amenity) ? '✓ ' : '+ '}
+                      {amenity}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <textarea
+                rows={3} required placeholder="Property Description..."
+                value={description} onChange={(e) => setDescription(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+              />
+
+              <button
+                type="submit" disabled={submitting}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
+              >
+                {submitting ? 'Publishing...' : 'Publish Listing'}
+              </button>
+            </form>
+          </div>
+
+          {/* LISTED PROPERTIES DISPLAY */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Current Published Listings ({properties.length})</h2>
+            
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              </div>
+            ) : properties.length === 0 ? (
+              <p className="text-xs text-neutral-500 italic">No published properties yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {properties.map((p) => (
+                  <div key={p.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex gap-4">
+                    {p.image_urls && p.image_urls.length > 0 ? (
+                      <img src={p.image_urls[0]} alt={p.title} className="w-20 h-20 rounded-lg object-cover border border-neutral-800" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-neutral-900 flex items-center justify-center text-xs text-neutral-500">No Img</div>
+                    )}
+                    <div className="space-y-1">
+                      <h3 className="font-bold text-white text-sm">{p.title}</h3>
+                      <p className="text-xs text-amber-500 font-extrabold">${p.price_per_night} / night</p>
+                      <p className="text-[11px] text-neutral-400">📍 {p.location} • {p.bedrooms} Bed • {p.guests} Guests</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+    </main>
+  )
+}
