@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
@@ -15,7 +17,7 @@ export default function PropertiesPage() {
 
   const fetchProperties = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('properties').select('*')
+    const { data } = await supabase.from('properties').select('*')
     if (data) setProperties(data)
     setLoading(false)
   }
