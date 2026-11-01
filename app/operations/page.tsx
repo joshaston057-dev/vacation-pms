@@ -1,5 +1,7 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from 'react'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
@@ -13,7 +15,7 @@ export default function OperationsPage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
   
-  const [services] = useState([
+  const [services, setServices] = useState([
     { id: '1', category: 'Transportation', name: 'Airport Pickup & Dropoff', price: 45, whatsapp_number: '256757386946' },
     { id: '2', category: 'Dining', name: 'Private Chef Meal Prep', price: 60, whatsapp_number: '256780564778' },
     { id: '3', category: 'Cleaning', name: 'Mid-Stay Deep Cleaning', price: 25, whatsapp_number: '256757386946' },
@@ -32,6 +34,13 @@ export default function OperationsPage() {
   const [expAmount, setExpAmount] = useState('')
 
   useEffect(() => {
+    // Security check: Redirect to login if unauthenticated
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        window.location.href = '/login'
+      }
+    })
+
     loadData()
   }, [])
 
@@ -112,9 +121,9 @@ export default function OperationsPage() {
           <div className="flex justify-between items-center bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
             <div>
               <h1 className="text-2xl font-extrabold text-white">Host Operations Portal</h1>
-              <p className="text-xs text-neutral-400 mt-1">Manage listings, bookings, staff tasks, bills, and upsells.</p>
+              <p className="text-xs text-neutral-400 mt-1">Manage listings, bookings, staff tasks, bills, and upsells securely.</p>
             </div>
-            <Link href="/properties" className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl">
+            <Link href="/properties" className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
               Property Catalog
             </Link>
           </div>
@@ -165,7 +174,7 @@ export default function OperationsPage() {
           {/* TAB 2: BOOKINGS */}
           {activeTab === 'bookings' && (
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white">Guest Bookings</h2>
+              <h2 className="text-lg font-bold text-white">Guest Reservations</h2>
               <div className="space-y-3">
                 {bookings.map(b => (
                   <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-xl p-4 flex justify-between items-center">
@@ -254,17 +263,44 @@ export default function OperationsPage() {
 
           {/* TAB 5: SERVICES */}
           {activeTab === 'services' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {services.map(s => (
-                <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
-                  <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">{s.category}</span>
-                  <h4 className="font-bold text-white text-sm">{s.name}</h4>
-                  <p className="text-amber-500 font-bold text-xs">${s.price}</p>
-                  <a href={`https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent(`Booking service: ${s.name}`)}`} target="_blank" rel="noopener noreferrer" className="block text-center py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">
-                    💬 WhatsApp Service
-                  </a>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                const form = e.currentTarget as HTMLFormElement
+                const cat = (form.elements.namedItem('cat') as HTMLSelectElement).value
+                const name = (form.elements.namedItem('name') as HTMLInputElement).value
+                const price = parseFloat((form.elements.namedItem('price') as HTMLInputElement).value) || 0
+                const phone = (form.elements.namedItem('phone') as HTMLInputElement).value
+                setServices([{ id: Date.now().toString(), category: cat, name, price, whatsapp_number: phone }, ...services])
+                form.reset()
+              }} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
+                <h3 className="font-extrabold text-amber-500 text-sm">Add Upsell Service</h3>
+                <select name="cat" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
+                  <option value="Transportation">Transportation</option>
+                  <option value="Dining">Dining</option>
+                  <option value="Cleaning">Cleaning & Laundry</option>
+                  <option value="Tours">Tours & Excursions</option>
+                </select>
+                <input name="name" type="text" required placeholder="Service Name (e.g. Airport Pickup)" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input name="price" type="number" required placeholder="Price ($)" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input name="phone" type="text" required defaultValue="256757386946" placeholder="WhatsApp Phone" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                  + Add Service
+                </button>
+              </form>
+
+              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
+                {services.map(s => (
+                  <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
+                    <span className="text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">{s.category}</span>
+                    <h4 className="font-bold text-white text-sm">{s.name}</h4>
+                    <p className="text-amber-500 font-bold text-xs">${s.price}</p>
+                    <a href={`https://wa.me/${s.whatsapp_number}?text=${encodeURIComponent(`Booking service: ${s.name}`)}`} target="_blank" rel="noopener noreferrer" className="block text-center py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl">
+                      💬 WhatsApp Service
+                    </a>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
