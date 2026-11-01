@@ -9,15 +9,18 @@ import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export default function OperationsPage() {
-  const [activeTab, setActiveTab] = useState('bookings')
+  const [activeTab, setActiveTab] = useState('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
   
-  // Modal & Manual Booking States
+  // Modal & Property Input States
   const [editingBooking, setEditingBooking] = useState<any | null>(null)
-  
+  const [newPropTitle, setNewPropTitle] = useState('')
+  const [newPropPrice, setNewPropPrice] = useState('')
+  const [newPropLocation, setNewPropLocation] = useState('')
+
   // Manual Booking Form States
   const [manualGuest, setManualGuest] = useState('')
   const [manualProp, setManualProp] = useState('')
@@ -68,6 +71,22 @@ export default function OperationsPage() {
     const next = !current
     setProperties(properties.map(item => item.id === id ? { ...item, is_occupied: next } : item))
     await supabase.from('properties').update({ is_occupied: next }).eq('id', id)
+  }
+
+  const addProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const item = {
+      id: Date.now().toString(),
+      title: newPropTitle,
+      price_per_night: parseFloat(newPropPrice) || 0,
+      location: newPropLocation || 'Kampala',
+      is_occupied: false
+    }
+    setProperties([item, ...properties])
+    await supabase.from('properties').insert([item])
+    setNewPropTitle('')
+    setNewPropPrice('')
+    setNewPropLocation('')
   }
 
   const confirmBooking = async (id: string) => {
@@ -203,31 +222,45 @@ export default function OperationsPage() {
 
           {/* TAB 1: PROPERTIES */}
           {activeTab === 'properties' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {properties.map(p => (
-                <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
-                  <div className="flex justify-between">
-                    <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                    <span className="text-amber-500 font-bold text-xs">${p.price_per_night}/n</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Add Property Form */}
+              <form onSubmit={addProperty} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
+                <h3 className="font-extrabold text-amber-500 text-sm">+ Add New Property</h3>
+                <input type="text" required placeholder="Title (e.g. 2 Bedroom Apartment)" value={newPropTitle} onChange={e => setNewPropTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" placeholder="Location (e.g. Kisaasi, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                  Save Property
+                </button>
+              </form>
+
+              {/* Properties List */}
+              <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
+                {properties.map(p => (
+                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
+                    <div className="flex justify-between">
+                      <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
+                      <span className="text-amber-500 font-bold text-xs">${p.price_per_night}/n</span>
+                    </div>
+                    <p className="text-xs text-neutral-400">📍 {p.location || 'Kampala'}</p>
+                    <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
+                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                        {p.is_occupied ? '🔴 Occupied' : '🟢 Available'}
+                      </span>
+                      <button onClick={() => toggleOccupancy(p.id, p.is_occupied)} className="px-3 py-1 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">
+                        Toggle Status
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
-                    <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                      {p.is_occupied ? '🔴 Occupied' : '🟢 Available'}
-                    </span>
-                    <button onClick={() => toggleOccupancy(p.id, p.is_occupied)} className="px-3 py-1 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">
-                      Toggle Status
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* TAB 2: BOOKINGS */}
           {activeTab === 'bookings' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Manual Booking Creation Form */}
               <form onSubmit={addManualBooking} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
                 <h3 className="font-extrabold text-amber-500 text-sm">+ Add Manual Booking</h3>
                 <input type="text" required placeholder="Guest Name" value={manualGuest} onChange={e => setManualGuest(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
@@ -242,7 +275,6 @@ export default function OperationsPage() {
                 </button>
               </form>
 
-              {/* Bookings List */}
               <div className="lg:col-span-2 space-y-3">
                 <h2 className="text-sm font-bold text-white">All Reservations</h2>
                 {bookings.map(b => (
@@ -284,7 +316,7 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* EDIT & NEGOTIATE RATE MODAL */}
+          {/* EDIT BOOKING MODAL */}
           {editingBooking && (
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
               <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl max-w-md w-full space-y-4">
