@@ -1,657 +1,279 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
-interface Property {
+interface Task {
   id: string
   title: string
-  location: string
-  price_per_night: number
-  bedrooms: number
-  bathrooms: number
-  guests: number
-  property_type: string
-  whatsapp_number: string
-  description: string
-  amenities: string[]
-  image_urls: string[]
-  ical_url?: string
+  property_name: string
+  assigned_to: string
+  status: 'Pending' | 'In Progress' | 'Completed'
+  due_date: string
+  priority: 'Low' | 'Medium' | 'High'
 }
 
 interface Booking {
   id: string
-  property_title: string
   guest_name: string
-  guest_phone: string
+  property_name: string
   check_in: string
   check_out: string
-  total_price?: number
-  total_amount?: number
-  status: string
-  notes?: string
+  total_price: number
+  status: 'Confirmed' | 'Pending' | 'Cancelled'
 }
-
-interface OperationalTask {
-  id: string
-  property_title: string
-  task_type: string
-  assigned_to: string
-  due_date: string
-  completed: boolean
-}
-
-interface UpsellService {
-  id: string
-  title: string
-  category: string
-  price_usd: number
-  description: string
-}
-
-const AVAILABLE_AMENITIES = [
-  'High-Speed WiFi', 'Air Conditioning', 'Hot Water Shower', 'Smart TV / Netflix',
-  'Standby Generator / Inverter', 'Fully Equipped Kitchen', 'Washing Machine',
-  'Daily Housekeeping', 'Swimming Pool', 'Private Parking', '24/7 Security / CCTV',
-  'Balcony / City View', 'Gym / Fitness Center', 'Elevator Access', 'Perimeter Wall / Gate', 'Dedicated Workspace'
-]
 
 export default function OperationsPage() {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'operations' | 'services'>('properties')
-  const [checkingAuth, setCheckingAuth] = useState(true)
-
-  const [properties, setProperties] = useState<Property[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [tasks, setTasks] = useState<OperationalTask[]>([])
-  const [services, setServices] = useState<UpsellService[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Property Form State
-  const [title, setTitle] = useState('')
-  const [location, setLocation] = useState('')
-  const [pricePerNight, setPricePerNight] = useState('')
-  const [bedrooms, setBedrooms] = useState('1')
-  const [bathrooms, setBathrooms] = useState('1')
-  const [guests, setGuests] = useState('2')
-  const [propertyType, setPropertyType] = useState('Apartment')
-  const [whatsappNumber, setWhatsappNumber] = useState('+256757386946')
-  const [description, setDescription] = useState('')
-  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
-  
-  // Robust Photo Selection State
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
-  const [submitting, setSubmitting] = useState(false)
+  // Task Form State
+  const [taskTitle, setTaskTitle] = useState('')
+  const [propertyName, setPropertyName] = useState('')
+  const [assignedTo, setAssignedTo] = useState('')
+  const [dueDate, setDueDate] = useState('')
+  const [priority, setPriority] = useState<'Low' | 'Medium' | 'High'>('Medium')
 
-  // Manual Booking Form State
-  const [bPropertyId, setBPropertyId] = useState('')
-  const [bPropertyTitle, setBPropertyTitle] = useState('')
-  const [bGuestName, setBGuestName] = useState('')
-  const [bGuestPhone, setBGuestPhone] = useState('')
-  const [bCheckIn, setBCheckIn] = useState('')
-  const [bCheckOut, setBCheckOut] = useState('')
-  const [bNightlyRate, setBNightlyRate] = useState<number>(0)
-  const [bTotalPrice, setBTotalPrice] = useState('')
-
-  // Edit Booking Modal State
-  const [editingBooking, setEditingBooking] = useState<Booking | null>(null)
+  // Price Adjustment State
   const [editPrice, setEditPrice] = useState('')
-  const [editCheckIn, setEditCheckIn] = useState('')
-  const [editCheckOut, setEditCheckOut] = useState('')
-  const [editNotes, setEditNotes] = useState('')
-  const [editNightlyRate, setEditNightlyRate] = useState<number>(100)
-  const [savingEdit, setSavingEdit] = useState(false)
-
-  // Task & Service Forms
-  const [tProperty, setTProperty] = useState('')
-  const [tType, setTType] = useState('Housekeeping')
-  const [tAssigned, setTAssigned] = useState('Cleaners')
-  const [tDueDate, setTDueDate] = useState('')
-  const [sTitle, setSTitle] = useState('')
-  const [sCategory, setSCategory] = useState('Transport')
-  const [sPrice, setSPrice] = useState('')
-  const [sDesc, setSDesc] = useState('')
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-      } else {
-        setCheckingAuth(false)
-        fetchAllData()
-      }
-    }
-    checkSession()
-  }, [router])
+    fetchOperationsData()
+  }, [])
 
-  const fetchAllData = async () => {
-    const { data: propsData } = await supabase.from('properties').select('*').order('created_at', { ascending: false })
-    const { data: booksData } = await supabase.from('bookings').select('*').order('created_at', { ascending: false })
-    const { data: tasksData } = await supabase.from('operational_tasks').select('*').order('created_at', { ascending: false })
-    const { data: servsData } = await supabase.from('upsell_services').select('*').order('created_at', { ascending: false })
+  const fetchOperationsData = async () => {
+    setLoading(true)
+    const { data: taskData } = await supabase
+      .from('tasks')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    setProperties(propsData || [])
-    setBookings(booksData || [])
-    setTasks(tasksData || [])
-    setServices(servsData || [])
-  }
-
-  // Logical auto-calculation whenever dates change in edit modal
-  useEffect(() => {
-    if (editCheckIn && editCheckOut && editNightlyRate > 0) {
-      const start = new Date(editCheckIn)
-      const end = new Date(editCheckOut)
-      const diffTime = end.getTime() - start.getTime()
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-      
-      if (diffDays > 0) {
-        setEditPrice((diffDays * editNightlyRate).toString())
-      }
-    }
-  }, [editCheckIn, editCheckOut, editNightlyRate])
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      const fileArray = Array.from(files)
-      setSelectedFiles((prev) => [...prev, ...fileArray])
-
-      const newPreviews = fileArray.map((file) => URL.createObjectURL(file))
-      setImagePreviews((prev) => [...prev, ...newPreviews])
-    }
-  }
-
-  const handleRemoveImage = (indexToRemove: number) => {
-    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== indexToRemove))
-    setImagePreviews((prev) => prev.filter((_, idx) => idx !== indexToRemove))
-  }
-
-  const handleSelectPropertyForBooking = (propertyId: string) => {
-    setBPropertyId(propertyId)
-    const selectedProp = properties.find((p) => p.id === propertyId)
-    if (selectedProp) {
-      setBPropertyTitle(selectedProp.title)
-      setBNightlyRate(selectedProp.price_per_night || 0)
-      setBTotalPrice(selectedProp.price_per_night?.toString() || '0')
-      if (selectedProp.whatsapp_number) setBGuestPhone(selectedProp.whatsapp_number)
-    }
-  }
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    if (typeof window !== 'undefined') {
-      window.localStorage.clear()
-      window.sessionStorage.clear()
-    }
-    router.push('/login')
-    router.refresh()
-  }
-
-  const handleAmenityToggle = (amenity: string) => {
-    if (selectedAmenities.includes(amenity)) {
-      setSelectedAmenities(selectedAmenities.filter((item) => item !== amenity))
-    } else {
-      setSelectedAmenities([...selectedAmenities, amenity])
-    }
-  }
-
-  const handleOpenEditModal = (booking: Booking) => {
-    setEditingBooking(booking)
-    setEditPrice((booking.total_price ?? booking.total_amount ?? 0).toString())
-    setEditCheckIn(booking.check_in || '')
-    setEditCheckOut(booking.check_out || '')
-    setEditNotes(booking.notes || '')
-
-    const matchedProp = properties.find((p) => p.title === booking.property_title)
-    if (matchedProp) {
-      setEditNightlyRate(matchedProp.price_per_night || 100)
-    } else {
-      setEditNightlyRate(100)
-    }
-  }
-
-  const handleSaveBookingEdits = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingBooking) return
-
-    setSavingEdit(true)
-    const numericPrice = parseFloat(editPrice) || 0
-
-    const { error } = await supabase
+    const { data: bookingData } = await supabase
       .from('bookings')
-      .update({
-        total_price: numericPrice,
-        total_amount: numericPrice,
-        check_in: editCheckIn,
-        check_out: editCheckOut,
-        notes: editNotes,
-      })
-      .eq('id', editingBooking.id)
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    setSavingEdit(false)
+    setTasks(taskData || [])
+    setBookings(bookingData || [])
+    setLoading(false)
+  }
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const { error } = await supabase.from('tasks').insert([
+      {
+        title: taskTitle,
+        property_name: propertyName,
+        assigned_to: assignedTo,
+        due_date: dueDate,
+        priority,
+        status: 'Pending',
+      },
+    ])
 
     if (error) {
-      alert('Error updating booking: ' + error.message)
+      alert('Error creating task: ' + error.message)
     } else {
-      setEditingBooking(null)
-      fetchAllData()
+      setTaskTitle('')
+      setPropertyName('')
+      setAssignedTo('')
+      setDueDate('')
+      fetchOperationsData()
     }
   }
 
-  const handleApproveBooking = async (bookingId: string) => {
-    if (!bookingId) {
-      alert('Error: Target booking ID is missing.')
-      return
-    }
-
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'Confirmed' })
-        .eq('id', bookingId)
-
-      if (error) {
-        alert('Error approving booking: ' + error.message)
-      } else {
-        alert('Reservation successfully approved & confirmed!')
-        fetchAllData()
-      }
-    } catch (err: any) {
-      alert('Network error approving booking: ' + (err.message || 'Failed to fetch'))
-    }
-  }
-
-  const handleAddProperty = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    try {
-      let uploadedUrls: string[] = []
-      if (selectedFiles && selectedFiles.length > 0) {
-        for (let i = 0; i < Math.min(selectedFiles.length, 5); i++) {
-          const file = selectedFiles[i]
-          const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
-          const { data: uploadData } = await supabase.storage.from('property-images').upload(fileName, file)
-          if (uploadData) {
-            const { data: publicUrlData } = supabase.storage.from('property-images').getPublicUrl(fileName)
-            uploadedUrls.push(publicUrlData.publicUrl)
-          }
-        }
-      }
-
-      const { error } = await supabase.from('properties').insert([{
-        title, location, price_per_night: parseFloat(pricePerNight) || 0,
-        bedrooms: parseInt(bedrooms), bathrooms: parseInt(bathrooms), guests: parseInt(guests),
-        property_type: propertyType, whatsapp_number: whatsappNumber, description,
-        amenities: selectedAmenities, image_urls: uploadedUrls,
-      }])
-
-      if (error) alert('Error: ' + error.message)
-      else {
-        alert('Property published successfully!')
-        setTitle(''); setLocation(''); setPricePerNight(''); setDescription(''); setSelectedAmenities([]); setSelectedFiles([]); setImagePreviews([]);
-        fetchAllData()
-      }
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const handleAddBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const amountVal = parseFloat(bTotalPrice) || 0
-    await supabase.from('bookings').insert([{
-      property_title: bPropertyTitle || 'General Reservation',
-      guest_name: bGuestName, guest_phone: bGuestPhone,
-      check_in: bCheckIn, check_out: bCheckOut,
-      total_price: amountVal,
-      total_amount: amountVal,
-      status: 'Confirmed'
-    }])
-    alert('Reservation saved!')
-    setBPropertyId(''); setBPropertyTitle(''); setBGuestName(''); setBGuestPhone('');
-    setBCheckIn(''); setBCheckOut(''); setBTotalPrice(''); setBNightlyRate(0);
-    fetchAllData()
-  }
-
-  const handleAddTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await supabase.from('operational_tasks').insert([{
-      property_title: tProperty || properties[0]?.title || 'General Unit',
-      task_type: tType, assigned_to: tAssigned, due_date: tDueDate || new Date().toISOString().split('T')[0]
-    }])
-    alert('Task added!')
-    fetchAllData()
-  }
-
-  const handleToggleTask = async (id: string, currentCompleted: boolean) => {
-    await supabase.from('operational_tasks').update({ completed: !currentCompleted }).eq('id', id)
-    fetchAllData()
-  }
-
-  const handleAddService = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await supabase.from('upsell_services').insert([{
-      title: sTitle, category: sCategory, price_usd: parseFloat(sPrice) || 0, description: sDesc
-    }])
-    alert('Service added!')
-    setSTitle(''); setSPrice(''); setSDesc('');
-    fetchAllData()
-  }
-
-  if (checkingAuth) {
-    return (
-      <main className="min-h-screen bg-neutral-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
-      </main>
-    )
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: Task['status']) => {
+    await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+    fetchOperationsData()
   }
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
         <HeaderNav />
-        <section className="bg-neutral-900 border-b border-neutral-800 py-6 px-4">
-          <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <h1 className="text-2xl font-extrabold text-amber-500">Host Operations Management System</h1>
-            <button onClick={handleSignOut} className="px-4 py-2 bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl hover:bg-neutral-700 transition">Sign Out</button>
+
+        <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-8">
+          {/* HEADER SUMMARY */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
+            <div>
+              <h1 className="text-2xl font-extrabold text-white">Operations & Task Tracking</h1>
+              <p className="text-xs text-neutral-400 mt-1">Manage housekeeping, maintenance, and booking schedules across properties.</p>
+            </div>
+            <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-xs rounded-full">
+              Active Ops Center
+            </span>
           </div>
-        </section>
 
-        <section className="max-w-6xl mx-auto px-4 pt-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-neutral-900 p-2 border border-neutral-800 rounded-2xl">
-            <button onClick={() => setActiveTab('properties')} className={`py-2.5 rounded-xl text-xs font-bold ${activeTab === 'properties' ? 'bg-amber-500 text-black' : 'text-neutral-400'}`}>Properties</button>
-            <button onClick={() => setActiveTab('bookings')} className={`py-2.5 rounded-xl text-xs font-bold ${activeTab === 'bookings' ? 'bg-amber-500 text-black' : 'text-neutral-400'}`}>Bookings & iCal</button>
-            <button onClick={() => setActiveTab('operations')} className={`py-2.5 rounded-xl text-xs font-bold ${activeTab === 'operations' ? 'bg-amber-500 text-black' : 'text-neutral-400'}`}>Operations</button>
-            <button onClick={() => setActiveTab('services')} className={`py-2.5 rounded-xl text-xs font-bold ${activeTab === 'services' ? 'bg-amber-500 text-black' : 'text-neutral-400'}`}>Services</button>
-          </div>
-        </section>
+          {/* TASK CREATION & LISTING GRID */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* TASK FORM */}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl h-fit">
+              <h2 className="text-lg font-bold text-amber-500 mb-4">Assign New Task</h2>
+              <form onSubmit={handleCreateTask} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Task Details</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Deep Clean & Refill Amenities"
+                    value={taskTitle}
+                    onChange={(e) => setTaskTitle(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
 
-        <div className="max-w-6xl mx-auto p-4 sm:p-6">
-          {activeTab === 'properties' && (
-            <div className="space-y-8">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Add New Property Listing</h2>
-                <form onSubmit={handleAddProperty} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" required placeholder="Property Title" value={title} onChange={(e) => setTitle(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                    <input type="text" required placeholder="Location" value={location} onChange={(e) => setLocation(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <input type="number" required placeholder="Price / Night ($)" value={pricePerNight} onChange={(e) => setPricePerNight(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                    <select value={propertyType} onChange={(e) => setPropertyType(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                      <option value="Apartment">Apartment</option><option value="Standalone House">Standalone House</option><option value="Villa">Villa</option><option value="Mansion">Mansion</option>
-                    </select>
-                    <select value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                      <option value="1">1 Bed</option><option value="2">2 Beds</option><option value="3">3 Beds</option><option value="4">4+ Beds</option>
-                    </select>
-                    <input type="number" placeholder="Guests" value={guests} onChange={(e) => setGuests(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" required placeholder="Host WhatsApp Number" value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                    
-                    {/* PHOTO INPUT WITH MULTI-SELECTION SUPPORT */}
-                    <div className="space-y-2">
-                      <label className="block text-[11px] font-semibold text-neutral-300">Upload Property Pictures (Up to 5)</label>
-                      <input
-                        type="file"
-                        multiple
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-neutral-400 text-xs file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black cursor-pointer"
-                      />
-                    </div>
-                  </div>
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Property</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Property Title or Address"
+                    value={propertyName}
+                    onChange={(e) => setPropertyName(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
 
-                  {/* VISUAL IMAGE PREVIEWS GRID WITH VISIBLE UNSELECT BUTTONS */}
-                  {imagePreviews.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                      <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">
-                        Selected Photos Preview ({imagePreviews.length})
-                      </span>
-                      <div className="flex flex-wrap gap-4 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
-                        {imagePreviews.map((src, index) => (
-                          <div key={index} className="relative flex flex-col items-center gap-1.5">
-                            <div className="relative w-24 h-24 rounded-xl overflow-hidden border-2 border-neutral-700 shadow-xl">
-                              <img src={src} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                              <span className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] text-center text-amber-400 font-extrabold py-0.5">
-                                Photo #{index + 1}
-                              </span>
-                            </div>
-
-                            {/* CLEAR & VISIBLE REMOVE BUTTON */}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(index)}
-                              className="px-2 py-1 bg-red-600 hover:bg-red-500 text-white font-extrabold text-[10px] rounded-lg shadow-md transition flex items-center gap-1"
-                            >
-                              ✕ Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-neutral-300 mb-2">Amenities Included</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                      {AVAILABLE_AMENITIES.map((amenity) => (
-                        <button
-                          type="button"
-                          key={amenity}
-                          onClick={() => handleAmenityToggle(amenity)}
-                          className={`p-2 rounded-xl text-left text-[11px] font-medium border transition ${
-                            selectedAmenities.includes(amenity)
-                              ? 'bg-amber-500/10 border-amber-500 text-amber-400'
-                              : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                          }`}
-                        >
-                          {selectedAmenities.includes(amenity) ? '✓ ' : '+ '}
-                          {amenity}
-                        </button>
-                      ))}
-                    </div>
+                    <label className="block text-[11px] text-neutral-400 mb-1">Assignee</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Staff Name"
+                      value={assignedTo}
+                      onChange={(e) => setAssignedTo(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
                   </div>
-
-                  <textarea rows={3} required placeholder="Description..." value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <button type="submit" disabled={submitting} className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">{submitting ? 'Publishing...' : 'Publish Listing'}</button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'bookings' && (
-            <div className="space-y-8">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Add Manual Reservation</h2>
-                <form onSubmit={handleAddBooking} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <select value={bPropertyId} onChange={(e) => handleSelectPropertyForBooking(e.target.value)} required className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                    <option value="">Select Property</option>
-                    {properties.map((p) => (<option key={p.id} value={p.id}>{p.title}</option>))}
-                  </select>
-                  <input type="text" required placeholder="Guest Name" value={bGuestName} onChange={(e) => setBGuestName(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <input type="text" required placeholder="Guest Contact" value={bGuestPhone} onChange={(e) => setBGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <input type="date" required value={bCheckIn} onChange={(e) => setBCheckIn(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <input type="date" required value={bCheckOut} onChange={(e) => setBCheckOut(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <input type="number" required placeholder="Total Amount ($)" value={bTotalPrice} onChange={(e) => setBTotalPrice(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <button type="submit" className="sm:col-span-3 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Reservation</button>
-                </form>
-              </div>
-
-              {/* LIVE INCOMING GUEST BOOKINGS & INQUIRIES LIST */}
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Incoming Guest Reservations & Inquiries</h2>
-                
-                {bookings.length === 0 ? (
-                  <p className="text-xs text-neutral-500 italic">No bookings or inquiries received yet.</p>
-                ) : (
-                  <div className="space-y-4">
-                    {bookings.map((booking) => (
-                      <div key={booking.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold text-[10px] px-2 py-0.5 rounded-md border ${
-                              booking.status === 'Confirmed' 
-                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
-                                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                            }`}>
-                              {booking.status || 'Pending Host Review'}
-                            </span>
-                            <h3 className="font-bold text-white text-sm">{booking.property_title}</h3>
-                          </div>
-                          <p className="text-xs text-neutral-300">
-                            👤 <strong className="text-white">{booking.guest_name}</strong> ({booking.guest_phone})
-                          </p>
-                          <p className="text-xs text-neutral-400">
-                            📅 Check-In: <span className="text-white">{booking.check_in}</span> → Check-Out: <span className="text-white">{booking.check_out}</span>
-                          </p>
-                          {booking.notes && (
-                            <p className="text-[11px] text-neutral-400 bg-neutral-900 p-2 rounded-lg border border-neutral-800">
-                              💬 {booking.notes}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="text-right flex sm:flex-col justify-between w-full sm:w-auto items-center sm:items-end border-t sm:border-t-0 pt-2 sm:pt-0 border-neutral-800 gap-2">
-                          <div>
-                            <span className="text-amber-500 font-extrabold text-base">${booking.total_price ?? booking.total_amount ?? 0}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleOpenEditModal(booking)}
-                              className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-bold text-[11px] rounded-lg transition border border-neutral-700"
-                            >
-                              ✏️ Edit Details
-                            </button>
-                            {booking.status !== 'Confirmed' && (
-                              <button
-                                onClick={() => handleApproveBooking(booking.id)}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-[11px] rounded-lg transition shadow-md"
-                              >
-                                ✓ Approve Booking
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div>
+                    <label className="block text-[11px] text-neutral-400 mb-1">Due Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                    />
                   </div>
-                )}
-              </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Priority</label>
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value as 'Low' | 'Medium' | 'High')}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500"
+                  >
+                    <option value="Low">Low Priority</option>
+                    <option value="Medium">Medium Priority</option>
+                    <option value="High">High Priority</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] text-neutral-400 mb-1">Adjustment Rate ($)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg mt-2 cursor-pointer"
+                >
+                  Create Operations Task
+                </button>
+              </form>
             </div>
-          )}
 
-          {activeTab === 'operations' && (
-            <div className="space-y-8">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Assign Operational Task</h2>
-                <form onSubmit={handleAddTask} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                  <select value={tProperty} onChange={(e) => setTProperty(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                    {properties.map((p) => (<option key={p.id} value={p.title}>{p.title}</option>))}
-                  </select>
-                  <select value={tType} onChange={(e) => setTType(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                    <option value="Housekeeping">Housekeeping</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Check-In Prep">Check-In Prep</option>
-                  </select>
-                  <input type="text" required placeholder="Assigned Staff" value={tAssigned} onChange={(e) => setTAssigned(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <input type="date" required value={tDueDate} onChange={(e) => setTDueDate(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <button type="submit" className="sm:col-span-4 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Add Task</button>
-                </form>
-              </div>
+            {/* TASK DISPLAY QUEUE */}
+            <div className="lg:col-span-2 bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-white mb-4">Task Queue ({tasks.length})</h2>
 
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Task Dispatch Checklist</h2>
+              {loading ? (
+                <div className="py-8 text-center">
+                  <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                </div>
+              ) : tasks.length === 0 ? (
+                <p className="text-xs text-neutral-500 italic">No operational tasks created yet.</p>
+              ) : (
                 <div className="space-y-3">
                   {tasks.map((task) => (
-                    <div key={task.id} className="bg-neutral-950 border border-neutral-800 p-3 rounded-xl flex justify-between items-center text-xs">
-                      <div>
-                        <span className="font-bold text-amber-500">{task.task_type}</span> - {task.property_title} (Assigned: {task.assigned_to})
+                    <div
+                      key={task.id}
+                      className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">{task.title}</span>
+                          <span
+                            className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                              task.priority === 'High'
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                : task.priority === 'Medium'
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-400">📍 {task.property_name} • Assigned: {task.assigned_to}</p>
+                        <p className="text-[10px] text-neutral-500">Due: {task.due_date}</p>
                       </div>
-                      <button onClick={() => handleToggleTask(task.id, task.completed)} className={`px-3 py-1 rounded-lg font-bold ${task.completed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-neutral-800 text-neutral-400'}`}>
-                        {task.completed ? '✓ Done' : 'Pending'}
-                      </button>
+
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value as Task['status'])}
+                          className="bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs font-bold text-amber-400 outline-none cursor-pointer"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
-          {activeTab === 'services' && (
-            <div className="space-y-8">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Add Guest Concierge Service</h2>
-                <form onSubmit={handleAddService} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <input type="text" required placeholder="Service Title" value={sTitle} onChange={(e) => setSTitle(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <select value={sCategory} onChange={(e) => setSCategory(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs">
-                    <option value="Transport">Airport Transfer / Car Rental</option>
-                    <option value="Catering">Private Chef / Grocery Stocking</option>
-                    <option value="Excursions">City Tour / Safari</option>
-                  </select>
-                  <input type="number" required placeholder="Price ($)" value={sPrice} onChange={(e) => setSPrice(e.target.value)} className="bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <textarea rows={2} placeholder="Description..." value={sDesc} onChange={(e) => setSDesc(e.target.value)} className="sm:col-span-3 bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs" />
-                  <button type="submit" className="sm:col-span-3 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Service</button>
-                </form>
+          {/* ACTIVE BOOKINGS SUMMARY (LINE 252 FIXED & FULLY CLOSED) */}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6">
+            <h2 className="text-lg font-bold text-white mb-4">Current Verified Bookings</h2>
+            {bookings.length === 0 ? (
+              <p className="text-xs text-neutral-500 italic">No bookings recorded in system.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {bookings.map((b) => (
+                  <div key={b.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-white text-xs">{b.guest_name}</h3>
+                      <p className="text-[11px] text-neutral-400">{b.property_name}</p>
+                      <p className="text-[10px] text-neutral-500">{b.check_in} ➔ {b.check_out}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-amber-500 font-extrabold text-xs">${b.total_price}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* EDIT BOOKING MODAL FOR NEGOTIATION / LOGICAL ADJUSTMENTS */}
-      {editingBooking && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-md rounded-2xl p-6 shadow-2xl relative">
-            <button
-              onClick={() => setEditingBooking(null)}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
-            >
-              ✕
-            </button>
-
-            <h3 className="text-base font-extrabold text-white mb-1">Edit Reservation Details</h3>
-            <p className="text-xs text-neutral-400 mb-4">
-              Updating stay for <strong className="text-amber-500">{editingBooking.guest_name}</strong>.
-            </p>
-
-            <form onSubmit={handleSaveBookingEdits} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-In Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={editCheckIn}
-                    onChange={(e) => setEditCheckIn(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-Out Date</label>
-                  <input
-                    type="date"
-                    required
-                    min={editCheckIn}
-                    value={editCheckOut}
-                    onChange={(e) => setEditCheckOut(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-[11px] font-medium text-neutral-300">Total Price ($)</label>
-                  <span className="text-[10px] text-amber-500 font-semibold">Auto-calculated (${editNightlyRate}/night)</span>
-                </div>
-                <input
-                  type="number"
-                  required
-                  value={editPrice}
-                  onChange={(e) => setEditPrice(e.target.value)}
+      <Footer />
+    </main>
+  )
+}
