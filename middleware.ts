@@ -1,47 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
 
-export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+export function middleware(request: NextRequest) {
+  // Check for Supabase session cookie or auth token
+  const authCookie = request.cookies.get('sb-access-token')?.value || 
+                     request.cookies.get('sb-refresh-token')?.value ||
+                     request.cookies.getAll().find(c => c.name.includes('auth-token'))?.value
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          request.cookies.set({ name, value, ...options })
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, value: string, options: any) {
-          request.cookies.set({ name, value, ...options })
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          })
-          response.cookies.set({ name, value, ...options })
-        },
-      },
-    }
-  )
+  const isOperationsPage = request.nextUrl.pathname.startsWith('/operations')
 
-  const { data: { session } } = await supabase.auth.getSession()
-
-  // If user is not logged in and trying to access operations, redirect to login
-  if (!session && request.nextUrl.pathname.startsWith('/operations')) {
+  // If trying to access operations without being logged in, redirect to login
+  if (isOperationsPage && !authCookie) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  return response
+  return NextResponse.next()
 }
 
 export const config = {
