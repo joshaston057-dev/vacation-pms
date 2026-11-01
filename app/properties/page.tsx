@@ -16,11 +16,10 @@ export default function PublicPropertiesPage() {
   }, [])
 
   const fetchPublicProperties = async () => {
-    const { data, error } = await supabase.from('properties').select('*')
+    const { data } = await supabase.from('properties').select('*')
     if (data && data.length > 0) {
       setProperties(data)
     } else {
-      // Fallback default properties if Supabase returns empty
       setProperties([
         {
           id: '1',
@@ -69,14 +68,24 @@ export default function PublicPropertiesPage() {
                 )
                 const whatsappUrl = `https://wa.me/256757386946?text=${whatsappMsg}`
 
+                // Parse images safely
+                let imgList: string[] = []
+                if (Array.isArray(p.images)) {
+                  imgList = p.images
+                } else if (typeof p.images === 'string' && p.images.startsWith('[')) {
+                  try { imgList = JSON.parse(p.images) } catch (e) { imgList = [p.images] }
+                } else if (typeof p.images === 'string' && p.images.length > 0) {
+                  imgList = [p.images]
+                }
+
                 return (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-neutral-700 transition">
                     
                     {/* IMAGE DISPLAY CONTAINER */}
-                    <div className="relative w-full h-48 bg-neutral-950 flex items-center justify-center overflow-hidden">
-                      {p.images && p.images.length > 0 ? (
+                    <div className="relative w-full h-52 bg-neutral-950 flex items-center justify-center overflow-hidden">
+                      {imgList.length > 0 ? (
                         <img 
-                          src={p.images[0]} 
+                          src={imgList[0]} 
                           alt={p.title} 
                           className="w-full h-full object-cover"
                         />
@@ -105,10 +114,10 @@ export default function PublicPropertiesPage() {
                         <h3 className="font-extrabold text-white text-sm line-clamp-2">{p.title}</h3>
                       </div>
 
-                      {/* MULTI-PHOTO THUMBNAILS (IF MORE THAN 1 IMAGE) */}
-                      {p.images && p.images.length > 1 && (
+                      {/* THUMBNAILS ROW */}
+                      {imgList.length > 1 && (
                         <div className="flex gap-1 overflow-x-auto pt-2">
-                          {p.images.slice(0, 5).map((img: string, idx: number) => (
+                          {imgList.slice(0, 5).map((img: string, idx: number) => (
                             <img key={idx} src={img} className="w-10 h-10 object-cover rounded-lg border border-neutral-800" alt="Thumbnail" />
                           ))}
                         </div>
