@@ -16,7 +16,7 @@ export default function HeaderNav() {
         </Link>
 
         {/* DESKTOP NAVIGATION LINKS */}
-        <nav className="hidden md:flex items-center gap-6 text-xs font-bold text-neutral-300">
+        <nav className="hidden md:flex items-center gap-5 text-xs font-bold text-neutral-300">
           <Link href="/properties" className="hover:text-amber-500 transition-colors">
             Property Category
           </Link>
@@ -29,11 +29,16 @@ export default function HeaderNav() {
             Blog
           </Link>
 
-          <Link 
-            href="/about" 
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl transition shadow-md"
-          >
+          <Link href="/about" className="hover:text-amber-500 transition-colors">
             About Us
+          </Link>
+
+          {/* HOST OPERATIONS PORTAL BUTTON */}
+          <Link 
+            href="/operations" 
+            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl transition shadow-md flex items-center gap-1.5"
+          >
+            ⚙️ Host Operations
           </Link>
         </nav>
 
@@ -78,9 +83,17 @@ export default function HeaderNav() {
           <Link
             href="/about"
             onClick={() => setMobileMenuOpen(false)}
-            className="block text-center py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow-md"
+            className="block text-xs font-bold text-neutral-300 hover:text-amber-500 py-1"
           >
             About Us
+          </Link>
+
+          <Link
+            href="/operations"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block text-center py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow-md"
+          >
+            ⚙️ Host Operations
           </Link>
         </div>
       )}
