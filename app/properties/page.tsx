@@ -7,18 +7,39 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
-export default function PropertiesPage() {
+export default function PublicPropertiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchProperties()
+    fetchPublicProperties()
   }, [])
 
-  const fetchProperties = async () => {
-    setLoading(true)
-    const { data } = await supabase.from('properties').select('*')
-    if (data) setProperties(data)
+  const fetchPublicProperties = async () => {
+    const { data, error } = await supabase.from('properties').select('*')
+    if (data && data.length > 0) {
+      setProperties(data)
+    } else {
+      // Fallback default properties if Supabase returns empty
+      setProperties([
+        {
+          id: '1',
+          title: '1 bedroom fully furnished apartment for rent in kisaasi',
+          price_per_night: 45,
+          location: 'kisaasi',
+          is_occupied: false,
+          images: []
+        },
+        {
+          id: '2',
+          title: '5 bedroom fully furnished Mansion for rent in Entebbe',
+          price_per_night: 500,
+          location: 'Entebbe',
+          is_occupied: false,
+          images: []
+        }
+      ])
+    }
     setLoading(false)
   }
 
@@ -26,46 +47,87 @@ export default function PropertiesPage() {
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
         <HeaderNav />
-        <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-          <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
-            <h1 className="text-2xl font-extrabold text-white">Our Short-Stay Properties</h1>
-            <p className="text-xs text-neutral-400 mt-1">Explore our verified vacation homes and furnished apartments.</p>
+        
+        <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <span className="text-amber-500 font-extrabold text-xs tracking-widest uppercase">LA ESTANCIA VACATION HOMES</span>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-white">Exclusive Short-Stay Stays in Uganda</h1>
+            <p className="text-xs sm:text-sm text-neutral-400">
+              Browse fully furnished apartments, standalone houses, mansions, and villas with direct host booking.
+            </p>
           </div>
 
           {loading ? (
-            <p className="text-xs text-neutral-500 py-6">Loading properties...</p>
-          ) : properties.length === 0 ? (
-            <p className="text-xs text-neutral-500 py-6">No properties listed yet.</p>
+            <div className="text-center py-20 text-neutral-500 font-bold text-sm">
+              Loading available properties...
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((prop) => (
-                <div key={prop.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
-                  <div className="flex justify-between items-start">
-                    <h3 className="font-extrabold text-white text-base">{prop.title}</h3>
-                    <span className="text-amber-500 font-extrabold text-sm">${prop.price_per_night}/night</span>
-                  </div>
-                  <p className="text-xs text-neutral-400">📍 {prop.location || 'Kampala'}</p>
-                  
-                  <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
-                    <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full ${
-                      prop.is_occupied 
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
-                        : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                    }`}>
-                      {prop.is_occupied ? '🔴 Occupied' : '🟢 Available'}
-                    </span>
+              {properties.map((p) => {
+                const whatsappMsg = encodeURIComponent(
+                  `Hello La Estancia, I am interested in reserving "${p.title}" located in ${p.location}. Is it available?`
+                )
+                const whatsappUrl = `https://wa.me/256757386946?text=${whatsappMsg}`
 
-                    <a
-                      href={`https://wa.me/256757386946?text=${encodeURIComponent(`Hello, I am interested in reserving ${prop.title}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition shadow"
-                    >
-                      💬 Reserve via WhatsApp
-                    </a>
+                return (
+                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-neutral-700 transition">
+                    
+                    {/* IMAGE DISPLAY CONTAINER */}
+                    <div className="relative w-full h-48 bg-neutral-950 flex items-center justify-center overflow-hidden">
+                      {p.images && p.images.length > 0 ? (
+                        <img 
+                          src={p.images[0]} 
+                          alt={p.title} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-center p-4">
+                          <span className="text-3xl">🏠</span>
+                          <p className="text-[10px] text-neutral-500 mt-1">La Estancia Managed Property</p>
+                        </div>
+                      )}
+                      
+                      <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1 rounded-full shadow">
+                        ${p.price_per_night} / night
+                      </div>
+
+                      <div className="absolute top-3 left-3">
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/80 text-white' : 'bg-emerald-500/80 text-white'}`}>
+                          {p.is_occupied ? 'Occupied' : 'Available Now'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* DETAILS CONTAINER */}
+                    <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">📍 {p.location || 'Kampala'}</span>
+                        <h3 className="font-extrabold text-white text-sm line-clamp-2">{p.title}</h3>
+                      </div>
+
+                      {/* MULTI-PHOTO THUMBNAILS (IF MORE THAN 1 IMAGE) */}
+                      {p.images && p.images.length > 1 && (
+                        <div className="flex gap-1 overflow-x-auto pt-2">
+                          {p.images.slice(0, 5).map((img: string, idx: number) => (
+                            <img key={idx} src={img} className="w-10 h-10 object-cover rounded-lg border border-neutral-800" alt="Thumbnail" />
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="pt-3 border-t border-neutral-800">
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-2 transition"
+                        >
+                          💬 Inquire / Book via WhatsApp
+                        </a>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
