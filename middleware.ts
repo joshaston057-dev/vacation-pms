@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
               headers: request.headers,
             },
           })
-          response.cookies.set({ name, value: '', ...options })
+          response.cookies.set({ name, value, ...options })
         },
       },
     }
@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: { session } } = await supabase.auth.getSession()
 
-  // Protect /operations route — require authentication
+  // Protect Host Operations Route — redirect unauthenticated visitors to /login
   if (request.nextUrl.pathname.startsWith('/operations') && !session) {
     return NextResponse.redirect(new URL('/login', request.url))
   }

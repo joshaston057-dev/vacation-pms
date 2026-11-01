@@ -15,25 +15,20 @@ export default function HeaderNav() {
           <span className="text-amber-500">La Estancia</span> Vacation Homes
         </Link>
 
-        {/* DESKTOP NAVIGATION LINKS */}
+        {/* DESKTOP NAVIGATION */}
         <nav className="hidden md:flex items-center gap-5 text-xs font-bold text-neutral-300">
           <Link href="/properties" className="hover:text-amber-500 transition-colors">
             Property Category
           </Link>
-
           <Link href="/services" className="hover:text-amber-500 transition-colors">
             Services
           </Link>
-
           <Link href="/blog" className="hover:text-amber-500 transition-colors">
             Blog
           </Link>
-
-          <Link href="/about" className="hover:text-amber-500 transition-colors">
+          <Link href="/about" className="hover:text-amber-500 transition-colors bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 text-amber-400">
             About Us
           </Link>
-
-          {/* HOST OPERATIONS PORTAL BUTTON */}
           <Link 
             href="/operations" 
             className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl transition shadow-md flex items-center gap-1.5"
@@ -42,7 +37,7 @@ export default function HeaderNav() {
           </Link>
         </nav>
 
-        {/* MOBILE MENU TOGGLE BUTTON */}
+        {/* MOBILE TOGGLE */}
         <button
           type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -53,46 +48,22 @@ export default function HeaderNav() {
 
       </div>
 
-      {/* MOBILE DROPDOWN NAVIGATION */}
+      {/* MOBILE DROPDOWN MENU */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-neutral-900 border-b border-neutral-800 px-4 pt-2 pb-4 space-y-3">
-          <Link
-            href="/properties"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-neutral-300 hover:text-amber-500 py-1"
-          >
+          <Link href="/properties" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
             Property Category
           </Link>
-
-          <Link
-            href="/services"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-neutral-300 hover:text-amber-500 py-1"
-          >
+          <Link href="/services" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
             Services
           </Link>
-
-          <Link
-            href="/blog"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-neutral-300 hover:text-amber-500 py-1"
-          >
+          <Link href="/blog" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
             Blog
           </Link>
-
-          <Link
-            href="/about"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-xs font-bold text-neutral-300 hover:text-amber-500 py-1"
-          >
+          <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-amber-400 py-1">
             About Us
           </Link>
-
-          <Link
-            href="/operations"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-center py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow-md"
-          >
+          <Link href="/operations" onClick={() => setMobileMenuOpen(false)} className="block text-center py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
             ⚙️ Host Operations
           </Link>
         </div>
