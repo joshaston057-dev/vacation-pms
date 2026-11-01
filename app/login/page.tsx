@@ -1,92 +1,91 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+export const dynamic = 'force-dynamic'
+
+import { useState } from 'react'
+import HeaderNav from '../components/HeaderNav'
+import Footer from '../components/Footer'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg('');
+    e.preventDefault()
+    setLoading(true)
+    setErrorMsg('')
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
 
-      if (error) {
-        setErrorMsg(error.message);
-      } else if (data.session) {
-        router.push('/bookings');
-      }
-    } catch (err: any) {
-      setErrorMsg('An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
+    if (error) {
+      setErrorMsg(error.message)
+      setLoading(false)
+    } else if (data?.session) {
+      // Direct hard-redirect upon success to break any loop
+      window.location.href = '/operations'
     }
-  };
+  }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight">Host Portal Login</h1>
-          <p className="text-slate-400 text-sm">Sign in to manage your La Estancia properties</p>
-        </div>
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
+      <div>
+        <HeaderNav />
+        <div className="max-w-md mx-auto px-4 py-20">
+          <div className="bg-neutral-900 border border-neutral-800 p-8 rounded-2xl shadow-2xl space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-extrabold text-white">Host Login</h1>
+              <p className="text-xs text-neutral-400">
+                Sign in to manage your short-stay properties and reservations.
+              </p>
+            </div>
 
-        {errorMsg && (
-          <div className="bg-red-950/60 border border-red-800 text-red-300 text-xs p-3 rounded-lg text-center">
-            {errorMsg}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="text-xs text-neutral-400 block mb-1">Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="host@laestancia.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-neutral-400 block mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {errorMsg && (
+                <p className="text-xs text-red-400 text-center font-bold">{errorMsg}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow cursor-pointer disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign In to Operations'}
+              </button>
+            </form>
           </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm"
-              placeholder="host@laestancia.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-amber-500 text-sm"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-red-950 hover:bg-red-900 border border-red-800 font-bold py-2.5 rounded-lg text-sm transition disabled:opacity-50"
-          >
-            {loading ? 'Signing In...' : 'Sign In'}
-          </button>
-        </form>
-
-        <div className="text-center text-xs text-slate-500 pt-2">
-          <Link href="/" className="hover:text-slate-300 transition">← Back to Home</Link>
         </div>
       </div>
+      <Footer />
     </main>
-  );
+  )
 }
