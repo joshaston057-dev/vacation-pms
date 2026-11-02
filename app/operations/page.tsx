@@ -4,8 +4,7 @@ import { useState } from 'react';
 export default function OperationsPage() {
   const [activeTab, setActiveTab] = useState('properties');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
-  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<any>(null);
 
   // Managed Properties Catalog pre-loaded with images
   const [properties, setProperties] = useState<any[]>([
@@ -41,8 +40,8 @@ export default function OperationsPage() {
     },
   ]);
 
-  // Add Property form state (up to 5 image URLs)
-  const [formData, setFormData] = useState({
+  // Form state for adding a new property
+  const [addFormData, setAddFormData] = useState({
     title: '',
     category: 'Apartment',
     price: '',
@@ -50,30 +49,32 @@ export default function OperationsPage() {
     images: ['', '', '', '', ''],
   });
 
-  // Private guest booking inquiry state
-  const [bookingData, setBookingData] = useState({
-    guestName: '',
-    guestEmail: '',
-    checkIn: '',
-    checkOut: '',
-  });
-
-  const handleImageChange = (index: number, value: string) => {
-    const newImages = [...formData.images];
+  // Helper to handle image array input for Add form
+  const handleAddImageChange = (index: number, value: string) => {
+    const newImages = [...addFormData.images];
     newImages[index] = value;
-    setFormData({ ...formData, images: newImages });
+    setAddFormData({ ...addFormData, images: newImages });
   };
 
+  // Helper to handle image array input for Edit form
+  const handleEditImageChange = (index: number, value: string) => {
+    if (!editingProperty) return;
+    const newImages = [...editingProperty.images];
+    newImages[index] = value;
+    setEditingProperty({ ...editingProperty, images: newImages });
+  };
+
+  // Submit new property
   const handleAddPropertySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newProp = {
       id: Date.now(),
-      ...formData,
-      images: formData.images.filter((img) => img.trim() !== ''),
+      ...addFormData,
+      images: addFormData.images.filter((img) => img.trim() !== ''),
     };
     setProperties([newProp, ...properties]);
     setIsAddModalOpen(false);
-    setFormData({
+    setAddFormData({
       title: '',
       category: 'Apartment',
       price: '',
@@ -82,11 +83,26 @@ export default function OperationsPage() {
     });
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  // Submit edited property updates
+  const handleEditPropertySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert(`Inquiry securely submitted for ${selectedProperty?.title}!`);
-    setIsBookingModalOpen(false);
-    setBookingData({ guestName: '', guestEmail: '', checkIn: '', checkOut: '' });
+    const updatedImages = editingProperty.images.filter((img: string) => img.trim() !== '');
+    setProperties(
+      properties.map((p) =>
+        p.id === editingProperty.id
+          ? { ...editingProperty, images: updatedImages.length > 0 ? updatedImages : p.images }
+          : p
+      )
+    );
+    setEditingProperty(null);
+  };
+
+  // Delete property listing
+  const handleDeleteProperty = (id: number) => {
+    if (confirm('Are you sure you want to remove this property listing?')) {
+      setProperties(properties.filter((p) => p.id !== id));
+      setEditingProperty(null);
+    }
   };
 
   return (
@@ -192,7 +208,7 @@ export default function OperationsPage() {
               </div>
             </div>
 
-            {/* Properties Cards Grid With Images */}
+            {/* Properties Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {properties.map((prop) => (
                 <div
@@ -200,7 +216,7 @@ export default function OperationsPage() {
                   className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-lg flex flex-col justify-between"
                 >
                   <div>
-                    {/* Display Property Main Image */}
+                    {/* Display Main Image & Count */}
                     <div className="relative h-48 w-full bg-neutral-800">
                       <img
                         src={
@@ -210,11 +226,9 @@ export default function OperationsPage() {
                         alt={prop.title}
                         className="w-full h-full object-cover"
                       />
-                      {prop.images.length > 1 && (
-                        <span className="absolute bottom-2 right-2 bg-black/70 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur">
-                          📷 {prop.images.length} Photos
-                        </span>
-                      )}
+                      <span className="absolute bottom-2 right-2 bg-black/70 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur">
+                        📷 {prop.images.length} Photo{prop.images.length === 1 ? '' : 's'}
+                      </span>
                     </div>
 
                     <div className="p-5">
@@ -225,18 +239,21 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
+                  {/* Operational Host Controls */}
                   <div className="p-5 pt-0 flex justify-between items-center mt-2">
                     <span className="text-amber-400 font-bold text-base">
                       ${prop.price} <span className="text-xs text-gray-400 font-normal">/ night</span>
                     </span>
                     <button
                       onClick={() => {
-                        setSelectedProperty(prop);
-                        setIsBookingModalOpen(true);
+                        // Populate 5 slots for editing
+                        const existingImages = [...prop.images];
+                        while (existingImages.length < 5) existingImages.push('');
+                        setEditingProperty({ ...prop, images: existingImages });
                       }}
-                      className="bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                      className="bg-neutral-800 border border-amber-500/40 text-amber-400 hover:bg-neutral-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5"
                     >
-                      Request Booking
+                      ✏️ Edit Property
                     </button>
                   </div>
                 </div>
@@ -246,7 +263,7 @@ export default function OperationsPage() {
         )}
       </main>
 
-      {/* ADD PROPERTY MODAL */}
+      {/* MODAL 1: ADD NEW PROPERTY */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl text-left">
@@ -263,8 +280,8 @@ export default function OperationsPage() {
                   required
                   placeholder="e.g., 2 bedroom fully furnished apartment in Kololo"
                   className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={addFormData.title}
+                  onChange={(e) => setAddFormData({ ...addFormData, title: e.target.value })}
                 />
               </div>
 
@@ -273,8 +290,8 @@ export default function OperationsPage() {
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Category</label>
                   <select
                     className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    value={addFormData.category}
+                    onChange={(e) => setAddFormData({ ...addFormData, category: e.target.value })}
                   >
                     <option value="Apartment">Apartment</option>
                     <option value="House">Stand-alone House</option>
@@ -289,8 +306,8 @@ export default function OperationsPage() {
                     required
                     placeholder="120"
                     className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    value={addFormData.price}
+                    onChange={(e) => setAddFormData({ ...addFormData, price: e.target.value })}
                   />
                 </div>
               </div>
@@ -302,8 +319,8 @@ export default function OperationsPage() {
                   required
                   placeholder="e.g., Kisaasi, Entebbe, Munyonyo"
                   className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  value={addFormData.location}
+                  onChange={(e) => setAddFormData({ ...addFormData, location: e.target.value })}
                 />
               </div>
 
@@ -311,14 +328,14 @@ export default function OperationsPage() {
                 <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
                   Photo URLs (Up to 5 Images)
                 </label>
-                {formData.images.map((img, idx) => (
+                {addFormData.images.map((img, idx) => (
                   <input
                     key={idx}
                     type="url"
                     placeholder={`Image URL ${idx + 1}`}
                     className="w-full mb-2 p-2 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-xs focus:border-amber-500 outline-none"
                     value={img}
-                    onChange={(e) => handleImageChange(idx, e.target.value)}
+                    onChange={(e) => handleAddImageChange(idx, e.target.value)}
                   />
                 ))}
               </div>
@@ -343,75 +360,104 @@ export default function OperationsPage() {
         </div>
       )}
 
-      {/* SECURE BOOKING REQUEST MODAL */}
-      {isBookingModalOpen && (
+      {/* MODAL 2: EDIT EXISTING PROPERTY & MANAGE PHOTOS */}
+      {editingProperty && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 shadow-2xl text-left">
-            <h2 className="text-xl font-bold text-white mb-1">Secure Booking Request</h2>
-            <p className="text-xs text-amber-400 mb-4">
-              Property: <span className="text-white font-semibold">{selectedProperty?.title}</span>
-            </p>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl text-left">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-white">Edit Property & Photos</h2>
+              <button onClick={() => setEditingProperty(null)} className="text-gray-400 hover:text-white">✕</button>
+            </div>
 
-            <form onSubmit={handleBookingSubmit} className="space-y-3">
+            <form onSubmit={handleEditPropertySubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Full Name</label>
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Property Title</label>
                 <input
                   type="text"
                   required
-                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm outline-none focus:border-amber-500"
-                  value={bookingData.guestName}
-                  onChange={(e) => setBookingData({ ...bookingData, guestName: e.target.value })}
+                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
+                  value={editingProperty.title}
+                  onChange={(e) => setEditingProperty({ ...editingProperty, title: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Category</label>
+                  <select
+                    className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
+                    value={editingProperty.category}
+                    onChange={(e) => setEditingProperty({ ...editingProperty, category: e.target.value })}
+                  >
+                    <option value="Apartment">Apartment</option>
+                    <option value="House">Stand-alone House</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Mansion">Mansion</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Price / Night ($)</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
+                    value={editingProperty.price}
+                    onChange={(e) => setEditingProperty({ ...editingProperty, price: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1">Location / Area</label>
+                <input
+                  type="text"
+                  required
+                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm focus:border-amber-500 outline-none"
+                  value={editingProperty.location}
+                  onChange={(e) => setEditingProperty({ ...editingProperty, location: e.target.value })}
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-300 mb-1">Email Address (Private)</label>
-                <input
-                  type="email"
-                  required
-                  className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm outline-none focus:border-amber-500"
-                  value={bookingData.guestEmail}
-                  onChange={(e) => setBookingData({ ...bookingData, guestEmail: e.target.value })}
-                />
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+                  Update Photo URLs (Up to 5 Images)
+                </label>
+                {editingProperty.images.map((img: string, idx: number) => (
+                  <input
+                    key={idx}
+                    type="url"
+                    placeholder={`Image URL ${idx + 1}`}
+                    className="w-full mb-2 p-2 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-xs focus:border-amber-500 outline-none"
+                    value={img}
+                    onChange={(e) => handleEditImageChange(idx, e.target.value)}
+                  />
+                ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">Check-in</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm outline-none focus:border-amber-500"
-                    value={bookingData.checkIn}
-                    onChange={(e) => setBookingData({ ...bookingData, checkIn: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-300 mb-1">Check-out</label>
-                  <input
-                    type="date"
-                    required
-                    className="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-lg text-white text-sm outline-none focus:border-amber-500"
-                    value={bookingData.checkOut}
-                    onChange={(e) => setBookingData({ ...bookingData, checkOut: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-neutral-800 mt-4">
+              <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
                 <button
                   type="button"
-                  onClick={() => setIsBookingModalOpen(false)}
-                  className="px-4 py-2 border border-neutral-700 rounded-lg text-gray-300 text-sm hover:bg-neutral-800"
+                  onClick={() => handleDeleteProperty(editingProperty.id)}
+                  className="px-3 py-2 text-red-400 hover:text-red-300 text-xs font-semibold"
                 >
-                  Cancel
+                  🗑️ Delete Property
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-amber-500 text-black font-semibold rounded-lg text-sm hover:bg-amber-400"
-                >
-                  Submit Request
-                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingProperty(null)}
+                    className="px-4 py-2 border border-neutral-700 rounded-lg text-gray-300 text-sm hover:bg-neutral-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-amber-500 text-black font-semibold rounded-lg text-sm hover:bg-amber-400"
+                  >
+                    Update Property
+                  </button>
+                </div>
               </div>
             </form>
           </div>
