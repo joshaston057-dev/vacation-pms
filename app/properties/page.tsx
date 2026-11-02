@@ -19,20 +19,25 @@ export default function PublicPropertiesPage() {
     const { data } = await supabase.from('properties').select('*')
     
     if (data && data.length > 0) {
-      // Map properties and attach fallback photos if images array is empty
       const processed = data.map((item: any) => {
-        let imgs = item.images
-        if (typeof imgs === 'string') {
-          try { imgs = JSON.parse(imgs) } catch (e) { imgs = [imgs] }
+        let imgs: string[] = []
+
+        // Safely parse uploaded images from Supabase (handles arrays, JSON strings, and single text strings)
+        if (Array.isArray(item.images)) {
+          imgs = item.images
+        } else if (typeof item.images === 'string' && item.images.trim().startsWith('[')) {
+          try { 
+            imgs = JSON.parse(item.images) 
+          } catch (e) { 
+            imgs = [item.images] 
+          }
+        } else if (typeof item.images === 'string' && item.images.trim().length > 0) {
+          imgs = [item.images]
         }
-        if (!Array.isArray(imgs) || imgs.length === 0) {
-          imgs = [
-            'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
-            'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=800&q=80'
-          ]
-        }
+
         return { ...item, parsedImages: imgs }
       })
+
       setProperties(processed)
     } else {
       setProperties([])
@@ -120,7 +125,7 @@ export default function PublicPropertiesPage() {
                         </div>
                       )}
 
-                      {/* THUMBNAILS */}
+                      {/* THUMBNAILS (UP TO 5 PHOTOS) */}
                       {imgList.length > 1 && (
                         <div className="flex gap-1.5 overflow-x-auto pt-1">
                           {imgList.slice(0, 5).map((imgUrl: string, idx: number) => (
