@@ -227,15 +227,22 @@ export default function PropertiesPage() {
           )}
         </section>
 
-        {/* PRIVATE STRUCTURED RESERVATION MODAL */}
+        {/* ENHANCED STRUCTURED RESERVATION MODAL WITH FULL DETAILS & AMENITIES */}
         {selectedProperty && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-4">
-              <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-                <h3 className="font-extrabold text-white text-sm">Reserve {selectedProperty.title}</h3>
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
+              
+              {/* HEADER */}
+              <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-white text-base leading-snug">{selectedProperty.title}</h3>
+                  <p className="text-xs text-amber-500 font-bold mt-0.5">
+                    📍 {selectedProperty.location || 'Kampala, Uganda'} • ${selectedProperty.price_per_night || selectedProperty.nightly_price || selectedProperty.price || 0} / night
+                  </p>
+                </div>
                 <button 
                   onClick={() => setSelectedProperty(null)} 
-                  className="text-neutral-400 hover:text-white font-bold text-sm cursor-pointer"
+                  className="text-neutral-400 hover:text-white font-bold text-base p-1 cursor-pointer"
                 >
                   ✕
                 </button>
@@ -243,66 +250,112 @@ export default function PropertiesPage() {
 
               {bookingSubmitted ? (
                 <div className="py-8 text-center space-y-2">
-                  <span className="text-3xl">✅</span>
-                  <h4 className="font-extrabold text-white text-sm">Reservation Submitted!</h4>
+                  <span className="text-4xl">✅</span>
+                  <h4 className="font-extrabold text-white text-base">Reservation Submitted!</h4>
                   <p className="text-xs text-neutral-400">Our host team at La Estancia will review your stay dates and contact you directly.</p>
                 </div>
               ) : (
-                <form onSubmit={handleBookingSubmit} className="space-y-3">
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">Your Full Name</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={guestName} 
-                      onChange={e => setGuestName(e.target.value)} 
-                      placeholder="Jane Doe" 
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
-                    />
-                  </div>
+                <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+                  
+                  {/* FULL PROPERTY DESCRIPTION */}
+                  {selectedProperty.description && (
+                    <div className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
+                      <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1">About This Stay</h4>
+                      <p className="text-xs text-neutral-300 leading-relaxed whitespace-pre-line">
+                        {selectedProperty.description}
+                      </p>
+                    </div>
+                  )}
 
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">Phone Number or Email</label>
-                    <input 
-                      type="text" 
-                      required 
-                      value={guestContact} 
-                      onChange={e => setGuestContact(e.target.value)} 
-                      placeholder="+256..." 
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
-                    />
-                  </div>
+                  {/* AMENITIES DISPLAY */}
+                  {(() => {
+                    let amenitiesList: string[] = []
+                    try {
+                      if (typeof selectedProperty.amenities === 'string') {
+                        amenitiesList = JSON.parse(selectedProperty.amenities)
+                      } else if (Array.isArray(selectedProperty.amenities)) {
+                        amenitiesList = selectedProperty.amenities
+                      }
+                    } catch (e) {
+                      amenitiesList = []
+                    }
 
-                  <div className="grid grid-cols-2 gap-2">
+                    return amenitiesList.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Amenities Included</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {amenitiesList.map((amenity: string, idx: number) => (
+                            <span 
+                              key={idx}
+                              className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[11px] rounded-lg"
+                            >
+                              ✓ {amenity}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null
+                  })()}
+
+                  {/* RESERVATION FORM */}
+                  <form onSubmit={handleBookingSubmit} className="space-y-3 pt-2 border-t border-neutral-800">
+                    <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Reserve Your Stay</h4>
+                    
                     <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-In</label>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Your Full Name</label>
                       <input 
-                        type="date" 
+                        type="text" 
                         required 
-                        value={checkIn} 
-                        onChange={e => setCheckIn(e.target.value)} 
+                        value={guestName} 
+                        onChange={e => setGuestName(e.target.value)} 
+                        placeholder="Jane Doe" 
                         className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
                       />
                     </div>
+
                     <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-Out</label>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Phone Number or Email</label>
                       <input 
-                        type="date" 
+                        type="text" 
                         required 
-                        value={checkOut} 
-                        onChange={e => setCheckOut(e.target.value)} 
+                        value={guestContact} 
+                        onChange={e => setGuestContact(e.target.value)} 
+                        placeholder="+256..." 
                         className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
                       />
                     </div>
-                  </div>
 
-                  <button 
-                    type="submit" 
-                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2"
-                  >
-                    Submit Private Reservation Request
-                  </button>
-                </form>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-In</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={checkIn} 
+                          onChange={e => setCheckIn(e.target.value)} 
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-Out</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={checkOut} 
+                          onChange={e => setCheckOut(e.target.value)} 
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2"
+                    >
+                      Submit Private Reservation Request
+                    </button>
+                  </form>
+                </div>
               )}
             </div>
           </div>
