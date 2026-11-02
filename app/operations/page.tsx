@@ -91,7 +91,7 @@ export default function OperationsPage() {
   }, [])
 
   const loadData = async () => {
-    const { data: p } = await supabase.from('properties').select('*')
+    const { data: p } = await supabase.from('properties').select('*').order('id', { ascending: false })
     const { data: b } = await supabase.from('bookings').select('*')
     const { data: t } = await supabase.from('tasks').select('*')
     const { data: e } = await supabase.from('expenses').select('*')
@@ -159,6 +159,7 @@ export default function OperationsPage() {
   const addProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     const item = { 
+      id: Date.now().toString(),
       title: newPropTitle, 
       nightly_price: parseFloat(newPropPrice) || 0, 
       location: newPropLocation || 'Kampala', 
@@ -182,7 +183,7 @@ export default function OperationsPage() {
   const openEditModal = (p: any) => {
     setEditingProp(p)
     setEditTitle(p.title || '')
-    setEditPrice(p.nightly_price ? p.nightly_price.toString() : '')
+    setEditPrice(p.nightly_price ? p.nightly_price.toString() : (p.price_per_night ? p.price_per_night.toString() : ''))
     setEditLocation(p.location || '')
     setEditDesc(p.description || '')
     setEditAmenities(Array.isArray(p.amenities) ? p.amenities : [])
@@ -382,7 +383,6 @@ export default function OperationsPage() {
                 <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" placeholder="Location (e.g. Kisaasi, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 
-                {/* DESCRIPTION */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Description</label>
                   <textarea 
@@ -394,7 +394,6 @@ export default function OperationsPage() {
                   />
                 </div>
 
-                {/* AMENITIES CHECKLIST */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Amenities Checklist</label>
                   <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2">
@@ -412,7 +411,6 @@ export default function OperationsPage() {
                   </div>
                 </div>
 
-                {/* PHOTOS UPLOAD WITH APPEND & INDIVIDUAL DELETION */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
@@ -425,7 +423,6 @@ export default function OperationsPage() {
                             type="button"
                             onClick={() => removeNewPhoto(idx)}
                             className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow cursor-pointer"
-                            title="Remove photo"
                           >
                             ✕
                           </button>
@@ -438,7 +435,6 @@ export default function OperationsPage() {
                 <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save New Property</button>
               </form>
 
-              {/* LIST OF MANAGED PROPERTIES WITH EDIT / DELETE BUTTONS */}
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
                 {properties.map(p => (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 flex flex-col justify-between">
@@ -452,7 +448,7 @@ export default function OperationsPage() {
                       )}
                       <div className="flex justify-between items-start">
                         <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                        <span className="text-amber-500 font-bold text-xs px-2 py-0.5 rounded bg-amber-500/10">${p.nightly_price}/n</span>
+                        <span className="text-amber-500 font-bold text-xs px-2 py-0.5 rounded bg-amber-500/10">${p.nightly_price || p.price_per_night || 0}/n</span>
                       </div>
                       <p className="text-xs text-neutral-400 mt-1">📍 {p.location || 'Kampala'}</p>
                       
@@ -553,7 +549,6 @@ export default function OperationsPage() {
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] text-neutral-400 font-bold">Current Photos ({editImages.length}/5)</label>
-                      <span className="text-[9px] text-amber-400">Click ✕ to remove photo</span>
                     </div>
 
                     {editImages.length > 0 ? (
@@ -565,7 +560,6 @@ export default function OperationsPage() {
                               type="button"
                               onClick={() => removeEditPhoto(idx)}
                               className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow cursor-pointer"
-                              title="Delete photo"
                             >
                               ✕
                             </button>
