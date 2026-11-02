@@ -12,6 +12,14 @@ export default function PropertiesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
 
+  // Privacy-first Structured Reservation Modal State
+  const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
+  const [guestName, setGuestName] = useState('')
+  const [guestContact, setGuestContact] = useState('')
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [bookingSubmitted, setBookingSubmitted] = useState(false)
+
   useEffect(() => {
     fetchProperties()
   }, [])
@@ -29,6 +37,38 @@ export default function PropertiesPage() {
       setProperties(data)
     }
     setLoading(false)
+  }
+
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedProperty) return
+
+    // Internal private booking insert
+    const newBooking = {
+      property_name: selectedProperty.title,
+      guest_name: guestName,
+      phone_number: guestContact,
+      check_in: checkIn,
+      check_out: checkOut,
+      status: 'Pending Host Review'
+    }
+
+    const { error } = await supabase.from('bookings').insert([newBooking])
+
+    if (error) {
+      console.error('Booking submission error:', error.message)
+      alert('Failed to submit reservation request. Please try again.')
+    } else {
+      setBookingSubmitted(true)
+      setTimeout(() => {
+        setSelectedProperty(null)
+        setBookingSubmitted(false)
+        setGuestName('')
+        setGuestContact('')
+        setCheckIn('')
+        setCheckOut('')
+      }, 2500)
+    }
   }
 
   const categories = ['All', 'Apartment', 'Standalone House', 'Mansion', 'Villa']
@@ -84,7 +124,7 @@ export default function PropertiesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map(property => {
-                // Parse up to 5 photos safely
+                // Parse photo array safely
                 let imageList: string[] = []
                 try {
                   if (typeof property.images === 'string') {
@@ -99,16 +139,19 @@ export default function PropertiesPage() {
                 const mainImage = imageList.length > 0 ? imageList[0] : null
                 const extraImages = imageList.slice(1, 5)
 
+                // DYNAMIC PRICE EXTRACTION FROM SUPABASE
+                const displayPrice = property.price_per_night || property.nightly_price || property.price || 0
+
                 return (
                   <div key={property.id} className="bg-neutral-900/90 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      {/* PHOTO GRID DISPLAY */}
-                      <div className="relative">
+                      {/* PHOTO DISPLAY CONTAINER */}
+                      <div className="relative w-full bg-neutral-950 min-h-[224px]">
                         {mainImage ? (
                           <div className="space-y-1">
                             <img
                               src={mainImage}
-                              alt={property.title}
+                              alt={property.title || 'Property photo'}
                               className="w-full h-56 object-cover"
                             />
                             {extraImages.length > 0 && (
@@ -130,14 +173,14 @@ export default function PropertiesPage() {
                           </div>
                         )}
 
-                        {/* PRICE BADGE OVERLAY */}
-                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                          ${property.nightly_price ?? property.price_per_night ?? property.price ?? 0} / night
+                        {/* DYNAMIC PRICE BADGE OVERLAY */}
+                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md whitespace-nowrap z-20">
+                          ${displayPrice} / night
                         </div>
 
                         {/* PHOTO COUNT BADGE */}
                         {imageList.length > 0 && (
-                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1">
+                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 z-20">
                             📷 {imageList.length} Photos
                           </div>
                         )}
@@ -168,14 +211,10 @@ export default function PropertiesPage() {
                       </div>
                     </div>
 
-                    {/* ACTION BUTTON */}
+                    {/* PRIVACY-FIRST RESERVATION TRIGGER */}
                     <div className="p-5 pt-0">
                       <button
-                        onClick={() => {
-                          const phone = property.whatsapp_contact || '+256757386946'
-                          const msg = encodeURIComponent(`Hello La Estancia, I am interested in booking: ${property.title}`)
-                          window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${msg}`, '_blank')
-                        }}
+                        onClick={() => setSelectedProperty(property)}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
                       >
                         View Gallery & Book Now
@@ -187,6 +226,88 @@ export default function PropertiesPage() {
             </div>
           )}
         </section>
+
+        {/* PRIVATE STRUCTURED RESERVATION MODAL */}
+        {selectedProperty && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                <h3 className="font-extrabold text-white text-sm">Reserve {selectedProperty.title}</h3>
+                <button 
+                  onClick={() => setSelectedProperty(null)} 
+                  className="text-neutral-400 hover:text-white font-bold text-sm cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {bookingSubmitted ? (
+                <div className="py-8 text-center space-y-2">
+                  <span className="text-3xl">✅</span>
+                  <h4 className="font-extrabold text-white text-sm">Reservation Submitted!</h4>
+                  <p className="text-xs text-neutral-400">Our host team at La Estancia will review your stay dates and contact you directly.</p>
+                </div>
+              ) : (
+                <form onSubmit={handleBookingSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">Your Full Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={guestName} 
+                      onChange={e => setGuestName(e.target.value)} 
+                      placeholder="Jane Doe" 
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">Phone Number or Email</label>
+                    <input 
+                      type="text" 
+                      required 
+                      value={guestContact} 
+                      onChange={e => setGuestContact(e.target.value)} 
+                      placeholder="+256..." 
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-In</label>
+                      <input 
+                        type="date" 
+                        required 
+                        value={checkIn} 
+                        onChange={e => setCheckIn(e.target.value)} 
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-Out</label>
+                      <input 
+                        type="date" 
+                        required 
+                        value={checkOut} 
+                        onChange={e => setCheckOut(e.target.value)} 
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2"
+                  >
+                    Submit Private Reservation Request
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        )}
+
       </div>
       <Footer />
     </main>
