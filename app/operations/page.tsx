@@ -27,7 +27,6 @@ const AVAILABLE_AMENITIES = [
 ]
 
 export default function OperationsPage() {
-  // Default to false so you never get stuck on a lock screen
   const [isLocked, setIsLocked] = useState(false)
   const [passcode, setPasscode] = useState('')
   const [passError, setPassError] = useState(false)
@@ -38,13 +37,22 @@ export default function OperationsPage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
 
-  // Property Form State
+  // New Property State
   const [newPropTitle, setNewPropTitle] = useState('')
   const [newPropPrice, setNewPropPrice] = useState('')
   const [newPropLocation, setNewPropLocation] = useState('')
   const [newPropDesc, setNewPropDesc] = useState('')
   const [newPropAmenities, setNewPropAmenities] = useState<string[]>([])
   const [newPropImages, setNewPropImages] = useState<string[]>([])
+
+  // Edit Property Modal State
+  const [editingProp, setEditingProp] = useState<any | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editPrice, setEditPrice] = useState('')
+  const [editLocation, setEditLocation] = useState('')
+  const [editDesc, setEditDesc] = useState('')
+  const [editAmenities, setEditAmenities] = useState<string[]>([])
+  const [editImages, setEditImages] = useState<string[]>([])
 
   // Booking Form State
   const [manualGuest, setManualGuest] = useState('')
@@ -94,6 +102,7 @@ export default function OperationsPage() {
     if (e) setExpenses(e)
   }
 
+  // Handle New Property Amenities
   const handleAmenityToggle = (amenity: string) => {
     if (newPropAmenities.includes(amenity)) {
       setNewPropAmenities(newPropAmenities.filter(a => a !== amenity))
@@ -102,6 +111,16 @@ export default function OperationsPage() {
     }
   }
 
+  // Handle Edit Property Amenities
+  const handleEditAmenityToggle = (amenity: string) => {
+    if (editAmenities.includes(amenity)) {
+      setEditAmenities(editAmenities.filter(a => a !== amenity))
+    } else {
+      setEditAmenities([...editAmenities, amenity])
+    }
+  }
+
+  // Handle New Property Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5)
     const promises = files.map(file => {
@@ -117,6 +136,23 @@ export default function OperationsPage() {
     })
   }
 
+  // Handle Edit Property Photo Upload
+  const handleEditPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []).slice(0, 5)
+    const promises = files.map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+    })
+
+    Promise.all(promises).then(images => {
+      setEditImages(images)
+    })
+  }
+
+  // Add Property
   const addProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     const item = { 
@@ -132,6 +168,43 @@ export default function OperationsPage() {
     setProperties([item, ...properties])
     await supabase.from('properties').insert([item])
     setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropDesc(''); setNewPropAmenities([]); setNewPropImages([])
+  }
+
+  // Open Edit Modal for a Property
+  const openEditModal = (p: any) => {
+    setEditingProp(p)
+    setEditTitle(p.title || '')
+    setEditPrice(p.price_per_night ? p.price_per_night.toString() : '')
+    setEditLocation(p.location || '')
+    setEditDesc(p.description || '')
+    setEditAmenities(Array.isArray(p.amenities) ? p.amenities : [])
+    setEditImages(Array.isArray(p.images) ? p.images : [])
+  }
+
+  // Save Edit Changes
+  const savePropertyEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingProp) return
+
+    const updated = {
+      title: editTitle,
+      price_per_night: parseFloat(editPrice) || 0,
+      location: editLocation,
+      description: editDesc,
+      amenities: editAmenities,
+      images: editImages
+    }
+
+    setProperties(properties.map(item => item.id === editingProp.id ? { ...item, ...updated } : item))
+    await supabase.from('properties').update(updated).eq('id', editingProp.id)
+    setEditingProp(null)
+  }
+
+  // Delete Property
+  const deleteProperty = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this property listing?')) return
+    setProperties(properties.filter(p => p.id !== id))
+    await supabase.from('properties').delete().eq('id', id)
   }
 
   const toggleOccupancy = async (id: string, current: boolean) => {
@@ -265,7 +338,7 @@ export default function OperationsPage() {
             </div>
           </div>
 
-          {/* 5 NAVIGATION TABS */}
+          {/* 5 TABS NAVIGATION */}
           <div className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
             {[
               { id: 'properties', label: '🏠 Properties & Photos' },
@@ -325,7 +398,7 @@ export default function OperationsPage() {
                   </div>
                 </div>
 
-                {/* PHOTO UPLOAD */}
+                {/* PHOTOS UPLOAD */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
@@ -338,47 +411,143 @@ export default function OperationsPage() {
                   )}
                 </div>
 
-                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save Property</button>
+                <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save New Property</button>
               </form>
 
+              {/* LIST OF MANAGED PROPERTIES WITH EDIT / DELETE BUTTONS */}
               <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 h-fit">
                 {properties.map(p => (
-                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
-                    {p.images && p.images.length > 0 && (
-                      <div className="grid grid-cols-5 gap-1 rounded-xl overflow-hidden mb-2">
-                        {p.images.slice(0, 5).map((img: string, i: number) => (
-                          <img key={i} src={img} className="h-16 w-full object-cover" alt="Property" />
-                        ))}
+                  <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 flex flex-col justify-between">
+                    <div>
+                      {p.images && p.images.length > 0 && (
+                        <div className="grid grid-cols-5 gap-1 rounded-xl overflow-hidden mb-2">
+                          {p.images.slice(0, 5).map((img: string, i: number) => (
+                            <img key={i} src={img} className="h-16 w-full object-cover" alt="Property" />
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
+                        <span className="text-amber-500 font-bold text-xs shadow-inner px-2 py-0.5 rounded bg-amber-500/10">${p.price_per_night}/n</span>
                       </div>
-                    )}
-                    <div className="flex justify-between">
-                      <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                      <span className="text-amber-500 font-bold text-xs">${p.price_per_night}/n</span>
+                      <p className="text-xs text-neutral-400 mt-1">📍 {p.location || 'Kampala'}</p>
+                      
+                      {p.description && (
+                        <p className="text-[11px] text-neutral-400 line-clamp-2 italic mt-2">"{p.description}"</p>
+                      )}
+
+                      {p.amenities && p.amenities.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {p.amenities.map((a: string, idx: number) => (
+                            <span key={idx} className="text-[9px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-md">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <p className="text-xs text-neutral-400">📍 {p.location || 'Kampala'}</p>
-                    
-                    {p.description && (
-                      <p className="text-[11px] text-neutral-400 line-clamp-2 italic">"{p.description}"</p>
-                    )}
 
-                    {p.amenities && p.amenities.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {p.amenities.map((a: string, idx: number) => (
-                          <span key={idx} className="text-[9px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-md">
-                            {a}
-                          </span>
-                        ))}
+                    <div className="space-y-2 pt-3 border-t border-neutral-800">
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                          {p.is_occupied ? '🔴 Occupied' : '🟢 Available'}
+                        </span>
+                        <button onClick={() => toggleOccupancy(p.id, p.is_occupied)} className="px-2.5 py-1 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">
+                          Toggle Status
+                        </button>
                       </div>
-                    )}
 
-                    <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
-                      <span className={`text-[10px] font-extrabold px-3 py-1 rounded-full ${p.is_occupied ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                        {p.is_occupied ? '🔴 Occupied' : '🟢 Available'}
-                      </span>
-                      <button onClick={() => toggleOccupancy(p.id, p.is_occupied)} className="px-3 py-1 bg-neutral-800 text-amber-400 text-xs font-bold rounded-lg cursor-pointer">Toggle Status</button>
+                      {/* EDIT AND DELETE BUTTONS */}
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <button 
+                          onClick={() => openEditModal(p)} 
+                          className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 text-xs font-extrabold rounded-xl transition cursor-pointer"
+                        >
+                          ✏️ Edit Property
+                        </button>
+                        <button 
+                          onClick={() => deleteProperty(p.id)} 
+                          className="w-full py-2 bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-800/40 text-xs font-extrabold rounded-xl transition cursor-pointer"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* EDIT PROPERTY MODAL POPUP */}
+          {editingProp && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                  <h3 className="font-extrabold text-amber-500 text-base">✏️ Edit Property Details</h3>
+                  <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold text-sm">✕ Close</button>
+                </div>
+
+                <form onSubmit={savePropertyEdit} className="space-y-3">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Title</label>
+                    <input type="text" required value={editTitle} onChange={e => setEditTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Nightly Rate ($)</label>
+                      <input type="number" required value={editPrice} onChange={e => setEditPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Location</label>
+                      <input type="text" value={editLocation} onChange={e => setEditLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Description</label>
+                    <textarea rows={3} value={editDesc} onChange={e => setEditDesc(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Amenities Checklist</label>
+                    <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto bg-neutral-950 border border-neutral-800 rounded-xl p-2">
+                      {AVAILABLE_AMENITIES.map(amenity => (
+                        <label key={amenity} className="flex items-center gap-2 text-[11px] text-neutral-300 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={editAmenities.includes(amenity)}
+                            onChange={() => handleEditAmenityToggle(amenity)}
+                            className="accent-amber-500 rounded"
+                          />
+                          {amenity}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Replace Photos (Up to 5)</label>
+                    <input type="file" multiple accept="image/*" onChange={handleEditPhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
+                    {editImages.length > 0 && (
+                      <div className="flex gap-1 mt-2 overflow-x-auto">
+                        {editImages.map((img, idx) => (
+                          <img key={idx} src={img} className="w-12 h-12 object-cover rounded-lg border border-neutral-700" alt="Preview" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 flex gap-2">
+                    <button type="submit" className="flex-1 py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                      Save Changes
+                    </button>
+                    <button type="button" onClick={() => setEditingProp(null)} className="py-2.5 px-4 bg-neutral-800 text-neutral-300 font-extrabold text-xs rounded-xl cursor-pointer">
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
