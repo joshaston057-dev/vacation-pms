@@ -227,7 +227,7 @@ export default function PropertiesPage() {
           )}
         </section>
 
-        {/* ENHANCED STRUCTURED RESERVATION MODAL WITH FULL DETAILS & AMENITIES */}
+        {/* ENHANCED RESERVATION MODAL */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
@@ -252,12 +252,12 @@ export default function PropertiesPage() {
                 <div className="py-8 text-center space-y-2">
                   <span className="text-4xl">✅</span>
                   <h4 className="font-extrabold text-white text-base">Reservation Submitted!</h4>
-                  <p className="text-xs text-neutral-400">Our host team at La Estancia will review your stay dates and contact you directly.</p>
+                  <p className="text-xs text-neutral-400">Our host team at La Estancia will review your stay dates and contact you via WhatsApp.</p>
                 </div>
               ) : (
                 <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
                   
-                  {/* FULL PROPERTY DESCRIPTION */}
+                  {/* FULL DESCRIPTION */}
                   {selectedProperty.description && (
                     <div className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
                       <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1">About This Stay</h4>
@@ -267,7 +267,7 @@ export default function PropertiesPage() {
                     </div>
                   )}
 
-                  {/* AMENITIES DISPLAY */}
+                  {/* AMENITIES */}
                   {(() => {
                     let amenitiesList: string[] = []
                     try {
@@ -297,7 +297,7 @@ export default function PropertiesPage() {
                     ) : null
                   })()}
 
-                  {/* RESERVATION FORM */}
+                  {/* FORM WITH STRICT WHATSAPP PROMPT */}
                   <form onSubmit={handleBookingSubmit} className="space-y-3 pt-2 border-t border-neutral-800">
                     <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Reserve Your Stay</h4>
                     
@@ -314,55 +314,17 @@ export default function PropertiesPage() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">Phone Number or Email</label>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">WhatsApp Phone Number</label>
                       <input 
-                        type="text" 
+                        type="tel" 
                         required 
                         value={guestContact} 
                         onChange={e => setGuestContact(e.target.value)} 
-                        placeholder="+256..." 
+                        placeholder="+256 7XXXXXXXX" 
                         className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-In</label>
-                        <input 
-                          type="date" 
-                          required 
-                          value={checkIn} 
-                          onChange={e => setCheckIn(e.target.value)} 
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-Out</label>
-                        <input 
-                          type="date" 
-                          required 
-                          value={checkOut} 
-                          onChange={e => setCheckOut(e.target.value)} 
-                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
-                        />
-                      </div>
-                    </div>
-
-                    <button 
-                      type="submit" 
-                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2"
-                    >
-                      Submit Private Reservation Request
-                    </button>
-                  </form>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
-      <Footer />
-    </main>
-  )
-}
+                        <label className="text-[10px] text
