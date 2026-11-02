@@ -8,10 +8,8 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function OperationsPortal() {
-  // Navigation Tabs: 'properties' | 'bookings' | 'tasks' | 'financials' | 'services'
   const [activeTab, setActiveTab] = useState('bookings')
 
-  // Data States
   const [services, setServices] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [properties, setProperties] = useState<any[]>([])
@@ -46,6 +44,37 @@ export default function OperationsPortal() {
   const fetchProperties = async () => {
     const { data } = await supabase.from('properties').select('*').order('id', { ascending: false })
     if (data) setProperties(data)
+  }
+
+  // BOOKING ACTIONS: APPROVE / DELETE
+  const handleUpdateBookingStatus = async (id: number, newStatus: string) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status: newStatus })
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error updating booking status:', error.message)
+      alert('Failed to update booking status.')
+    } else {
+      fetchBookings()
+    }
+  }
+
+  const handleDeleteBooking = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this reservation request?')) return
+
+    const { error } = await supabase
+      .from('bookings')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('Error deleting booking:', error.message)
+      alert('Failed to delete booking.')
+    } else {
+      fetchBookings()
+    }
   }
 
   const handleAddService = async (e: React.FormEvent) => {
@@ -97,7 +126,7 @@ export default function OperationsPortal() {
             Centralized PMS: Manage Properties, Bookings, Staff, Finances, and Upsell Services.
           </p>
 
-          {/* FULL SUB-NAVIGATION TABS BAR */}
+          {/* SUB-NAVIGATION TABS BAR */}
           <div className="flex flex-wrap items-center gap-2 pt-6 border-b border-neutral-800 pb-4">
             <button
               onClick={() => setActiveTab('properties')}
@@ -166,31 +195,69 @@ export default function OperationsPortal() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bookings.map((booking) => (
-                  <div key={booking.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-extrabold text-white text-sm">{booking.property_name}</h3>
-                      <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold text-[10px] rounded-lg">
-                        {booking.status || 'Pending Host Review'}
-                      </span>
+                {bookings.map((booking) => {
+                  const currentStatus = booking.status || 'Pending Host Review'
+                  const isApproved = currentStatus.toLowerCase().includes('confirm') || currentStatus.toLowerCase().includes('approv')
+
+                  return (
+                    <div key={booking.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3.5 shadow-xl flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-extrabold text-white text-sm">{booking.property_name}</h3>
+                          <span className={`px-2.5 py-1 font-bold text-[10px] rounded-lg border ${
+                            isApproved 
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+                              : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                          }`}>
+                            {currentStatus}
+                          </span>
+                        </div>
+
+                        <div className="text-xs space-y-1.5 text-neutral-300">
+                          <p>👤 <strong className="text-white">Guest:</strong> {booking.guest_name}</p>
+                          <p>💬 <strong className="text-white">WhatsApp:</strong> {booking.phone_number}</p>
+                          <p>📅 <strong className="text-white">Dates:</strong> {booking.check_in} to {booking.check_out}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t border-neutral-800">
+                        {/* WHATSAPP MESSAGE BUTTON */}
+                        <button
+                          onClick={() => {
+                            const cleanPhone = (booking.phone_number || '').replace(/[^0-9]/g, '')
+                            const msg = encodeURIComponent(`Hello ${booking.guest_name}, regarding your reservation request for ${booking.property_name} at La Estancia...`)
+                            window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank')
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          💬 Message Guest on WhatsApp
+                        </button>
+
+                        {/* APPROVE / DELETE ACTION BUTTONS */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleUpdateBookingStatus(booking.id, isApproved ? 'Pending Host Review' : 'Confirmed')}
+                            className={`py-2 px-3 rounded-xl font-bold text-xs transition cursor-pointer ${
+                              isApproved 
+                                ? 'bg-neutral-800 hover:bg-neutral-700 text-neutral-300' 
+                                : 'bg-amber-500 hover:bg-amber-400 text-black font-extrabold'
+                            }`}
+                          >
+                            {isApproved ? '↩︎ Mark Pending' : '✓ Approve Booking'}
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteBooking(booking.id)}
+                            className="py-2 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs rounded-xl transition cursor-pointer"
+                          >
+                            🗑️ Delete Request
+                          </button>
+                        </div>
+                      </div>
+
                     </div>
-                    <div className="text-xs space-y-1.5 text-neutral-300">
-                      <p>👤 <strong className="text-white">Guest:</strong> {booking.guest_name}</p>
-                      <p>💬 <strong className="text-white">WhatsApp:</strong> {booking.phone_number}</p>
-                      <p>📅 <strong className="text-white">Dates:</strong> {booking.check_in} to {booking.check_out}</p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        const cleanPhone = (booking.phone_number || '').replace(/[^0-9]/g, '')
-                        const msg = encodeURIComponent(`Hello ${booking.guest_name}, regarding your reservation request for ${booking.property_name} at La Estancia...`)
-                        window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank')
-                      }}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      💬 Message Guest on WhatsApp
-                    </button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </section>
@@ -246,7 +313,6 @@ export default function OperationsPortal() {
           <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               
-              {/* ADD SERVICE FORM */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 h-fit shadow-xl">
                 <h2 className="text-sm font-extrabold text-white">Add Partner Service</h2>
                 
