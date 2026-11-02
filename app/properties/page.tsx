@@ -43,7 +43,6 @@ export default function PropertiesPage() {
     e.preventDefault()
     if (!selectedProperty) return
 
-    // Secure, structured data capture into Supabase bookings table
     const newBooking = {
       property_name: selectedProperty.title,
       guest_name: guestName,
@@ -198,7 +197,7 @@ export default function PropertiesPage() {
           )}
         </section>
 
-        {/* STRUCTURED BOOKING MODAL (PRIVACY-PRESERVING) */}
+        {/* STRUCTURED BOOKING MODAL */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-4">
@@ -249,4 +248,4 @@ export default function PropertiesPage() {
       <Footer />
     </main>
   )
-}s
+}
