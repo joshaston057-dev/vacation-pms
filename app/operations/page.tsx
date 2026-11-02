@@ -11,17 +11,23 @@ import Link from 'next/link'
 const AVAILABLE_AMENITIES = [
   '📶 High-Speed Wi-Fi',
   '🏊 Swimming Pool',
-  '⚡ Backup Generator / Solar',
+  '⚡ Standby Generator / Inverter',
   '❄️ Air Conditioning',
-  '🛡️ 24/7 Security Guard',
+  '🛡️ 24/7 Security / CCTV',
   '🌅 Balcony / City View',
-  '🚗 Free Parking',
+  '🚗 Private Parking',
   '🍳 Fully Equipped Kitchen',
   '🧺 Washing Machine',
-  '📺 Smart TV / Netflix'
+  '📺 Smart TV / Netflix',
+  '🏋️ Gym / Fitness Center',
+  '🧹 Daily Housekeeping',
+  '💻 Dedicated Workspace',
+  '🛗 Elevator Access',
+  '🧱 Perimeter Wall / Gate'
 ]
 
 export default function OperationsPage() {
+  // Default to false so you never get stuck on a lock screen
   const [isLocked, setIsLocked] = useState(false)
   const [passcode, setPasscode] = useState('')
   const [passError, setPassError] = useState(false)
@@ -32,7 +38,7 @@ export default function OperationsPage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
 
-  // Property Form + Photos + Description + Amenities
+  // Property Form State
   const [newPropTitle, setNewPropTitle] = useState('')
   const [newPropPrice, setNewPropPrice] = useState('')
   const [newPropLocation, setNewPropLocation] = useState('')
@@ -40,7 +46,7 @@ export default function OperationsPage() {
   const [newPropAmenities, setNewPropAmenities] = useState<string[]>([])
   const [newPropImages, setNewPropImages] = useState<string[]>([])
 
-  // Booking Form + iCal
+  // Booking Form State
   const [manualGuest, setManualGuest] = useState('')
   const [manualPhone, setManualPhone] = useState('256757386946')
   const [manualProp, setManualProp] = useState('')
@@ -49,19 +55,19 @@ export default function OperationsPage() {
   const [manualPrice, setManualPrice] = useState('')
   const [manualIcal, setManualIcal] = useState('')
 
-  // Tasks Form
+  // Tasks Form State
   const [taskTitle, setTaskTitle] = useState('')
   const [taskProp, setTaskProp] = useState('')
   const [taskAssignee, setTaskAssignee] = useState('')
   const [taskPhone, setTaskPhone] = useState('256757386946')
   const [taskDueDate, setTaskDueDate] = useState('')
 
-  // Financials Form
+  // Financials Form State
   const [expDesc, setExpDesc] = useState('')
   const [expCategory, setExpCategory] = useState('Rent')
   const [expAmount, setExpAmount] = useState('')
 
-  // Upsell Services Form
+  // Upsell Services State
   const [serviceName, setServiceName] = useState('')
   const [serviceCategory, setServiceCategory] = useState('Transportation')
   const [servicePrice, setServicePrice] = useState('')
@@ -204,7 +210,8 @@ export default function OperationsPage() {
 
   const unlockPortal = (e: React.FormEvent) => {
     e.preventDefault()
-    if (passcode === '1234' || passcode === 'admin') {
+    const cleanPass = passcode.trim().toLowerCase()
+    if (cleanPass === '1234' || cleanPass === 'admin' || cleanPass === '2026') {
       setIsLocked(false)
       setPassError(false)
     } else {
@@ -223,13 +230,13 @@ export default function OperationsPage() {
           <form onSubmit={unlockPortal} className="space-y-3">
             <input 
               type="password" 
-              placeholder="Enter passcode" 
+              placeholder="Enter passcode (1234)" 
               value={passcode} 
               onChange={e => setPasscode(e.target.value)} 
               className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-center text-xs text-white"
             />
             {passError && <p className="text-xs text-red-400 font-bold">Incorrect passcode.</p>}
-            <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Unlock Portal</button>
+            <button type="submit" className="w-full py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Unlock Portal</button>
           </form>
         </div>
         <Footer />
@@ -258,7 +265,7 @@ export default function OperationsPage() {
             </div>
           </div>
 
-          {/* 5 TABS NAVIGATION */}
+          {/* 5 NAVIGATION TABS */}
           <div className="flex flex-wrap gap-2 border-b border-neutral-800 pb-3">
             {[
               { id: 'properties', label: '🏠 Properties & Photos' },
@@ -279,7 +286,7 @@ export default function OperationsPage() {
             ))}
           </div>
 
-          {/* TAB 1: PROPERTIES WITH PHOTO UPLOAD, DESCRIPTION & AMENITIES */}
+          {/* TAB 1: PROPERTIES */}
           {activeTab === 'properties' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <form onSubmit={addProperty} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 h-fit">
@@ -288,7 +295,7 @@ export default function OperationsPage() {
                 <input type="number" required placeholder="Price per night ($)" value={newPropPrice} onChange={e => setNewPropPrice(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 <input type="text" placeholder="Location (e.g. Kisaasi, Kampala)" value={newPropLocation} onChange={e => setNewPropLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 
-                {/* DESCRIPTION FIELD */}
+                {/* DESCRIPTION */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Description</label>
                   <textarea 
@@ -318,7 +325,7 @@ export default function OperationsPage() {
                   </div>
                 </div>
 
-                {/* PHOTOS UPLOAD */}
+                {/* PHOTO UPLOAD */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />

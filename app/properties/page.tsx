@@ -22,7 +22,7 @@ export default function PublicPropertiesPage() {
       const processed = data.map((item: any) => {
         let imgs: string[] = []
 
-        // Safely parse uploaded images from Supabase (handles arrays, JSON strings, and single text strings)
+        // Parse host photos stored in Supabase
         if (Array.isArray(item.images)) {
           imgs = item.images
         } else if (typeof item.images === 'string' && item.images.trim().startsWith('[')) {
@@ -75,7 +75,7 @@ export default function PublicPropertiesPage() {
                 return (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden flex flex-col justify-between hover:border-neutral-700 transition">
                     
-                    {/* COVER IMAGE */}
+                    {/* MAIN COVER IMAGE */}
                     <div className="relative w-full h-56 bg-neutral-950 flex items-center justify-center overflow-hidden">
                       {imgList.length > 0 ? (
                         <img 
@@ -101,7 +101,7 @@ export default function PublicPropertiesPage() {
                       </div>
                     </div>
 
-                    {/* CARD DETAILS */}
+                    {/* DETAILS & AMENITIES */}
                     <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         <span className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">📍 {p.location || 'Kampala'}</span>
