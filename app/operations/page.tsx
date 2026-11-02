@@ -119,7 +119,7 @@ export default function OperationsPage() {
   }
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 5)
+    const files = Array.from(e.target.files || [])
     const promises = files.map(file => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader()
@@ -128,8 +128,8 @@ export default function OperationsPage() {
       })
     })
 
-    Promise.all(promises).then(images => {
-      setNewPropImages(images)
+    Promise.all(promises).then(newImages => {
+      setNewPropImages(prev => [...prev, ...newImages].slice(0, 5))
     })
   }
 
@@ -148,7 +148,7 @@ export default function OperationsPage() {
     })
 
     Promise.all(promises).then(newImages => {
-      setEditImages(prev => [...prev, ...newImages].slice(0, 10))
+      setEditImages(prev => [...prev, ...newImages].slice(0, 5))
     })
   }
 
@@ -159,24 +159,30 @@ export default function OperationsPage() {
   const addProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     const item = { 
-      id: Date.now().toString(), 
       title: newPropTitle, 
-      price_per_night: parseFloat(newPropPrice) || 0, 
+      nightly_price: parseFloat(newPropPrice) || 0, 
       location: newPropLocation || 'Kampala', 
       description: newPropDesc,
       amenities: newPropAmenities,
       is_occupied: false,
       images: newPropImages
     }
-    setProperties([item, ...properties])
-    await supabase.from('properties').insert([item])
+    
+    const { data, error } = await supabase.from('properties').insert([item]).select()
+    if (error) {
+      console.error('Supabase insert error:', error.message)
+      alert('Error creating property: ' + error.message)
+    } else if (data) {
+      setProperties([data[0], ...properties])
+    }
+
     setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropDesc(''); setNewPropAmenities([]); setNewPropImages([])
   }
 
   const openEditModal = (p: any) => {
     setEditingProp(p)
     setEditTitle(p.title || '')
-    setEditPrice(p.price_per_night ? p.price_per_night.toString() : '')
+    setEditPrice(p.nightly_price ? p.nightly_price.toString() : '')
     setEditLocation(p.location || '')
     setEditDesc(p.description || '')
     setEditAmenities(Array.isArray(p.amenities) ? p.amenities : [])
@@ -189,7 +195,7 @@ export default function OperationsPage() {
 
     const updatedData = {
       title: editTitle,
-      price_per_night: parseFloat(editPrice) || 0,
+      nightly_price: parseFloat(editPrice) || 0,
       location: editLocation,
       description: editDesc,
       amenities: editAmenities,
@@ -226,7 +232,6 @@ export default function OperationsPage() {
   const addManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     const item = { 
-      id: Date.now().toString(), 
       guest_name: manualGuest, 
       phone_number: manualPhone,
       property_name: manualProp, 
@@ -236,21 +241,20 @@ export default function OperationsPage() {
       status: 'Confirmed',
       ical_link: manualIcal
     }
-    setBookings([item, ...bookings])
-    await supabase.from('bookings').insert([item])
+    const { data } = await supabase.from('bookings').insert([item]).select()
+    if (data) setBookings([data[0], ...bookings])
     setManualGuest(''); setManualProp(''); setManualCheckIn(''); setManualCheckOut(''); setManualPrice(''); setManualIcal('')
   }
 
   const addCustomService = (e: React.FormEvent) => {
     e.preventDefault()
     const item = {
-      id: Date.now().toString(),
       name: serviceName,
       category: serviceCategory,
       price: parseFloat(servicePrice) || 0,
       whatsapp_number: servicePhone
     }
-    setServices([item, ...services])
+    setServices([...services, { ...item, id: Date.now().toString() }])
     setServiceName(''); setServicePrice('')
   }
 
@@ -267,9 +271,9 @@ export default function OperationsPage() {
 
   const addTask = async (e: React.FormEvent) => {
     e.preventDefault()
-    const item = { id: Date.now().toString(), title: taskTitle, property_name: taskProp, assigned_to: taskAssignee, phone_number: taskPhone, due_date: taskDueDate, status: 'Unfinished' }
-    setTasks([item, ...tasks])
-    await supabase.from('tasks').insert([item])
+    const item = { title: taskTitle, property_name: taskProp, assigned_to: taskAssignee, phone_number: taskPhone, due_date: taskDueDate, status: 'Unfinished' }
+    const { data } = await supabase.from('tasks').insert([item]).select()
+    if (data) setTasks([data[0], ...tasks])
     setTaskTitle(''); setTaskProp(''); setTaskAssignee(''); setTaskDueDate('')
   }
 
@@ -281,9 +285,9 @@ export default function OperationsPage() {
 
   const addExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    const item = { id: Date.now().toString(), description: expDesc, category: expCategory, amount: parseFloat(expAmount) || 0, date: new Date().toISOString().split('T')[0] }
-    setExpenses([item, ...expenses])
-    await supabase.from('expenses').insert([item])
+    const item = { description: expDesc, category: expCategory, amount: parseFloat(expAmount) || 0, date: new Date().toISOString().split('T')[0] }
+    const { data } = await supabase.from('expenses').insert([item]).select()
+    if (data) setExpenses([data[0], ...expenses])
     setExpDesc(''); setExpAmount('')
   }
 
@@ -408,7 +412,7 @@ export default function OperationsPage() {
                   </div>
                 </div>
 
-                {/* PHOTOS UPLOAD WITH REMOVE BUTTONS */}
+                {/* PHOTOS UPLOAD WITH APPEND & INDIVIDUAL DELETION */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
@@ -420,7 +424,7 @@ export default function OperationsPage() {
                           <button
                             type="button"
                             onClick={() => removeNewPhoto(idx)}
-                            className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow"
+                            className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow cursor-pointer"
                             title="Remove photo"
                           >
                             ✕
@@ -448,7 +452,7 @@ export default function OperationsPage() {
                       )}
                       <div className="flex justify-between items-start">
                         <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                        <span className="text-amber-500 font-bold text-xs px-2 py-0.5 rounded bg-amber-500/10">${p.price_per_night}/n</span>
+                        <span className="text-amber-500 font-bold text-xs px-2 py-0.5 rounded bg-amber-500/10">${p.nightly_price}/n</span>
                       </div>
                       <p className="text-xs text-neutral-400 mt-1">📍 {p.location || 'Kampala'}</p>
                       
@@ -498,13 +502,13 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* EDIT PROPERTY MODAL WITH PHOTO DELETE BUTTONS */}
+          {/* EDIT PROPERTY MODAL */}
           {editingProp && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
                   <h3 className="font-extrabold text-amber-500 text-base">✏️ Edit Property Details</h3>
-                  <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold text-sm">✕ Close</button>
+                  <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold text-sm cursor-pointer">✕ Close</button>
                 </div>
 
                 <form onSubmit={savePropertyEdit} className="space-y-3">
@@ -546,10 +550,9 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
-                  {/* MANAGE PHOTOS WITH ✕ BUTTON */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="text-[10px] text-neutral-400 font-bold">Current Photos ({editImages.length})</label>
+                      <label className="text-[10px] text-neutral-400 font-bold">Current Photos ({editImages.length}/5)</label>
                       <span className="text-[9px] text-amber-400">Click ✕ to remove photo</span>
                     </div>
 
@@ -561,7 +564,7 @@ export default function OperationsPage() {
                             <button
                               type="button"
                               onClick={() => removeEditPhoto(idx)}
-                              className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow"
+                              className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow cursor-pointer"
                               title="Delete photo"
                             >
                               ✕
