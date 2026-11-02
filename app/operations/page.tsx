@@ -120,7 +120,7 @@ export default function OperationsPage() {
     }
   }
 
-  // Handle New Property Photo Upload
+  // New Property Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5)
     const promises = files.map(file => {
@@ -136,9 +136,9 @@ export default function OperationsPage() {
     })
   }
 
-  // Handle Edit Property Photo Upload
-  const handleEditPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []).slice(0, 5)
+  // Add photos to existing list in Edit Modal
+  const handleEditPhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
     const promises = files.map(file => {
       return new Promise<string>((resolve) => {
         const reader = new FileReader()
@@ -147,9 +147,14 @@ export default function OperationsPage() {
       })
     })
 
-    Promise.all(promises).then(images => {
-      setEditImages(images)
+    Promise.all(promises).then(newImages => {
+      setEditImages(prev => [...prev, ...newImages].slice(0, 10))
     })
+  }
+
+  // Remove a single unwanted photo by index
+  const removeEditPhoto = (indexToRemove: number) => {
+    setEditImages(editImages.filter((_, idx) => idx !== indexToRemove))
   }
 
   // Add Property
@@ -428,7 +433,7 @@ export default function OperationsPage() {
                       )}
                       <div className="flex justify-between items-start">
                         <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                        <span className="text-amber-500 font-bold text-xs shadow-inner px-2 py-0.5 rounded bg-amber-500/10">${p.price_per_night}/n</span>
+                        <span className="text-amber-500 font-bold text-xs px-2 py-0.5 rounded bg-amber-500/10">${p.price_per_night}/n</span>
                       </div>
                       <p className="text-xs text-neutral-400 mt-1">📍 {p.location || 'Kampala'}</p>
                       
@@ -457,7 +462,6 @@ export default function OperationsPage() {
                         </button>
                       </div>
 
-                      {/* EDIT AND DELETE BUTTONS */}
                       <div className="grid grid-cols-2 gap-2 pt-1">
                         <button 
                           onClick={() => openEditModal(p)} 
@@ -479,7 +483,7 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* EDIT PROPERTY MODAL POPUP */}
+          {/* EDIT PROPERTY MODAL WITH INDIVIDUAL PHOTO DELETION */}
           {editingProp && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -527,16 +531,37 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
+                  {/* MANAGE PHOTOS: DELETE INDIVIDUAL OR ADD NEW */}
                   <div>
-                    <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Replace Photos (Up to 5)</label>
-                    <input type="file" multiple accept="image/*" onChange={handleEditPhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
-                    {editImages.length > 0 && (
-                      <div className="flex gap-1 mt-2 overflow-x-auto">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-[10px] text-neutral-400 font-bold">Current Photos ({editImages.length})</label>
+                      <span className="text-[9px] text-amber-400">Click ✕ to remove photo</span>
+                    </div>
+
+                    {editImages.length > 0 ? (
+                      <div className="grid grid-cols-5 gap-2 p-2 bg-neutral-950 border border-neutral-800 rounded-xl">
                         {editImages.map((img, idx) => (
-                          <img key={idx} src={img} className="w-12 h-12 object-cover rounded-lg border border-neutral-700" alt="Preview" />
+                          <div key={idx} className="relative group rounded-lg overflow-hidden border border-neutral-800">
+                            <img src={img} className="w-full h-14 object-cover" alt={`Photo ${idx + 1}`} />
+                            <button
+                              type="button"
+                              onClick={() => removeEditPhoto(idx)}
+                              className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow"
+                              title="Delete photo"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         ))}
                       </div>
+                    ) : (
+                      <p className="text-[11px] text-neutral-500 italic p-2 bg-neutral-950 border border-neutral-800 rounded-xl text-center">No photos attached to this property.</p>
                     )}
+
+                    <div className="mt-2">
+                      <label className="text-[10px] text-neutral-400 block mb-1 font-bold">+ Upload Additional Photos</label>
+                      <input type="file" multiple accept="image/*" onChange={handleEditPhotoAdd} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
+                    </div>
                   </div>
 
                   <div className="pt-2 flex gap-2">
