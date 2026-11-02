@@ -118,7 +118,6 @@ export default function OperationsPage() {
     }
   }
 
-  // New Property Photo Upload
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []).slice(0, 5)
     const promises = files.map(file => {
@@ -134,12 +133,10 @@ export default function OperationsPage() {
     })
   }
 
-  // Remove photo from New Property form preview
   const removeNewPhoto = (indexToRemove: number) => {
     setNewPropImages(newPropImages.filter((_, idx) => idx !== indexToRemove))
   }
 
-  // Add photos to existing list in Edit Modal
   const handleEditPhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     const promises = files.map(file => {
@@ -155,7 +152,6 @@ export default function OperationsPage() {
     })
   }
 
-  // Remove photo from Edit Modal preview
   const removeEditPhoto = (indexToRemove: number) => {
     setEditImages(editImages.filter((_, idx) => idx !== indexToRemove))
   }
@@ -191,7 +187,7 @@ export default function OperationsPage() {
     e.preventDefault()
     if (!editingProp) return
 
-    const updated = {
+    const updatedData = {
       title: editTitle,
       price_per_night: parseFloat(editPrice) || 0,
       location: editLocation,
@@ -200,9 +196,19 @@ export default function OperationsPage() {
       images: editImages
     }
 
-    setProperties(properties.map(item => item.id === editingProp.id ? { ...item, ...updated } : item))
-    await supabase.from('properties').update(updated).eq('id', editingProp.id)
-    setEditingProp(null)
+    setProperties(properties.map(item => item.id === editingProp.id ? { ...item, ...updatedData } : item))
+    
+    const { error } = await supabase
+      .from('properties')
+      .update(updatedData)
+      .eq('id', editingProp.id)
+
+    if (error) {
+      console.error('Supabase update error:', error.message)
+      alert('Failed to save to database: ' + error.message)
+    } else {
+      setEditingProp(null)
+    }
   }
 
   const deleteProperty = async (id: string) => {
