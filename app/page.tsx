@@ -89,7 +89,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map(property => {
-                // Parse up to 5 photos safely
+                // Parse photo array safely
                 let imageList: string[] = []
                 try {
                   if (typeof property.images === 'string') {
@@ -107,13 +107,13 @@ export default function HomePage() {
                 return (
                   <div key={property.id} className="bg-neutral-900/90 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      {/* PHOTO GRID DISPLAY */}
-                      <div className="relative">
+                      {/* FIXED CONTAINER HEIGHT PREVENTS COLLAPSE */}
+                      <div className="relative w-full bg-neutral-950 min-h-[224px]">
                         {mainImage ? (
                           <div className="space-y-1">
                             <img
                               src={mainImage}
-                              alt={property.title}
+                              alt={property.title || 'Property photo'}
                               className="w-full h-56 object-cover"
                             />
                             {extraImages.length > 0 && (
@@ -136,13 +136,13 @@ export default function HomePage() {
                         )}
 
                         {/* PRICE BADGE OVERLAY */}
-                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md whitespace-nowrap z-10">
+                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md whitespace-nowrap z-20">
                           ${property.nightly_price ?? property.price_per_night ?? property.price ?? 0} / night
                         </div>
 
                         {/* PHOTO COUNT BADGE */}
                         {imageList.length > 0 && (
-                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 z-10">
+                          <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 z-20">
                             📷 {imageList.length} Photos
                           </div>
                         )}
@@ -150,8 +150,7 @@ export default function HomePage() {
 
                       {/* CARD DETAILS */}
                       <div className="p-5 space-y-3">
-                        {/* pr-24 added here to prevent overlap with the absolute price badge */}
-                        <h3 className="font-extrabold text-white text-base leading-snug pr-24">
+                        <h3 className="font-extrabold text-white text-base leading-snug">
                           {property.title}
                         </h3>
 
