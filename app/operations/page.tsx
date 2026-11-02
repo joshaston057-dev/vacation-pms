@@ -102,7 +102,6 @@ export default function OperationsPage() {
     if (e) setExpenses(e)
   }
 
-  // Handle New Property Amenities
   const handleAmenityToggle = (amenity: string) => {
     if (newPropAmenities.includes(amenity)) {
       setNewPropAmenities(newPropAmenities.filter(a => a !== amenity))
@@ -111,7 +110,6 @@ export default function OperationsPage() {
     }
   }
 
-  // Handle Edit Property Amenities
   const handleEditAmenityToggle = (amenity: string) => {
     if (editAmenities.includes(amenity)) {
       setEditAmenities(editAmenities.filter(a => a !== amenity))
@@ -136,6 +134,11 @@ export default function OperationsPage() {
     })
   }
 
+  // Remove photo from New Property form preview
+  const removeNewPhoto = (indexToRemove: number) => {
+    setNewPropImages(newPropImages.filter((_, idx) => idx !== indexToRemove))
+  }
+
   // Add photos to existing list in Edit Modal
   const handleEditPhotoAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -152,12 +155,11 @@ export default function OperationsPage() {
     })
   }
 
-  // Remove a single unwanted photo by index
+  // Remove photo from Edit Modal preview
   const removeEditPhoto = (indexToRemove: number) => {
     setEditImages(editImages.filter((_, idx) => idx !== indexToRemove))
   }
 
-  // Add Property
   const addProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     const item = { 
@@ -175,7 +177,6 @@ export default function OperationsPage() {
     setNewPropTitle(''); setNewPropPrice(''); setNewPropLocation(''); setNewPropDesc(''); setNewPropAmenities([]); setNewPropImages([])
   }
 
-  // Open Edit Modal for a Property
   const openEditModal = (p: any) => {
     setEditingProp(p)
     setEditTitle(p.title || '')
@@ -186,7 +187,6 @@ export default function OperationsPage() {
     setEditImages(Array.isArray(p.images) ? p.images : [])
   }
 
-  // Save Edit Changes
   const savePropertyEdit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingProp) return
@@ -205,7 +205,6 @@ export default function OperationsPage() {
     setEditingProp(null)
   }
 
-  // Delete Property
   const deleteProperty = async (id: string) => {
     if (!confirm('Are you sure you want to delete this property listing?')) return
     setProperties(properties.filter(p => p.id !== id))
@@ -403,14 +402,24 @@ export default function OperationsPage() {
                   </div>
                 </div>
 
-                {/* PHOTOS UPLOAD */}
+                {/* PHOTOS UPLOAD WITH REMOVE BUTTONS */}
                 <div>
                   <label className="text-[10px] text-neutral-400 block mb-1 font-bold">Property Photos (Up to 5)</label>
                   <input type="file" multiple accept="image/*" onChange={handlePhotoUpload} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-xs text-neutral-400" />
                   {newPropImages.length > 0 && (
-                    <div className="flex gap-1 mt-2 overflow-x-auto">
+                    <div className="grid grid-cols-5 gap-1.5 mt-2 p-2 bg-neutral-950 border border-neutral-800 rounded-xl">
                       {newPropImages.map((img, idx) => (
-                        <img key={idx} src={img} className="w-12 h-12 object-cover rounded-lg border border-neutral-700" alt="Preview" />
+                        <div key={idx} className="relative group rounded-lg overflow-hidden border border-neutral-800">
+                          <img src={img} className="w-full h-12 object-cover" alt={`Preview ${idx + 1}`} />
+                          <button
+                            type="button"
+                            onClick={() => removeNewPhoto(idx)}
+                            className="absolute top-0.5 right-0.5 bg-red-600 hover:bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold shadow"
+                            title="Remove photo"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -483,7 +492,7 @@ export default function OperationsPage() {
             </div>
           )}
 
-          {/* EDIT PROPERTY MODAL WITH INDIVIDUAL PHOTO DELETION */}
+          {/* EDIT PROPERTY MODAL WITH PHOTO DELETE BUTTONS */}
           {editingProp && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -531,7 +540,7 @@ export default function OperationsPage() {
                     </div>
                   </div>
 
-                  {/* MANAGE PHOTOS: DELETE INDIVIDUAL OR ADD NEW */}
+                  {/* MANAGE PHOTOS WITH ✕ BUTTON */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] text-neutral-400 font-bold">Current Photos ({editImages.length})</label>
@@ -555,7 +564,7 @@ export default function OperationsPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-[11px] text-neutral-500 italic p-2 bg-neutral-950 border border-neutral-800 rounded-xl text-center">No photos attached to this property.</p>
+                      <p className="text-[11px] text-neutral-500 italic p-2 bg-neutral-950 border border-neutral-800 rounded-xl text-center">No photos attached.</p>
                     )}
 
                     <div className="mt-2">
