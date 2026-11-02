@@ -121,9 +121,17 @@ export default function PropertiesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map(property => {
-                const imageList = typeof property.images === 'string'
-                  ? JSON.parse(property.images)
-                  : (Array.isArray(property.images) ? property.images : [])
+                // Safely parse images for Mobile & Desktop
+                let imageList: string[] = []
+                try {
+                  if (typeof property.images === 'string') {
+                    imageList = JSON.parse(property.images)
+                  } else if (Array.isArray(property.images)) {
+                    imageList = property.images
+                  }
+                } catch (e) {
+                  imageList = []
+                }
 
                 const mainImage = imageList.length > 0 ? imageList[0] : null
                 const extraImages = imageList.slice(1, 5)
@@ -133,20 +141,22 @@ export default function PropertiesPage() {
                     <div>
                       {/* IMAGE CAROUSEL / DISPLAY */}
                       {mainImage ? (
-                        <div className="space-y-1">
+                        <div className="space-y-1 w-full overflow-hidden bg-neutral-950">
                           <img
                             src={mainImage}
-                            alt={property.title}
+                            alt={property.title || 'Property photo'}
                             className="w-full h-56 object-cover"
+                            loading="lazy"
                           />
                           {extraImages.length > 0 && (
-                            <div className="grid grid-cols-4 gap-1 px-1">
+                            <div className="grid grid-cols-4 gap-1 px-1 pb-1">
                               {extraImages.map((imgUrl: string, idx: number) => (
                                 <img
                                   key={idx}
                                   src={imgUrl}
-                                  alt={`${property.title} preview ${idx + 2}`}
+                                  alt={`Thumbnail ${idx + 2}`}
                                   className="w-full h-16 object-cover rounded-md"
+                                  loading="lazy"
                                 />
                               ))}
                             </div>
@@ -159,13 +169,13 @@ export default function PropertiesPage() {
                       )}
 
                       <div className="p-5 space-y-3">
-                        {/* TITLE & UNTRUNCATED PRICE HEADER */}
+                        {/* TITLE & UNTRUNCATED DYNAMIC PRICE HEADER */}
                         <div className="flex items-start justify-between gap-3">
                           <h2 className="font-extrabold text-white text-base leading-snug flex-1">
                             {property.title}
                           </h2>
                           <span className="text-amber-400 font-extrabold text-xs sm:text-sm px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-xl whitespace-nowrap shrink-0">
-                            ${property.nightly_price || property.price_per_night || 0}/night
+                            ${property.nightly_price ?? property.price_per_night ?? property.price ?? 0}/night
                           </span>
                         </div>
 
@@ -203,7 +213,7 @@ export default function PropertiesPage() {
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-4">
               <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
                 <h3 className="font-extrabold text-white text-sm">Reserve {selectedProperty.title}</h3>
-                <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+                <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-sm cursor-pointer">✕</button>
               </div>
 
               {bookingSubmitted ? (
