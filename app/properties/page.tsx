@@ -124,7 +124,6 @@ export default function PropertiesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredProperties.map(property => {
-                // Parse photo array safely
                 let imageList: string[] = []
                 try {
                   if (typeof property.images === 'string') {
@@ -138,14 +137,12 @@ export default function PropertiesPage() {
 
                 const mainImage = imageList.length > 0 ? imageList[0] : null
                 const extraImages = imageList.slice(1, 5)
-
-                // DYNAMIC PRICE EXTRACTION FROM SUPABASE
                 const displayPrice = property.price_per_night || property.nightly_price || property.price || 0
 
                 return (
                   <div key={property.id} className="bg-neutral-900/90 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      {/* PHOTO DISPLAY CONTAINER */}
+                      {/* PHOTO CONTAINER */}
                       <div className="relative w-full bg-neutral-950 min-h-[224px]">
                         {mainImage ? (
                           <div className="space-y-1">
@@ -173,12 +170,10 @@ export default function PropertiesPage() {
                           </div>
                         )}
 
-                        {/* DYNAMIC PRICE BADGE OVERLAY */}
                         <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md whitespace-nowrap z-20">
                           ${displayPrice} / night
                         </div>
 
-                        {/* PHOTO COUNT BADGE */}
                         {imageList.length > 0 && (
                           <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 z-20">
                             📷 {imageList.length} Photos
@@ -196,7 +191,6 @@ export default function PropertiesPage() {
                           📍 {property.location || 'Kampala, Uganda'}
                         </p>
 
-                        {/* BED / BATH / GUESTS META */}
                         <div className="flex items-center gap-3 text-xs text-neutral-400 pt-1">
                           {property.bedrooms && <span>🛏️ {property.bedrooms} Bed</span>}
                           {property.bathrooms && <span>🚿 {property.bathrooms} Bath</span>}
@@ -211,7 +205,6 @@ export default function PropertiesPage() {
                       </div>
                     </div>
 
-                    {/* PRIVACY-FIRST RESERVATION TRIGGER */}
                     <div className="p-5 pt-0">
                       <button
                         onClick={() => setSelectedProperty(property)}
@@ -227,12 +220,11 @@ export default function PropertiesPage() {
           )}
         </section>
 
-        {/* ENHANCED RESERVATION MODAL */}
+        {/* RESERVATION MODAL WITH UNIVERSAL WHATSAPP NUMBER INPUT */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
               
-              {/* HEADER */}
               <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
                 <div>
                   <h3 className="font-extrabold text-white text-base leading-snug">{selectedProperty.title}</h3>
@@ -257,7 +249,6 @@ export default function PropertiesPage() {
               ) : (
                 <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
                   
-                  {/* FULL DESCRIPTION */}
                   {selectedProperty.description && (
                     <div className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
                       <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider mb-1">About This Stay</h4>
@@ -267,7 +258,6 @@ export default function PropertiesPage() {
                     </div>
                   )}
 
-                  {/* AMENITIES */}
                   {(() => {
                     let amenitiesList: string[] = []
                     try {
@@ -297,7 +287,6 @@ export default function PropertiesPage() {
                     ) : null
                   })()}
 
-                  {/* FORM WITH STRICT WHATSAPP PROMPT */}
                   <form onSubmit={handleBookingSubmit} className="space-y-3 pt-2 border-t border-neutral-800">
                     <h4 className="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Reserve Your Stay</h4>
                     
@@ -314,17 +303,55 @@ export default function PropertiesPage() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">WhatsApp Phone Number</label>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">WhatsApp Number</label>
                       <input 
                         type="tel" 
                         required 
                         value={guestContact} 
                         onChange={e => setGuestContact(e.target.value)} 
-                        placeholder="+256 7XXXXXXXX" 
+                        placeholder="Enter WhatsApp number (e.g. +256..., +1..., +44...)" 
                         className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-In</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={checkIn} 
+                          onChange={e => setCheckIn(e.target.value)} 
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">Check-Out</label>
+                        <input 
+                          type="date" 
+                          required 
+                          value={checkOut} 
+                          onChange={e => setCheckOut(e.target.value)} 
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" 
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      type="submit" 
+                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2"
+                    >
+                      Submit Private Reservation Request
+                    </button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
+      <Footer />
+    </main>
+  )
+}
