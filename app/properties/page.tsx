@@ -11,9 +11,12 @@ export default function PublicPropertiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Track expanded states per property ID
+  // Track expanded states per property ID separately
   const [unlockedAmenities, setUnlockedAmenities] = useState<{ [key: number]: boolean }>({})
   const [unlockedDescriptions, setUnlockedDescriptions] = useState<{ [key: number]: boolean }>({})
+
+  // Gallery Image Viewer Modal State
+  const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
 
   // Booking Modal State
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
@@ -43,6 +46,27 @@ export default function PublicPropertiesPage() {
 
   const toggleDescriptionView = (id: number) => {
     setUnlockedDescriptions(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const openGalleryModal = (images: string[], index: number, title: string) => {
+    if (images.length === 0) return
+    setActiveGallery({ images, currentIndex: index, title })
+  }
+
+  const handleNextPhoto = () => {
+    if (!activeGallery) return
+    setActiveGallery(prev => prev ? {
+      ...prev,
+      currentIndex: (prev.currentIndex + 1) % prev.images.length
+    } : null)
+  }
+
+  const handlePrevPhoto = () => {
+    if (!activeGallery) return
+    setActiveGallery(prev => prev ? {
+      ...prev,
+      currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length
+    } : null)
   }
 
   const handleBookingSubmit = async (e: React.FormEvent) => {
@@ -154,29 +178,59 @@ export default function PublicPropertiesPage() {
                 return (
                   <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      <div className="relative w-full bg-neutral-950 min-h-[224px]">
+                      {/* MAIN FEATURED PHOTO (CLICK TO VIEW FULLSCREEN LIGHTBOX) */}
+                      <div 
+                        onClick={() => openGalleryModal(imageList, 0, property.title)}
+                        className="relative w-full bg-neutral-950 min-h-[224px] cursor-pointer group overflow-hidden"
+                      >
                         {mainImage ? (
-                          <img src={mainImage} alt={property.title} className="w-full h-56 object-cover" />
+                          <img 
+                            src={mainImage} 
+                            alt={property.title} 
+                            className="w-full h-56 object-cover group-hover:scale-105 transition duration-300" 
+                          />
                         ) : (
                           <div className="w-full h-56 bg-neutral-950 flex items-center justify-center text-neutral-600 text-xs font-bold">📷 No Photos</div>
                         )}
-                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md">
+                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md z-10">
                           ${displayPrice} / night
                         </div>
+                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-sm">
+                          🔍 View Photos ({imageList.length})
+                        </div>
                       </div>
+
+                      {/* INDIVIDUAL PHOTO THUMBNAIL STRIP */}
+                      {imageList.length > 1 && (
+                        <div className="flex gap-1.5 p-2 bg-neutral-950 border-b border-neutral-800 overflow-x-auto">
+                          {imageList.map((imgUrl, imgIdx) => (
+                            <button
+                              key={imgIdx}
+                              onClick={() => openGalleryModal(imageList, imgIdx, property.title)}
+                              className="relative h-12 w-16 flex-shrink-0 rounded-lg overflow-hidden border border-neutral-800 hover:border-amber-500 transition cursor-pointer"
+                            >
+                              <img src={imgUrl} alt={`Thumbnail ${imgIdx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-base leading-snug">{property.title}</h3>
                         <p className="text-xs text-neutral-400">📍 {property.location || 'Kampala, Uganda'}</p>
 
-                        {/* UNLOCK DESCRIPTION TOGGLE */}
+                        {/* SEPARATE TOGGLE 1: DESCRIPTION BUTTON */}
                         {property.description && (
                           <div className="space-y-1.5 pt-1">
                             <button
                               onClick={() => toggleDescriptionView(property.id)}
-                              className="w-full py-1.5 px-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-between transition cursor-pointer"
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
+                                isDescUnlocked 
+                                  ? 'bg-neutral-800 border-neutral-700 text-white' 
+                                  : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white'
+                              }`}
                             >
-                              <span>📖 {isDescUnlocked ? 'Hide Description' : 'Unlock Description'}</span>
+                              <span>📖 {isDescUnlocked ? 'Hide Description' : 'View Description'}</span>
                               <span>{isDescUnlocked ? '▲' : '▼'}</span>
                             </button>
 
@@ -188,21 +242,25 @@ export default function PublicPropertiesPage() {
                           </div>
                         )}
 
-                        {/* UNLOCK AMENITIES TOGGLE */}
+                        {/* SEPARATE TOGGLE 2: AMENITIES BUTTON */}
                         {amenitiesList.length > 0 && (
                           <div className="space-y-1.5">
                             <button
                               onClick={() => toggleAmenitiesView(property.id)}
-                              className="w-full py-1.5 px-3 bg-neutral-950 border border-neutral-800 hover:border-amber-500/50 rounded-xl text-xs font-bold text-amber-400 flex items-center justify-between transition cursor-pointer"
+                              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
+                                isAmenitiesUnlocked 
+                                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' 
+                                  : 'bg-neutral-950 border-neutral-800 text-amber-400 hover:border-amber-500/50'
+                              }`}
                             >
-                              <span>✨ {isAmenitiesUnlocked ? 'Hide Amenities' : `Unlock Amenities (${amenitiesList.length})`}</span>
+                              <span>✨ {isAmenitiesUnlocked ? 'Hide Amenities' : `View Amenities (${amenitiesList.length})`}</span>
                               <span>{isAmenitiesUnlocked ? '▲' : '▼'}</span>
                             </button>
 
                             {isAmenitiesUnlocked && (
-                              <div className="grid grid-cols-2 gap-1.5 p-2.5 bg-neutral-950/80 border border-neutral-800 rounded-xl animate-fadeIn">
+                              <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl animate-fadeIn">
                                 {amenitiesList.map((amenity, idx) => (
-                                  <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1">
+                                  <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1 font-semibold">
                                     ✓ {amenity}
                                   </span>
                                 ))}
@@ -227,6 +285,61 @@ export default function PublicPropertiesPage() {
             </div>
           )}
         </section>
+
+        {/* INDIVIDUAL PHOTO VIEWER / LIGHTBOX MODAL */}
+        {activeGallery && (
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-lg z-50 flex flex-col justify-between p-4 sm:p-6">
+            <div className="flex justify-between items-center text-white border-b border-neutral-800 pb-3">
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base">{activeGallery.title}</h3>
+                <p className="text-xs text-neutral-400">Photo {activeGallery.currentIndex + 1} of {activeGallery.images.length}</p>
+              </div>
+              <button 
+                onClick={() => setActiveGallery(null)} 
+                className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="relative flex-1 flex items-center justify-center my-4">
+              <button
+                onClick={handlePrevPhoto}
+                className="absolute left-2 sm:left-4 z-20 p-3 bg-black/70 hover:bg-black text-amber-400 rounded-full font-bold text-lg cursor-pointer transition border border-neutral-800"
+              >
+                ◀
+              </button>
+
+              <img
+                src={activeGallery.images[activeGallery.currentIndex]}
+                alt={`Photo ${activeGallery.currentIndex + 1}`}
+                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-2xl"
+              />
+
+              <button
+                onClick={handleNextPhoto}
+                className="absolute right-2 sm:right-4 z-20 p-3 bg-black/70 hover:bg-black text-amber-400 rounded-full font-bold text-lg cursor-pointer transition border border-neutral-800"
+              >
+                ▶
+              </button>
+            </div>
+
+            {/* LIGHTBOX THUMBNAILS AT BOTTOM */}
+            <div className="flex justify-center gap-2 overflow-x-auto py-2 border-t border-neutral-800">
+              {activeGallery.images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: idx } : null)}
+                  className={`h-14 w-20 rounded-lg overflow-hidden border-2 transition cursor-pointer flex-shrink-0 ${
+                    idx === activeGallery.currentIndex ? 'border-amber-500 scale-105' : 'border-neutral-800 opacity-60'
+                  }`}
+                >
+                  <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* BOOKING MODAL */}
         {selectedProperty && (
