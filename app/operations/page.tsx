@@ -136,7 +136,7 @@ export default function OperationsPortal() {
       location: propLocation,
       description: propDescription,
       images: JSON.stringify(finalImages),
-      amenities: JSON.stringify(selectedAmenities) // Stored as a JSON string to match text columns
+      amenities: selectedAmenities.join(', ') // Stored as a clean text string to prevent array literal errors
     }
 
     let res = isAddingNew
@@ -317,9 +317,13 @@ export default function OperationsPortal() {
                   let amenitiesList: string[] = []
                   try { imageList = typeof p.images === 'string' ? JSON.parse(p.images) : (p.images || []) } catch (e) { imageList = [] }
                   try { 
-                    amenitiesList = typeof p.amenities === 'string' ? JSON.parse(p.amenities) : (p.amenities || []) 
+                    if (typeof p.amenities === 'string') {
+                      amenitiesList = p.amenities.startsWith('[') ? JSON.parse(p.amenities) : p.amenities.split(',').map((s: string) => s.trim()).filter(Boolean)
+                    } else if (Array.isArray(p.amenities)) {
+                      amenitiesList = p.amenities
+                    }
                   } catch (e) { 
-                    amenitiesList = Array.isArray(p.amenities) ? p.amenities : [] 
+                    amenitiesList = [] 
                   }
 
                   const mainImg = imageList.length > 0 ? imageList[0] : null
