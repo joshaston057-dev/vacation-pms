@@ -129,27 +129,34 @@ export default function OperationsPortal() {
       finalImages = [...finalImages, ...newUrls]
     }
 
-    const payload = {
+    const payload: any = {
       title: propTitle,
       category: propCategory,
       price_per_night: parseFloat(propPrice) || 0,
       location: propLocation,
       description: propDescription,
-      amenities: JSON.stringify(selectedAmenities),
-      images: JSON.stringify(finalImages)
+      images: JSON.stringify(finalImages),
+      amenities: JSON.stringify(selectedAmenities)
     }
 
-    let error
-    if (isAddingNew) {
-      const res = await supabase.from('properties').insert([payload])
-      error = res.error
-    } else if (editingProperty) {
-      const res = await supabase.from('properties').update(payload).eq('id', editingProperty.id)
-      error = res.error
+    let res = isAddingNew
+      ? await supabase.from('properties').insert([payload])
+      : await supabase.from('properties').update(payload).eq('id', editingProperty.id)
+
+    let error = res.error
+
+    // Fallback if 'amenities' column doesn't exist in Supabase yet
+    if (error && error.message.toLowerCase().includes('amenities')) {
+      delete payload.amenities
+      let retry = isAddingNew
+        ? await supabase.from('properties').insert([payload])
+        : await supabase.from('properties').update(payload).eq('id', editingProperty.id)
+      error = retry.error
     }
 
-    if (error) alert('Failed to save property.')
-    else {
+    if (error) {
+      alert('Error saving property: ' + error.message)
+    } else {
       setEditingProperty(null)
       setIsAddingNew(false)
       fetchAllData()
@@ -413,20 +420,20 @@ export default function OperationsPortal() {
                             const cleanPhone = (b.phone_number || '').replace(/[^0-9]/g, '')
                             window.open(`https://wa.me/${cleanPhone}?text=Hello%20${b.guest_name},%20regarding%20your%20stay...`, '_blank')
                           }}
-                          className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl"
+                          className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer"
                         >
                           💬 Message Guest on WhatsApp
                         </button>
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={() => handleUpdateBookingStatus(b.id, isApproved ? 'Pending Host Review' : 'Confirmed')}
-                            className="py-1.5 bg-neutral-800 text-xs font-bold text-neutral-300 rounded-xl"
+                            className="py-1.5 bg-neutral-800 text-xs font-bold text-neutral-300 rounded-xl cursor-pointer"
                           >
                             {isApproved ? '↩︎ Mark Pending' : '✓ Approve'}
                           </button>
                           <button
                             onClick={() => handleDeleteBooking(b.id)}
-                            className="py-1.5 bg-red-500/10 text-red-400 text-xs font-bold rounded-xl"
+                            className="py-1.5 bg-red-500/10 text-red-400 text-xs font-bold rounded-xl cursor-pointer"
                           >
                             🗑️ Delete
                           </button>
@@ -465,7 +472,7 @@ export default function OperationsPortal() {
                       <input type="text" required value={taskStaffPhone} onChange={e => setTaskStaffPhone(e.target.value)} placeholder="+256..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                     </div>
                   </div>
-                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Add Task</button>
+                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Add Task</button>
                 </form>
               </div>
 
@@ -479,7 +486,7 @@ export default function OperationsPortal() {
                       <div key={t.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-sm">{t.title}</h3>
                         <p className="text-xs text-neutral-400">🏠 {t.property_name} • 👤 {t.assignee_name}</p>
-                        <button onClick={() => window.open(`https://wa.me/${(t.staff_phone||'').replace(/[^0-9]/g,'')}?text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">WhatsApp Staff</button>
+                        <button onClick={() => window.open(`https://wa.me/${(t.staff_phone||'').replace(/[^0-9]/g,'')}?text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">WhatsApp Staff</button>
                       </div>
                     ))}
                   </div>
@@ -518,14 +525,14 @@ export default function OperationsPortal() {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="text-[10px] text-neutral-400 font-bold block mb-1">TYPE</label>
-                      <select value={transType} onChange={e => setTransType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
+                      <select value={transType} onChange={e => setTransType(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white cursor-pointer">
                         <option value="Expense">Expense</option>
                         <option value="Income">Income</option>
                       </select>
                     </div>
                     <div>
                       <label className="text-[10px] text-neutral-400 font-bold block mb-1">CATEGORY</label>
-                      <select value={transCategory} onChange={e => setTransCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
+                      <select value={transCategory} onChange={e => setTransCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white cursor-pointer">
                         <option value="Rent">Rent</option>
                         <option value="UMEME">UMEME</option>
                         <option value="Gas">Gas</option>
@@ -543,7 +550,7 @@ export default function OperationsPortal() {
                       <input type="date" required value={transDate} onChange={e => setTransDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                     </div>
                   </div>
-                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Entry</button>
+                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Save Entry</button>
                 </form>
               </div>
 
@@ -596,7 +603,7 @@ export default function OperationsPortal() {
                     <label className="text-[10px] text-neutral-400 font-bold block mb-1">WHATSAPP CONTACT</label>
                     <input type="text" required value={whatsappContact} onChange={e => setWhatsappContact(e.target.value)} placeholder="+256..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                   </div>
-                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Publish Service</button>
+                  <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer">Publish Service</button>
                 </form>
               </div>
 
@@ -610,7 +617,7 @@ export default function OperationsPortal() {
                       <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-sm">{s.service_name}</h3>
                         <p className="text-xs text-neutral-400">{s.company_name} • <strong className="text-amber-500">${s.price}</strong></p>
-                        <button onClick={() => window.open(`https://wa.me/${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}?text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">Book via WhatsApp</button>
+                        <button onClick={() => window.open(`https://wa.me/${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}?text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">Book via WhatsApp</button>
                       </div>
                     ))}
                   </div>
@@ -628,13 +635,13 @@ export default function OperationsPortal() {
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <h3 className="font-extrabold text-white text-base">{isAddingNew ? 'Add New Property' : 'Edit Property & Amenities'}</h3>
-              <button onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="text-neutral-400 font-bold p-1">✕</button>
+              <button onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="text-neutral-400 font-bold p-1 cursor-pointer">✕</button>
             </div>
 
             <form onSubmit={handleSaveProperty} className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1">
               <div>
                 <label className="text-[10px] text-neutral-400 font-bold block mb-1">PROPERTY TITLE</label>
-                <input type="text" required value={propTitle} onChange={e => setPropTitle(e.target.value)} placeholder="Luxury Villa in Entebbe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required value={propTitle} onChange={e => setPropTitle(e.target.value)} placeholder="Luxury Villa in Entebbe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -649,18 +656,18 @@ export default function OperationsPortal() {
                 </div>
                 <div>
                   <label className="text-[10px] text-neutral-400 font-bold block mb-1">PRICE / NIGHT ($)</label>
-                  <input type="number" required value={propPrice} onChange={e => setPropPrice(e.target.value)} placeholder="100" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                  <input type="number" required value={propPrice} onChange={e => setPropPrice(e.target.value)} placeholder="100" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
                 </div>
               </div>
 
               <div>
                 <label className="text-[10px] text-neutral-400 font-bold block mb-1">LOCATION</label>
-                <input type="text" required value={propLocation} onChange={e => setPropLocation(e.target.value)} placeholder="Entebbe / Kisaasi" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <input type="text" required value={propLocation} onChange={e => setPropLocation(e.target.value)} placeholder="Entebbe / Kisaasi" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
               </div>
 
               <div>
                 <label className="text-[10px] text-neutral-400 font-bold block mb-1">DESCRIPTION</label>
-                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white resize-none" />
+                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
               </div>
 
               {/* AMENITIES CHECKLIST SELECTOR */}
@@ -697,11 +704,13 @@ export default function OperationsPortal() {
 
               <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
                 {editingProperty ? (
-                  <button type="button" onClick={() => handleDeleteProperty(editingProperty.id)} className="text-xs text-red-500 font-bold">Delete Property</button>
+                  <button type="button" onClick={() => handleDeleteProperty(editingProperty.id)} className="text-xs text-red-500 font-bold cursor-pointer">Delete Property</button>
                 ) : <div />}
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="px-4 py-2 bg-neutral-800 text-xs text-white rounded-xl">Cancel</button>
-                  <button type="submit" disabled={loading || uploading} className="px-5 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Property</button>
+                  <button type="button" onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="px-4 py-2 bg-neutral-800 text-xs text-white rounded-xl cursor-pointer">Cancel</button>
+                  <button type="submit" disabled={loading || uploading} className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                    {loading || uploading ? 'Saving...' : 'Save Property'}
+                  </button>
                 </div>
               </div>
             </form>
