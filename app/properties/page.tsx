@@ -18,7 +18,7 @@ export default function PublicPropertiesPage() {
   // Gallery Image Viewer Modal State
   const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
 
-  // Booking Modal State
+  // Booking Modal State (Clean & Focused on Reservation Form)
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
@@ -178,7 +178,7 @@ export default function PublicPropertiesPage() {
                 return (
                   <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      {/* MAIN FEATURED PHOTO (CLICK TO VIEW FULLSCREEN LIGHTBOX) */}
+                      {/* MAIN FEATURED PHOTO */}
                       <div 
                         onClick={() => openGalleryModal(imageList, 0, property.title)}
                         className="relative w-full bg-neutral-950 min-h-[224px] cursor-pointer group overflow-hidden"
@@ -200,7 +200,7 @@ export default function PublicPropertiesPage() {
                         </div>
                       </div>
 
-                      {/* INDIVIDUAL PHOTO THUMBNAIL STRIP */}
+                      {/* PHOTO THUMBNAIL STRIP */}
                       {imageList.length > 1 && (
                         <div className="flex gap-1.5 p-2 bg-neutral-950 border-b border-neutral-800 overflow-x-auto">
                           {imageList.map((imgUrl, imgIdx) => (
@@ -286,7 +286,7 @@ export default function PublicPropertiesPage() {
           )}
         </section>
 
-        {/* INDIVIDUAL PHOTO VIEWER / LIGHTBOX MODAL */}
+        {/* LIGHTBOX PHOTO VIEWER MODAL */}
         {activeGallery && (
           <div className="fixed inset-0 bg-black/95 backdrop-blur-lg z-50 flex flex-col justify-between p-4 sm:p-6">
             <div className="flex justify-between items-center text-white border-b border-neutral-800 pb-3">
@@ -324,7 +324,6 @@ export default function PublicPropertiesPage() {
               </button>
             </div>
 
-            {/* LIGHTBOX THUMBNAILS AT BOTTOM */}
             <div className="flex justify-center gap-2 overflow-x-auto py-2 border-t border-neutral-800">
               {activeGallery.images.map((img, idx) => (
                 <button
@@ -341,13 +340,13 @@ export default function PublicPropertiesPage() {
           </div>
         )}
 
-        {/* BOOKING MODAL */}
+        {/* CLEAN, FOCUSED BOOKING MODAL (WITHOUT CLUTTER) */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
               <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
                 <div>
-                  <h3 className="font-extrabold text-white text-base">{selectedProperty.title}</h3>
+                  <h3 className="font-extrabold text-white text-base">Reserve: {selectedProperty.title}</h3>
                   <p className="text-xs text-amber-500 font-bold">📍 {selectedProperty.location || 'Kampala, Uganda'}</p>
                 </div>
                 <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer">✕</button>
@@ -360,7 +359,7 @@ export default function PublicPropertiesPage() {
                   <p className="text-xs text-neutral-400">Our host team will review your stay details and contact you via WhatsApp.</p>
                 </div>
               ) : (
-                <form onSubmit={handleBookingSubmit} className="space-y-3">
+                <form onSubmit={handleBookingSubmit} className="space-y-3.5">
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold block mb-1">YOUR FULL NAME</label>
                     <input type="text" required value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Jane Doe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
@@ -405,7 +404,7 @@ export default function PublicPropertiesPage() {
                     <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need baby cot, airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
                   </div>
 
-                  <button type="submit" disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2">
+                  <button type="submit" disabled={loading} className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2 shadow-lg">
                     {loading ? 'Submitting Reservation...' : 'Submit Private Reservation Request'}
                   </button>
                 </form>
