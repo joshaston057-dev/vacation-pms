@@ -51,11 +51,10 @@ export default function PublicPropertiesPage() {
 
     setLoading(true)
 
-    // Primary payload matching all fields
-    const fullBooking: any = {
+    const payload: any = {
       property_name: selectedProperty.title,
       guest_name: guestName,
-      phone_number: guestContact,
+      phone: guestContact,
       demographics: demographics,
       guest_count: parseInt(guestCount) || 1,
       check_in: checkIn,
@@ -64,29 +63,19 @@ export default function PublicPropertiesPage() {
       status: 'Pending Host Review'
     }
 
-    // Try full insert
-    let { error } = await supabase.from('bookings').insert([fullBooking])
+    let { error } = await supabase.from('bookings').insert([payload])
 
-    // Fallback 1: If 'phone_number' column is named 'phone' in your database
-    if (error && error.message.toLowerCase().includes('phone_number')) {
-      delete fullBooking.phone_number
-      fullBooking.phone = guestContact
-      const retry = await supabase.from('bookings').insert([fullBooking])
-      error = retry.error
-    }
-
-    // Fallback 2: If optional columns aren't in Supabase schema yet
     if (error) {
-      const basicBooking: any = {
+      const basicPayload = {
         property_name: selectedProperty.title,
         guest_name: guestName,
-        phone_number: guestContact,
+        phone: guestContact,
         check_in: checkIn,
         check_out: checkOut,
         status: 'Pending Host Review'
       }
-      const retryBasic = await supabase.from('bookings').insert([basicBooking])
-      error = retryBasic.error
+      const retry = await supabase.from('bookings').insert([basicPayload])
+      error = retry.error
     }
 
     if (error) {
