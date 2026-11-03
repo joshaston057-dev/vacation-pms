@@ -11,14 +11,10 @@ export default function PublicPropertiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Track expanded states per property ID separately
   const [unlockedAmenities, setUnlockedAmenities] = useState<{ [key: number]: boolean }>({})
   const [unlockedDescriptions, setUnlockedDescriptions] = useState<{ [key: number]: boolean }>({})
-
-  // Gallery Image Viewer Modal State
   const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
 
-  // Booking Modal State (Clean & Focused on Reservation Form)
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
@@ -53,65 +49,40 @@ export default function PublicPropertiesPage() {
     setActiveGallery({ images, currentIndex: index, title })
   }
 
-  const handleNextPhoto = () => {
-    if (!activeGallery) return
-    setActiveGallery(prev => prev ? {
-      ...prev,
-      currentIndex: (prev.currentIndex + 1) % prev.images.length
-    } : null)
-  }
-
-  const handlePrevPhoto = () => {
-    if (!activeGallery) return
-    setActiveGallery(prev => prev ? {
-      ...prev,
-      currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length
-    } : null)
-  }
-
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProperty) return
 
     setLoading(true)
 
+    const formattedNotes = `Demographic: ${demographics} | Guests: ${guestCount} | Notes: ${specialRequests || 'None'}`
+
     let payload: any = {
-      property: selectedProperty.title,
+      property_name: selectedProperty.title,
       guest_name: guestName,
       phone_number: guestContact,
-      demographics: demographics,
-      guest_count: parseInt(guestCount) || 1,
+      phone: guestContact,
+      whatsapp: guestContact,
+      contact: guestContact,
       check_in: checkIn,
       check_out: checkOut,
-      special_requests: specialRequests,
-      status: 'Pending Host Review'
+      status: 'Pending Host Review',
+      special_requests: formattedNotes,
+      notes: formattedNotes
     }
 
     let { error } = await supabase.from('bookings').insert([payload])
 
-    if (error && error.message.includes('property')) {
-      delete payload.property
-      payload.property_name = selectedProperty.title
-      let retry = await supabase.from('bookings').insert([payload])
-      error = retry.error
-
-      if (error) {
-        delete payload.property_name
-        payload.title = selectedProperty.title
-        let retryTitle = await supabase.from('bookings').insert([payload])
-        error = retryTitle.error
-      }
-    }
-
     if (error) {
       const basicPayload = {
-        guest_name: guestName,
+        guest_name: `${guestName} | Ph: ${guestContact}`,
         check_in: checkIn,
         check_out: checkOut,
-        status: 'Pending Host Review'
+        status: 'Pending Host Review',
+        special_requests: formattedNotes
       }
-      const retryBasic = await supabase.from('bookings').insert([basicPayload])
-      error = retryBasic.error
+      const retry = await supabase.from('bookings').insert([basicPayload])
+      error = retry.error
     }
 
     if (error) {
@@ -178,17 +149,12 @@ export default function PublicPropertiesPage() {
                 return (
                   <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
                     <div>
-                      {/* MAIN FEATURED PHOTO */}
                       <div 
                         onClick={() => openGalleryModal(imageList, 0, property.title)}
                         className="relative w-full bg-neutral-950 min-h-[224px] cursor-pointer group overflow-hidden"
                       >
                         {mainImage ? (
-                          <img 
-                            src={mainImage} 
-                            alt={property.title} 
-                            className="w-full h-56 object-cover group-hover:scale-105 transition duration-300" 
-                          />
+                          <img src={mainImage} alt={property.title} className="w-full h-56 object-cover group-hover:scale-105 transition duration-300" />
                         ) : (
                           <div className="w-full h-56 bg-neutral-950 flex items-center justify-center text-neutral-600 text-xs font-bold">📷 No Photos</div>
                         )}
@@ -200,34 +166,16 @@ export default function PublicPropertiesPage() {
                         </div>
                       </div>
 
-                      {/* PHOTO THUMBNAIL STRIP */}
-                      {imageList.length > 1 && (
-                        <div className="flex gap-1.5 p-2 bg-neutral-950 border-b border-neutral-800 overflow-x-auto">
-                          {imageList.map((imgUrl, imgIdx) => (
-                            <button
-                              key={imgIdx}
-                              onClick={() => openGalleryModal(imageList, imgIdx, property.title)}
-                              className="relative h-12 w-16 flex-shrink-0 rounded-lg overflow-hidden border border-neutral-800 hover:border-amber-500 transition cursor-pointer"
-                            >
-                              <img src={imgUrl} alt={`Thumbnail ${imgIdx + 1}`} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
                       <div className="p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-base leading-snug">{property.title}</h3>
                         <p className="text-xs text-neutral-400">📍 {property.location || 'Kampala, Uganda'}</p>
 
-                        {/* SEPARATE TOGGLE 1: DESCRIPTION BUTTON */}
                         {property.description && (
                           <div className="space-y-1.5 pt-1">
                             <button
                               onClick={() => toggleDescriptionView(property.id)}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
-                                isDescUnlocked 
-                                  ? 'bg-neutral-800 border-neutral-700 text-white' 
-                                  : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white'
+                                isDescUnlocked ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white'
                               }`}
                             >
                               <span>📖 {isDescUnlocked ? 'Hide Description' : 'View Description'}</span>
@@ -235,22 +183,19 @@ export default function PublicPropertiesPage() {
                             </button>
 
                             {isDescUnlocked && (
-                              <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed animate-fadeIn">
+                              <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed">
                                 {property.description}
                               </div>
                             )}
                           </div>
                         )}
 
-                        {/* SEPARATE TOGGLE 2: AMENITIES BUTTON */}
                         {amenitiesList.length > 0 && (
                           <div className="space-y-1.5">
                             <button
                               onClick={() => toggleAmenitiesView(property.id)}
                               className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
-                                isAmenitiesUnlocked 
-                                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' 
-                                  : 'bg-neutral-950 border-neutral-800 text-amber-400 hover:border-amber-500/50'
+                                isAmenitiesUnlocked ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' : 'bg-neutral-950 border-neutral-800 text-amber-400 hover:border-amber-500/50'
                               }`}
                             >
                               <span>✨ {isAmenitiesUnlocked ? 'Hide Amenities' : `View Amenities (${amenitiesList.length})`}</span>
@@ -258,7 +203,7 @@ export default function PublicPropertiesPage() {
                             </button>
 
                             {isAmenitiesUnlocked && (
-                              <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl animate-fadeIn">
+                              <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl">
                                 {amenitiesList.map((amenity, idx) => (
                                   <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1 font-semibold">
                                     ✓ {amenity}
@@ -276,7 +221,7 @@ export default function PublicPropertiesPage() {
                         onClick={() => setSelectedProperty(property)}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
                       >
-                        View Gallery & Book Now
+                        Book Now
                       </button>
                     </div>
                   </div>
@@ -286,61 +231,6 @@ export default function PublicPropertiesPage() {
           )}
         </section>
 
-        {/* LIGHTBOX PHOTO VIEWER MODAL */}
-        {activeGallery && (
-          <div className="fixed inset-0 bg-black/95 backdrop-blur-lg z-50 flex flex-col justify-between p-4 sm:p-6">
-            <div className="flex justify-between items-center text-white border-b border-neutral-800 pb-3">
-              <div>
-                <h3 className="font-extrabold text-sm sm:text-base">{activeGallery.title}</h3>
-                <p className="text-xs text-neutral-400">Photo {activeGallery.currentIndex + 1} of {activeGallery.images.length}</p>
-              </div>
-              <button 
-                onClick={() => setActiveGallery(null)} 
-                className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="relative flex-1 flex items-center justify-center my-4">
-              <button
-                onClick={handlePrevPhoto}
-                className="absolute left-2 sm:left-4 z-20 p-3 bg-black/70 hover:bg-black text-amber-400 rounded-full font-bold text-lg cursor-pointer transition border border-neutral-800"
-              >
-                ◀
-              </button>
-
-              <img
-                src={activeGallery.images[activeGallery.currentIndex]}
-                alt={`Photo ${activeGallery.currentIndex + 1}`}
-                className="max-h-[70vh] max-w-full object-contain rounded-xl shadow-2xl"
-              />
-
-              <button
-                onClick={handleNextPhoto}
-                className="absolute right-2 sm:right-4 z-20 p-3 bg-black/70 hover:bg-black text-amber-400 rounded-full font-bold text-lg cursor-pointer transition border border-neutral-800"
-              >
-                ▶
-              </button>
-            </div>
-
-            <div className="flex justify-center gap-2 overflow-x-auto py-2 border-t border-neutral-800">
-              {activeGallery.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: idx } : null)}
-                  className={`h-14 w-20 rounded-lg overflow-hidden border-2 transition cursor-pointer flex-shrink-0 ${
-                    idx === activeGallery.currentIndex ? 'border-amber-500 scale-105' : 'border-neutral-800 opacity-60'
-                  }`}
-                >
-                  <img src={img} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* CLEAN, FOCUSED BOOKING MODAL (WITHOUT CLUTTER) */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
@@ -366,13 +256,13 @@ export default function PublicPropertiesPage() {
                   </div>
 
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">WHATSAPP NUMBER</label>
-                    <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                    <label className="text-[10px] text-amber-400 font-extrabold block mb-1">WHATSAPP NUMBER</label>
+                    <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="text-[10px] text-amber-400 font-extrabold block mb-1">GUEST DEMOGRAPHIC</label>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">GUEST DEMOGRAPHIC</label>
                       <select value={demographics} onChange={e => setDemographics(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 cursor-pointer">
                         <option value="Couple with Kids">👨‍👩‍👧‍👦 Couple with Kids</option>
                         <option value="Couple Only">👩‍❤️‍👨 Couple Only</option>
