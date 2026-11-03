@@ -23,7 +23,7 @@ const AVAILABLE_AMENITIES = [
 ]
 
 export default function OperationsPortal() {
-  const [activeTab, setActiveTab] = useState('properties')
+  const [activeTab, setActiveTab] = useState('bookings')
 
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
@@ -254,21 +254,21 @@ export default function OperationsPortal() {
           {/* TAB BAR */}
           <div className="flex flex-wrap items-center gap-2 pt-6 border-b border-neutral-800 pb-4">
             <button
-              onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg font-black' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
-              }`}
-            >
-              🏠 Properties & Photos ({properties.length})
-            </button>
-
-            <button
               onClick={() => setActiveTab('bookings')}
               className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg font-black' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
               }`}
             >
               📅 Bookings & iCal ({bookings.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('properties')}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg font-black' : 'bg-neutral-900 text-neutral-400 border border-neutral-800 hover:text-white'
+              }`}
+            >
+              🏠 Properties & Photos ({properties.length})
             </button>
 
             <button
@@ -300,7 +300,90 @@ export default function OperationsPortal() {
           </div>
         </section>
 
-        {/* 1. PROPERTIES TAB */}
+        {/* 1. BOOKINGS TAB */}
+        {activeTab === 'bookings' && (
+          <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+            <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
+            {bookings.length === 0 ? (
+              <div className="text-center py-20 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">
+                No reservation requests submitted yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {bookings.map(b => {
+                  const status = b.status || 'Pending Host Review'
+                  const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
+                  const rawContact = b.phone_number || b.phone || b.whatsapp || ''
+                  const cleanPhone = rawContact.replace(/[^0-9]/g, '')
+                  const propName = b.property_name || b.property || b.title || 'the requested property'
+
+                  return (
+                    <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="font-extrabold text-white text-sm line-clamp-1">{propName}</h3>
+                          <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border flex-shrink-0 ${
+                            isApproved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-neutral-300 space-y-1.5 bg-neutral-950 p-3 rounded-xl border border-neutral-800/80">
+                          <p>👤 <strong className="text-white">Guest Name:</strong> {b.guest_name || 'N/A'}</p>
+                          <p>💬 <strong className="text-white">WhatsApp Contact:</strong> <span className="text-emerald-400 font-mono font-bold">{rawContact || 'Not provided'}</span></p>
+                          {b.demographics && <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics}</p>}
+                          {b.guest_count && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {b.guest_count}</p>}
+                          <p>📅 <strong className="text-white">Dates:</strong> {b.check_in || 'N/A'} → {b.check_out || 'N/A'}</p>
+                          {b.special_requests && (
+                            <p className="pt-1 border-t border-neutral-800 text-[11px] text-neutral-400">
+                              📝 <strong className="text-neutral-300">Notes:</strong> {b.special_requests}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-3 border-t border-neutral-800">
+                        {/* DIRECT WHATSAPP CHAT LINK */}
+                        <button
+                          onClick={() => {
+                            if (!cleanPhone) {
+                              alert('No valid WhatsApp number found for this guest.')
+                              return
+                            }
+                            const textMsg = encodeURIComponent(
+                              `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
+                            )
+                            window.open(`https://wa.me/${cleanPhone}?text=${textMsg}`, '_blank')
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          💬 Message Guest on WhatsApp ({rawContact})
+                        </button>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleUpdateBookingStatus(b.id, isApproved ? 'Pending Host Review' : 'Confirmed')}
+                            className="py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-bold text-neutral-300 rounded-xl cursor-pointer transition border border-neutral-700"
+                          >
+                            {isApproved ? '↩︎ Mark Pending' : '✓ Approve Stay'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBooking(b.id)}
+                            className="py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl cursor-pointer transition border border-red-500/20"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* 2. PROPERTIES TAB */}
         {activeTab === 'properties' && (
           <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
             <div className="flex justify-between items-center">
@@ -383,68 +466,6 @@ export default function OperationsPortal() {
                         >
                           ✏️ Edit Property, Photos & Amenities
                         </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* 2. BOOKINGS TAB */}
-        {activeTab === 'bookings' && (
-          <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-            <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
-            {bookings.length === 0 ? (
-              <div className="text-center py-20 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">
-                No reservation requests submitted yet.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bookings.map(b => {
-                  const status = b.status || 'Pending Host Review'
-                  const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
-                  return (
-                    <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-extrabold text-white text-sm">{b.property_name}</h3>
-                        <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border ${
-                          isApproved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                        }`}>
-                          {status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-neutral-300 space-y-1">
-                        <p>👤 <strong className="text-white">Guest:</strong> {b.guest_name}</p>
-                        <p>💬 <strong className="text-white">WhatsApp:</strong> {b.phone_number}</p>
-                        <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics || 'Standard'}</p>
-                        <p>📅 <strong className="text-white">Dates:</strong> {b.check_in} to {b.check_out}</p>
-                      </div>
-                      <div className="space-y-2 pt-2 border-t border-neutral-800">
-                        <button
-                          onClick={() => {
-                            const cleanPhone = (b.phone_number || '').replace(/[^0-9]/g, '')
-                            window.open(`https://wa.me/${cleanPhone}?text=Hello%20${b.guest_name},%20regarding%20your%20stay...`, '_blank')
-                          }}
-                          className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer"
-                        >
-                          💬 Message Guest on WhatsApp
-                        </button>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleUpdateBookingStatus(b.id, isApproved ? 'Pending Host Review' : 'Confirmed')}
-                            className="py-1.5 bg-neutral-800 text-xs font-bold text-neutral-300 rounded-xl cursor-pointer"
-                          >
-                            {isApproved ? '↩︎ Mark Pending' : '✓ Approve'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(b.id)}
-                            className="py-1.5 bg-red-500/10 text-red-400 text-xs font-bold rounded-xl cursor-pointer"
-                          >
-                            🗑️ Delete
-                          </button>
-                        </div>
                       </div>
                     </div>
                   )
