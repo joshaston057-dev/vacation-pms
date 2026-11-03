@@ -666,4 +666,61 @@ export default function OperationsPortal() {
               <div className="lg:col-span-2 space-y-4">
                 <h2 className="text-sm font-extrabold text-white">Active Upsell Services</h2>
                 {services.length === 0 ? (
-                  <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded
+                  <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">No services added.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {services.map(s => (
+                      <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
+                        <h3 className="font-extrabold text-white text-sm">{s.service_name}</h3>
+                        <p className="text-xs text-neutral-400">{s.company_name} • <strong className="text-amber-500">${s.price}</strong></p>
+                        <button onClick={() => window.open(`https://api.whatsapp.com/send?phone=${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}&text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">Book via WhatsApp</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+      </div>
+
+      {/* EDIT / ADD PROPERTY POPUP MODAL WITH AMENITIES SELECTOR */}
+      {(editingProperty || isAddingNew) && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="font-extrabold text-white text-base">{isAddingNew ? 'Add New Property' : 'Edit Property & Amenities'}</h3>
+              <button onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="text-neutral-400 font-bold p-1 cursor-pointer">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveProperty} className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-[10px] text-neutral-400 font-bold block mb-1">PROPERTY TITLE</label>
+                <input type="text" required value={propTitle} onChange={e => setPropTitle(e.target.value)} placeholder="Luxury Villa in Entebbe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-neutral-400 font-bold block mb-1">CATEGORY</label>
+                  <select value={propCategory} onChange={e => setPropCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white cursor-pointer">
+                    <option value="Apartment">Apartment</option>
+                    <option value="Standalone House">Standalone House</option>
+                    <option value="Mansion">Mansion</option>
+                    <option value="Villa">Villa</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] text-neutral-400 font-bold block mb-1">PRICE / NIGHT ($)</label>
+                  <input type="number" required value={propPrice} onChange={e => setPropPrice(e.target.value)} placeholder="100" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-neutral-400 font-bold block mb-1">LOCATION</label>
+                <input type="text" required value={propLocation} onChange={e => setPropLocation(e.target.value)} placeholder="Entebbe / Kisaasi" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-neutral-400 font-bold block mb-1">DESCRIPTION</label>
+                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg
