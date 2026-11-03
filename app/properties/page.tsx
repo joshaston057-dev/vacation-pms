@@ -55,7 +55,6 @@ export default function PublicPropertiesPage() {
 
     setLoading(true)
 
-    // Pack all info including check-in and check-out dates securely into guest_name
     const packedPayload = {
       guest_name: `Prop: [${selectedProperty.title}] | Guest: ${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | In: ${checkIn} | Out: ${checkOut} | Notes: ${specialRequests || 'None'}`
     }
@@ -207,6 +206,51 @@ export default function PublicPropertiesPage() {
             </div>
           )}
         </section>
+
+        {/* PHOTO GALLERY LIGHTBOX MODAL */}
+        {activeGallery && (
+          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div className="relative max-w-4xl w-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div className="flex justify-between items-center p-4 border-b border-neutral-800">
+                <div>
+                  <h3 className="font-extrabold text-white text-sm sm:text-base line-clamp-1">{activeGallery.title}</h3>
+                  <p className="text-xs text-neutral-400">Photo {activeGallery.currentIndex + 1} of {activeGallery.images.length}</p>
+                </div>
+                <button 
+                  onClick={() => setActiveGallery(null)} 
+                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer transition"
+                >
+                  ✕ Close
+                </button>
+              </div>
+
+              <div className="relative flex-1 bg-black flex items-center justify-center min-h-[350px] sm:min-h-[500px]">
+                <img 
+                  src={activeGallery.images[activeGallery.currentIndex]} 
+                  alt="Gallery Preview" 
+                  className="max-h-[70vh] max-w-full object-contain"
+                />
+
+                {activeGallery.images.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length } : null)}
+                      className="absolute left-3 bg-black/70 hover:bg-black text-white font-bold w-10 h-10 rounded-full flex items-center justify-center text-lg border border-neutral-700 transition cursor-pointer"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length } : null)}
+                      className="absolute right-3 bg-black/70 hover:bg-black text-white font-bold w-10 h-10 rounded-full flex items-center justify-center text-lg border border-neutral-700 transition cursor-pointer"
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
