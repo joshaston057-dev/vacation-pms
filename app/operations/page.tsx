@@ -15,12 +15,12 @@ export default function HostOperationsPage() {
   const [bookings, setBookings] = useState<any[]>([])
   const [properties, setProperties] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([
-    { id: 1, title: 'Clean Turnover - Entebbe Unit', priority: 'High', status: 'Pending', assignedTo: 'Housekeeping', date: 'Today' },
-    { id: 2, title: 'Refill Cooking Gas - Kisaasi Apt', priority: 'Medium', status: 'Completed', assignedTo: 'Maintenance', date: 'Yesterday' }
+    { id: 1, title: 'Clean Turnover - Ntinda Apt', priority: 'High', status: 'Pending', assignedTo: 'Housekeeping', phone: '+256780564778' },
+    { id: 2, title: 'Refill Cooking Gas - Munyonyo Mansion', priority: 'Medium', status: 'Completed', assignedTo: 'Maintenance', phone: '+256726797237' }
   ])
   const [bills, setBills] = useState<any[]>([
-    { id: 1, description: 'Monthly Wi-Fi Internet', amount: '$50', status: 'Paid', date: 'Nov 1' },
-    { id: 2, description: 'Deep Cleaning Service', amount: '$30', status: 'Pending', date: 'Nov 2' }
+    { id: 1, description: 'Monthly Wi-Fi Internet', amount: '$50', status: 'Paid', date: 'Nov 1, 2026' },
+    { id: 2, description: 'Deep Cleaning Service', amount: '$30', status: 'Pending', date: 'Nov 2, 2026' }
   ])
 
   const [loading, setLoading] = useState(true)
@@ -38,6 +38,19 @@ export default function HostOperationsPage() {
     if (propertyData) setProperties(propertyData)
 
     setLoading(false)
+  }
+
+  // Helper to trigger direct WhatsApp chat with guest
+  const openWhatsApp = (phone: string, guestName: string, property: string) => {
+    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : ''
+    const message = encodeURIComponent(`Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at ${property}!`)
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank')
+  }
+
+  // Delete booking handler
+  const deleteBooking = async (id: number) => {
+    await supabase.from('bookings').delete().eq('id', id)
+    setBookings(bookings.filter(b => b.id !== id))
   }
 
   return (
@@ -69,7 +82,7 @@ export default function HostOperationsPage() {
           <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-4">
             <button
               onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'bookings'
                   ? 'bg-amber-500 text-black shadow-lg'
                   : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -80,7 +93,7 @@ export default function HostOperationsPage() {
 
             <button
               onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'properties'
                   ? 'bg-amber-500 text-black shadow-lg'
                   : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -91,7 +104,7 @@ export default function HostOperationsPage() {
 
             <button
               onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'tasks'
                   ? 'bg-amber-500 text-black shadow-lg'
                   : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -102,7 +115,7 @@ export default function HostOperationsPage() {
 
             <button
               onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
                 activeTab === 'ledger'
                   ? 'bg-amber-500 text-black shadow-lg'
                   : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -114,8 +127,9 @@ export default function HostOperationsPage() {
 
           {/* TAB 1: BOOKINGS */}
           {activeTab === 'bookings' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-base">Guest Reservation Requests</h3>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-xl">
+              <h3 className="font-extrabold text-white text-lg">Guest Reservation Requests</h3>
+              
               {loading ? (
                 <p className="text-xs text-neutral-500 animate-pulse">Loading reservation records...</p>
               ) : bookings.length === 0 ? (
@@ -123,13 +137,111 @@ export default function HostOperationsPage() {
                   No reservation requests submitted yet.
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {bookings.map(b => (
-                    <div key={b.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-300 space-y-1">
-                      <p className="font-bold text-amber-400">{b.guest_name}</p>
-                      <p className="text-[10px] text-neutral-500">Submitted: {new Date(b.created_at).toLocaleString()}</p>
-                    </div>
-                  ))}
+                <div className="space-y-6">
+                  {bookings.map((b) => {
+                    const guestName = b.guest_name || b.name || 'Guest'
+                    const phone = b.phone || b.contact || '+256...'
+                    const propertyTitle = b.property_title || b.property || 'Property Stay'
+                    const demographic = b.demographic || 'Couple with Kids'
+                    const guestsCount = b.guests || 2
+                    const checkIn = b.check_in || '2026-11-12'
+                    const checkOut = b.check_out || '2026-12-14'
+                    const notes = b.notes || b.special_requests || 'need airport pickup'
+                    const status = b.status || 'Confirmed'
+
+                    return (
+                      <div
+                        key={b.id}
+                        className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-2xl relative overflow-hidden"
+                      >
+                        {/* CARD HEADER WITH PROPERTY & STATUS BADGE */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-900 pb-4">
+                          <h4 className="font-black text-white text-base sm:text-lg tracking-tight">
+                            {propertyTitle}
+                          </h4>
+                          <span className={`px-3 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase self-start sm:self-auto ${
+                            status === 'Confirmed' 
+                              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
+                              : 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                          }`}>
+                            {status}
+                          </span>
+                        </div>
+
+                        {/* DETAILS LIST */}
+                        <div className="space-y-3 text-xs sm:text-sm text-neutral-300">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">👤</span>
+                            <span className="text-neutral-400 font-semibold">Guest Name:</span>
+                            <span className="font-bold text-white">{guestName}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">💬</span>
+                            <span className="text-neutral-400 font-semibold">WhatsApp:</span>
+                            <span className="font-bold text-emerald-400 font-mono">{phone}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">👥</span>
+                            <span className="text-neutral-400 font-semibold">Demographic:</span>
+                            <span className="font-bold text-neutral-200">{demographic}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">👨‍👩‍👧</span>
+                            <span className="text-neutral-400 font-semibold">Guests:</span>
+                            <span className="font-bold text-neutral-200">{guestsCount}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">📅</span>
+                            <span className="text-neutral-400 font-semibold">Dates:</span>
+                            <span className="font-bold text-neutral-200">{checkIn} → {checkOut}</span>
+                          </div>
+                        </div>
+
+                        {/* GUEST NOTES BOX */}
+                        <div className="p-3.5 bg-neutral-900 border border-amber-500/20 rounded-xl flex items-start gap-2.5">
+                          <span className="text-base">📄</span>
+                          <div>
+                            <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">Guest Notes: </span>
+                            <span className="text-xs text-neutral-300 font-medium">{notes}</span>
+                          </div>
+                        </div>
+
+                        {/* ACTION BUTTONS */}
+                        <div className="space-y-3 pt-2">
+                          <button
+                            onClick={() => openWhatsApp(phone, guestName, propertyTitle)}
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            💬 Message Guest on WhatsApp
+                          </button>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={() => {
+                                const updated = bookings.map(item => item.id === b.id ? { ...item, status: status === 'Confirmed' ? 'Pending' : 'Confirmed' } : item)
+                                setBookings(updated)
+                              }}
+                              className="py-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl border border-neutral-800 transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              🔄 {status === 'Confirmed' ? 'Mark Pending' : 'Mark Confirmed'}
+                            </button>
+
+                            <button
+                              onClick={() => deleteBooking(b.id)}
+                              className="py-2.5 bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 font-bold text-xs rounded-xl border border-rose-900/50 transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -138,17 +250,12 @@ export default function HostOperationsPage() {
           {/* TAB 2: PROPERTIES */}
           {activeTab === 'properties' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <div className="flex justify-between items-center">
-                <h3 className="font-extrabold text-white text-base">Property Listings Portfolio</h3>
-                <a href="/admin/add-property" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-lg transition">
-                  + Add Property
-                </a>
-              </div>
+              <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
               {properties.length === 0 ? (
                 <p className="text-xs text-neutral-500 py-8 text-center">No properties added yet.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {properties.map(p => (
+                  {properties.map((p) => (
                     <div key={p.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
                       <h4 className="font-bold text-white text-sm">{p.title}</h4>
                       <p className="text-xs text-amber-400 font-bold">${p.price_per_night || p.price || 0} / night</p>
@@ -163,9 +270,9 @@ export default function HostOperationsPage() {
           {/* TAB 3: STAFF TASKS TRACKER */}
           {activeTab === 'tasks' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-base">Automated Housekeeping & Staff Dispatch</h3>
+              <h3 className="font-extrabold text-white text-lg">Automated Housekeeping & Staff Dispatch</h3>
               <div className="space-y-3">
-                {tasks.map(t => (
+                {tasks.map((t) => (
                   <div key={t.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
@@ -174,8 +281,11 @@ export default function HostOperationsPage() {
                       <h4 className="font-extrabold text-white text-xs sm:text-sm inline">{t.title}</h4>
                       <p className="text-xs text-neutral-400 mt-1">Assigned: {t.assignedTo} • Status: {t.status}</p>
                     </div>
-                    <button className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-xs font-bold rounded-lg transition self-start sm:self-auto">
-                      📱 Dispatch on WhatsApp
+                    <button
+                      onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition self-start sm:self-auto flex items-center gap-1.5 cursor-pointer"
+                    >
+                      💬 Dispatch on WhatsApp
                     </button>
                   </div>
                 ))}
@@ -186,9 +296,9 @@ export default function HostOperationsPage() {
           {/* TAB 4: FINANCIAL LEDGER */}
           {activeTab === 'ledger' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-base">Operational Bills & Financial Ledger</h3>
+              <h3 className="font-extrabold text-white text-lg">Operational Bills & Financial Ledger</h3>
               <div className="space-y-3">
-                {bills.map(bill => (
+                {bills.map((bill) => (
                   <div key={bill.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between">
                     <div>
                       <h4 className="font-extrabold text-white text-xs sm:text-sm">{bill.description}</h4>
