@@ -2,33 +2,51 @@
 
 import { useState, useEffect } from 'react'
 
-const upsellAds = [
+const portalAds = [
   {
     id: 1,
     category: 'AIRPORT TRANSFERS',
     title: 'Airport Pickup Drivers',
     headline: 'Never lose a midnight guest transfer again.',
-    description: 'Connect guests directly with vetted airport drivers through your portal and earn instant commission per booking.',
+    description: 'Connect arriving guests directly with vetted airport cab drivers and earn instant commission per booking.',
     badge: '🚗 High Margin',
-    image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1563720223185-11003d516935?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 2,
     category: 'LUXURY DINING',
     title: 'In-House Private Chefs',
-    headline: 'Turn stays into gourmet experiences.',
-    description: 'Offer guests private culinary dining experiences right inside your apartments and villas with custom local menus.',
-    badge: '👨‍🍳 Premium Upsell',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80',
+    headline: 'Gourmet dining right inside your villas.',
+    description: 'Dispatch professional private chefs to cook customized local and international menus directly in your property kitchen.',
+    badge: '👨‍🍳 VIP Experience',
+    image: 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 3,
+    category: 'FINANCE & BUDGETING',
+    title: 'Financial Ledger & Budgeting',
+    headline: 'Track net profits, gas, Wi-Fi & rent expenses.',
+    description: 'Keep your property accounting spotless with automated expense tracking, revenue breakdowns, and host bill logs.',
+    badge: '💰 Financial Control',
+    image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 4,
     category: 'STAFF DISPATCH',
     title: 'Automated Housekeeping',
-    headline: 'Dispatch cleaning tasks with zero stress.',
-    description: 'Assign turnover cleaning and maintenance directly to your team on WhatsApp as soon as check-out is confirmed.',
+    headline: 'Zero-stress turnover cleaning workflows.',
+    description: 'Assign cleaning and maintenance tasks instantly to your team on WhatsApp as soon as check-out is confirmed.',
     badge: '🧹 Operations',
     image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
+  },
+  {
+    id: 5,
+    category: 'RESERVATIONS',
+    title: 'Live Guest Bookings',
+    headline: 'Centralized control for every property.',
+    description: 'Track guest demographics, manage confirmed stays, and communicate with guests via direct WhatsApp links.',
+    badge: '📊 Full PMS',
+    image: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
   }
 ]
 
@@ -37,8 +55,8 @@ export default function UpsellMotionSlider() {
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setCurrentIndex(prev => (prev + 1) % upsellAds.length)
-    }, 4000)
+      setCurrentIndex(prev => (prev + 1) % portalAds.length)
+    }, 4500)
     return () => clearInterval(timer)
   }, [])
 
@@ -49,11 +67,11 @@ export default function UpsellMotionSlider() {
         {/* HEADER */}
         <div className="text-center space-y-2">
           <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-extrabold text-[11px] tracking-wider uppercase">
-            Hospitality Revenue Boosters
+            Complete Hospitality Ecosystem
           </span>
           <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug">
-            Are you in Hospitality & want to be seen? <br className="hidden sm:inline" />
-            <span className="text-amber-400">Our Upsell Services got you.</span>
+            Are you in Hospitality & want total control? <br className="hidden sm:inline" />
+            <span className="text-amber-400">Our Operations, Finance & Upsells got you.</span>
           </h2>
         </div>
 
@@ -61,7 +79,7 @@ export default function UpsellMotionSlider() {
         <div className="relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
           
           <div className="relative w-full">
-            {upsellAds.map((ad, idx) => {
+            {portalAds.map((ad, idx) => {
               const isActive = idx === currentIndex
 
               return (
@@ -98,11 +116,11 @@ export default function UpsellMotionSlider() {
                       href="/operations"
                       className="inline-block py-2.5 px-5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer text-center"
                     >
-                      Enable Upsell on Dashboard →
+                      Access Host Operations →
                     </a>
                   </div>
 
-                  {/* FULLY VISIBLE SLIDING IMAGE */}
+                  {/* SLIDING IMAGE */}
                   <div className="w-full md:w-1/2 h-44 sm:h-60 rounded-xl overflow-hidden border border-neutral-800 relative group shrink-0 shadow-inner">
                     <img
                       src={ad.image}
@@ -120,7 +138,7 @@ export default function UpsellMotionSlider() {
 
         {/* SLIDER DOTS / CONTROLS */}
         <div className="flex justify-center items-center gap-2 pt-1">
-          {upsellAds.map((_, idx) => (
+          {portalAds.map((_, idx) => (
             <button
               key={idx}
               onClick={() => setCurrentIndex(idx)}
