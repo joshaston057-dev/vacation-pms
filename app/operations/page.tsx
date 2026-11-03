@@ -293,7 +293,22 @@ export default function OperationsPortal() {
         {/* 1. BOOKINGS TAB */}
         {activeTab === 'bookings' && (
           <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-            <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
+              <button 
+                onClick={() => {
+                  if (bookings.length > 0) {
+                    console.log('SUPABASE BOOKING RECORD KEYS:', Object.keys(bookings[0]))
+                    console.log('FULL BOOKING OBJECT:', bookings[0])
+                    alert('Check your browser Console (F12) to see all database column names!')
+                  }
+                }}
+                className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-[10px] font-bold rounded-lg cursor-pointer border border-neutral-700"
+              >
+                🔍 Inspect Database Columns (F12)
+              </button>
+            </div>
+
             {bookings.length === 0 ? (
               <div className="text-center py-20 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">
                 No reservation requests submitted yet.
@@ -304,8 +319,7 @@ export default function OperationsPortal() {
                   const status = b.status || 'Pending Host Review'
                   const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
                   
-                  // Comprehensive fallback checking all potential database column names
-                  const rawContact = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || ''
+                  const rawContact = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || b.telephone || ''
                   const cleanPhone = rawContact.replace(/[^0-9]/g, '')
                   const propName = b.property_name || b.property || b.title || 'the requested property'
 
@@ -335,11 +349,18 @@ export default function OperationsPortal() {
                       </div>
 
                       <div className="space-y-2 pt-3 border-t border-neutral-800">
-                        {/* DIRECT WHATSAPP CHAT LINK USING API ENDPOINT */}
+                        {/* DIRECT WHATSAPP CHAT LINK WITH MANUAL PROMPT FALLBACK */}
                         <button
                           onClick={() => {
                             if (!cleanPhone) {
-                              alert('No valid WhatsApp number found for this guest. Check your Supabase bookings table column names.')
+                              const manualPhone = prompt('Enter guest WhatsApp number (e.g. +256700000000):')
+                              if (manualPhone) {
+                                const cleaned = manualPhone.replace(/[^0-9]/g, '')
+                                const textMsg = encodeURIComponent(
+                                  `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia.`
+                                )
+                                window.open(`https://api.whatsapp.com/send?phone=${cleaned}&text=${textMsg}`, '_blank')
+                              }
                               return
                             }
                             const textMsg = encodeURIComponent(
@@ -349,7 +370,7 @@ export default function OperationsPortal() {
                           }}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
                         >
-                          💬 Message Guest on WhatsApp ({rawContact || 'No Number'})
+                          💬 Message Guest on WhatsApp {rawContact ? `(${rawContact})` : '(Enter Number)'}
                         </button>
 
                         <div className="grid grid-cols-2 gap-2">
