@@ -185,11 +185,6 @@ export default function OperationsPortal() {
     fetchAllData()
   }
 
-  const handleDeleteTask = async (id: number) => {
-    await supabase.from('tasks').delete().eq('id', id)
-    fetchAllData()
-  }
-
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
     await supabase.from('financials').insert([{
@@ -198,11 +193,6 @@ export default function OperationsPortal() {
       property_name: transProperty
     }])
     setTransTitle(''); setTransAmount(''); setTransProperty('')
-    fetchAllData()
-  }
-
-  const handleDeleteTransaction = async (id: number) => {
-    await supabase.from('financials').delete().eq('id', id)
     fetchAllData()
   }
 
@@ -343,7 +333,7 @@ export default function OperationsPortal() {
                       </div>
 
                       <div className="space-y-2 pt-3 border-t border-neutral-800">
-                        {/* DIRECT WHATSAPP CHAT LINK */}
+                        {/* DIRECT WHATSAPP CHAT LINK USING API ENDPOINT */}
                         <button
                           onClick={() => {
                             if (!cleanPhone) {
@@ -353,7 +343,7 @@ export default function OperationsPortal() {
                             const textMsg = encodeURIComponent(
                               `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
                             )
-                            window.open(`https://wa.me/${cleanPhone}?text=${textMsg}`, '_blank')
+                            window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${textMsg}`, '_blank')
                           }}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
                         >
@@ -514,7 +504,7 @@ export default function OperationsPortal() {
                       <div key={t.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-sm">{t.title}</h3>
                         <p className="text-xs text-neutral-400">🏠 {t.property_name} • 👤 {t.assignee_name}</p>
-                        <button onClick={() => window.open(`https://wa.me/${(t.staff_phone||'').replace(/[^0-9]/g,'')}?text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">WhatsApp Staff</button>
+                        <button onClick={() => window.open(`https://api.whatsapp.com/send?phone=${(t.staff_phone||'').replace(/[^0-9]/g,'')}&text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">WhatsApp Staff</button>
                       </div>
                     ))}
                   </div>
@@ -645,7 +635,7 @@ export default function OperationsPortal() {
                       <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-sm">{s.service_name}</h3>
                         <p className="text-xs text-neutral-400">{s.company_name} • <strong className="text-amber-500">${s.price}</strong></p>
-                        <button onClick={() => window.open(`https://wa.me/${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}?text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">Book via WhatsApp</button>
+                        <button onClick={() => window.open(`https://api.whatsapp.com/send?phone=${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}&text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">Book via WhatsApp</button>
                       </div>
                     ))}
                   </div>
