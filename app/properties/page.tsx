@@ -55,17 +55,11 @@ export default function PublicPropertiesPage() {
 
     setLoading(true)
 
-    const packedDetails = `${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | Notes: ${specialRequests || 'None'}`
-
-    let payload: any = {
-      property_name: selectedProperty.title,
-      guest_name: packedDetails,
-      check_in: checkIn,
-      check_out: checkOut,
-      status: 'Pending Host Review'
+    const packedPayload = {
+      guest_name: `Prop: [${selectedProperty.title}] | Guest: ${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | Notes: ${specialRequests || 'None'}`
     }
 
-    let { error } = await supabase.from('bookings').insert([payload])
+    let { error } = await supabase.from('bookings').insert([packedPayload])
 
     if (error) {
       alert('Error submitting reservation: ' + error.message)
