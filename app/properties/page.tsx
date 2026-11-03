@@ -259,7 +259,7 @@ export default function PublicPropertiesPage() {
           </div>
         )}
 
-        {/* BOOKING MODAL WITH COMPACT TOGGLES & DEMOGRAPHICS SELECTION */}
+        {/* BOOKING MODAL */}
         {selectedProperty && (() => {
           let modalAmenities: string[] = []
           try {
@@ -351,10 +351,10 @@ export default function PublicPropertiesPage() {
                       <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
                     </div>
 
-                    {/* RESTORED DEMOGRAPHICS & GUEST COUNT ROW */}
+                    {/* DEMOGRAPHICS & GUEST COUNT */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">DEMOGRAPHIC</label>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">GUEST DEMOGRAPHIC</label>
                         <select value={demographics} onChange={e => setDemographics(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 cursor-pointer">
                           <option value="Couple with Kids">👨‍👩‍👧‍👦 Couple with Kids</option>
                           <option value="Couple Only">👩‍❤️‍👨 Couple Only</option>
@@ -372,18 +372,18 @@ export default function PublicPropertiesPage() {
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-IN</label>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-IN DATE</label>
                         <input type="date" required value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-OUT</label>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-OUT DATE</label>
                         <input type="date" required value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
                       </div>
                     </div>
 
                     <div>
                       <label className="text-[10px] text-neutral-400 font-bold block mb-1">SPECIAL REQUESTS / NOTES</label>
-                      <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
+                      <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need baby cot, airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
                     </div>
 
                     <button type="submit" disabled={loading} className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2 shadow-lg">
