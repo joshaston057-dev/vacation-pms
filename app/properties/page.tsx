@@ -16,8 +16,6 @@ export default function PublicPropertiesPage() {
   const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
 
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
-  const [modalDescUnlocked, setModalDescUnlocked] = useState(false)
-  const [modalAmenitiesUnlocked, setModalAmenitiesUnlocked] = useState(false)
 
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
@@ -197,11 +195,7 @@ export default function PublicPropertiesPage() {
 
                     <div className="p-5 pt-0">
                       <button
-                        onClick={() => {
-                          setSelectedProperty(property)
-                          setModalDescUnlocked(false)
-                          setModalAmenitiesUnlocked(false)
-                        }}
+                        onClick={() => setSelectedProperty(property)}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
                       >
                         Book Now
@@ -259,7 +253,7 @@ export default function PublicPropertiesPage() {
           </div>
         )}
 
-        {/* BOOKING MODAL */}
+        {/* BOOKING MODAL WITH UPFRONT DEMOGRAPHICS (NO HIDDEN TOGGLES) */}
         {selectedProperty && (() => {
           let modalAmenities: string[] = []
           try {
@@ -291,46 +285,6 @@ export default function PublicPropertiesPage() {
                   <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer p-1">✕</button>
                 </div>
 
-                {/* MODAL DESCRIPTION TOGGLE */}
-                {selectedProperty.description && (
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={() => setModalDescUnlocked(!modalDescUnlocked)}
-                      className="w-full py-2 px-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-between cursor-pointer hover:text-white"
-                    >
-                      <span>📖 {modalDescUnlocked ? 'Hide About This Stay' : 'View About This Stay'}</span>
-                      <span>{modalDescUnlocked ? '▲' : '▼'}</span>
-                    </button>
-                    {modalDescUnlocked && (
-                      <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed">
-                        {selectedProperty.description}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* MODAL AMENITIES TOGGLE */}
-                {modalAmenities.length > 0 && (
-                  <div className="space-y-1.5">
-                    <button
-                      onClick={() => setModalAmenitiesUnlocked(!modalAmenitiesUnlocked)}
-                      className="w-full py-2 px-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-bold text-amber-400 flex items-center justify-between cursor-pointer"
-                    >
-                      <span>✨ {modalAmenitiesUnlocked ? 'Hide Amenities' : `View Amenities (${modalAmenities.length})`}</span>
-                      <span>{modalAmenitiesUnlocked ? '▲' : '▼'}</span>
-                    </button>
-                    {modalAmenitiesUnlocked && (
-                      <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl">
-                        {modalAmenities.map((amenity, idx) => (
-                          <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1 font-semibold">
-                            ✓ {amenity}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {bookingSubmitted ? (
                   <div className="py-8 text-center space-y-2">
                     <span className="text-4xl">✅</span>
@@ -338,7 +292,7 @@ export default function PublicPropertiesPage() {
                     <p className="text-xs text-neutral-400">Our host team will review your stay details and contact you via WhatsApp.</p>
                   </div>
                 ) : (
-                  <form onSubmit={handleBookingSubmit} className="space-y-3.5 pt-2 border-t border-neutral-800">
+                  <form onSubmit={handleBookingSubmit} className="space-y-3.5">
                     <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Reserve Your Stay</h4>
 
                     <div>
@@ -351,7 +305,7 @@ export default function PublicPropertiesPage() {
                       <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
                     </div>
 
-                    {/* DEMOGRAPHICS & GUEST COUNT */}
+                    {/* DEMOGRAPHICS & GUEST COUNT VISIBLE IMMEDIATELY */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-[10px] text-neutral-400 font-bold block mb-1">GUEST DEMOGRAPHIC</label>
