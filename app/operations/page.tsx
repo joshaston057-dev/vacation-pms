@@ -293,22 +293,7 @@ export default function OperationsPortal() {
         {/* 1. BOOKINGS TAB */}
         {activeTab === 'bookings' && (
           <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
-              <button 
-                onClick={() => {
-                  if (bookings.length > 0) {
-                    console.log('SUPABASE BOOKING RECORD KEYS:', Object.keys(bookings[0]))
-                    console.log('FULL BOOKING OBJECT:', bookings[0])
-                    alert('Check your browser Console (F12) to see all database column names!')
-                  }
-                }}
-                className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-[10px] font-bold rounded-lg cursor-pointer border border-neutral-700"
-              >
-                🔍 Inspect Database Columns (F12)
-              </button>
-            </div>
-
+            <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
             {bookings.length === 0 ? (
               <div className="text-center py-20 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">
                 No reservation requests submitted yet.
@@ -322,6 +307,9 @@ export default function OperationsPortal() {
                   const rawContact = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || b.telephone || ''
                   const cleanPhone = rawContact.replace(/[^0-9]/g, '')
                   const propName = b.property_name || b.property || b.title || 'the requested property'
+                  
+                  // Comprehensive fallback for guest notes / special requests across all possible column names
+                  const guestNotes = b.special_requests || b.notes || b.message || b.comment || b.request || ''
 
                   return (
                     <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
@@ -334,17 +322,19 @@ export default function OperationsPortal() {
                             {status}
                           </span>
                         </div>
-                        <div className="text-xs text-neutral-300 space-y-1.5 bg-neutral-950 p-3 rounded-xl border border-neutral-800/80">
+                        <div className="text-xs text-neutral-300 space-y-2 bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
                           <p>👤 <strong className="text-white">Guest Name:</strong> {b.guest_name || 'N/A'}</p>
                           <p>💬 <strong className="text-white">WhatsApp Contact:</strong> <span className={rawContact ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{rawContact || 'Not provided'}</span></p>
                           {b.demographics && <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics}</p>}
                           {b.guest_count && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {b.guest_count}</p>}
                           <p>📅 <strong className="text-white">Dates:</strong> {b.check_in || 'N/A'} → {b.check_out || 'N/A'}</p>
-                          {b.special_requests && (
-                            <p className="pt-1 border-t border-neutral-800 text-[11px] text-neutral-400">
-                              📝 <strong className="text-neutral-300">Notes:</strong> {b.special_requests}
-                            </p>
-                          )}
+                          
+                          {/* PROMINENT GUEST NOTES HIGHLIGHT BOX */}
+                          <div className={`p-2.5 rounded-lg border text-xs leading-relaxed ${
+                            guestNotes ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-500 italic'
+                          }`}>
+                            📝 <strong className="text-amber-400">Guest Notes:</strong> {guestNotes || 'No special requests provided by guest.'}
+                          </div>
                         </div>
                       </div>
 
@@ -357,14 +347,14 @@ export default function OperationsPortal() {
                               if (manualPhone) {
                                 const cleaned = manualPhone.replace(/[^0-9]/g, '')
                                 const textMsg = encodeURIComponent(
-                                  `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia.`
+                                  `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. Notes received: "${guestNotes || 'None'}"`
                                 )
                                 window.open(`https://api.whatsapp.com/send?phone=${cleaned}&text=${textMsg}`, '_blank')
                               }
                               return
                             }
                             const textMsg = encodeURIComponent(
-                              `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
+                              `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We received your note: "${guestNotes || 'None'}" and are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
                             )
                             window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${textMsg}`, '_blank')
                           }}
