@@ -11,6 +11,10 @@ export default function PublicPropertiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Track expanded states per property ID
+  const [unlockedAmenities, setUnlockedAmenities] = useState<{ [key: number]: boolean }>({})
+  const [unlockedDescriptions, setUnlockedDescriptions] = useState<{ [key: number]: boolean }>({})
+
   // Booking Modal State
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
   const [guestName, setGuestName] = useState('')
@@ -33,6 +37,14 @@ export default function PublicPropertiesPage() {
     setLoading(false)
   }
 
+  const toggleAmenitiesView = (id: number) => {
+    setUnlockedAmenities(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  const toggleDescriptionView = (id: number) => {
+    setUnlockedDescriptions(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedProperty) return
@@ -52,7 +64,7 @@ export default function PublicPropertiesPage() {
     const { error } = await supabase.from('bookings').insert([newBooking])
 
     if (error) {
-      alert('Failed to submit reservation. Please check Supabase schema.')
+      alert('Failed to submit reservation.')
     } else {
       setBookingSubmitted(true)
       setTimeout(() => {
@@ -77,7 +89,7 @@ export default function PublicPropertiesPage() {
             Exclusive Short-Stay Properties in Uganda
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl mx-auto">
-            Apartments, standalone houses, mansions, and villas with full amenities and private booking.
+            Apartments, standalone houses, mansions, and villas with private booking.
           </p>
         </section>
 
@@ -94,6 +106,8 @@ export default function PublicPropertiesPage() {
 
                 const mainImage = imageList.length > 0 ? imageList[0] : null
                 const displayPrice = property.price_per_night || property.nightly_price || property.price || 0
+                const isAmenitiesUnlocked = unlockedAmenities[property.id] || false
+                const isDescUnlocked = unlockedDescriptions[property.id] || false
 
                 return (
                   <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
@@ -113,14 +127,45 @@ export default function PublicPropertiesPage() {
                         <h3 className="font-extrabold text-white text-base leading-snug">{property.title}</h3>
                         <p className="text-xs text-neutral-400">📍 {property.location || 'Kampala, Uganda'}</p>
 
-                        {/* AMENITIES BADGES ON CARD */}
+                        {/* UNLOCK DESCRIPTION TOGGLE */}
+                        {property.description && (
+                          <div className="space-y-1.5 pt-1">
+                            <button
+                              onClick={() => toggleDescriptionView(property.id)}
+                              className="w-full py-1.5 px-3 bg-neutral-950 border border-neutral-800 hover:border-neutral-700 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-between transition cursor-pointer"
+                            >
+                              <span>📖 {isDescUnlocked ? 'Hide Description' : 'Unlock Description'}</span>
+                              <span>{isDescUnlocked ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isDescUnlocked && (
+                              <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed animate-fadeIn">
+                                {property.description}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* UNLOCK AMENITIES TOGGLE */}
                         {amenitiesList.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {amenitiesList.map((amenity, idx) => (
-                              <span key={idx} className="text-[10px] bg-neutral-950 border border-neutral-800 text-amber-400 font-bold px-2 py-0.5 rounded-md">
-                                ✓ {amenity}
-                              </span>
-                            ))}
+                          <div className="space-y-1.5">
+                            <button
+                              onClick={() => toggleAmenitiesView(property.id)}
+                              className="w-full py-1.5 px-3 bg-neutral-950 border border-neutral-800 hover:border-amber-500/50 rounded-xl text-xs font-bold text-amber-400 flex items-center justify-between transition cursor-pointer"
+                            >
+                              <span>✨ {isAmenitiesUnlocked ? 'Hide Amenities' : `Unlock Amenities (${amenitiesList.length})`}</span>
+                              <span>{isAmenitiesUnlocked ? '▲' : '▼'}</span>
+                            </button>
+
+                            {isAmenitiesUnlocked && (
+                              <div className="grid grid-cols-2 gap-1.5 p-2.5 bg-neutral-950/80 border border-neutral-800 rounded-xl animate-fadeIn">
+                                {amenitiesList.map((amenity, idx) => (
+                                  <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1">
+                                    ✓ {amenity}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -141,7 +186,7 @@ export default function PublicPropertiesPage() {
           )}
         </section>
 
-        {/* FULL BOOKING MODAL WITH AMENITIES AND DEMOGRAPHICS */}
+        {/* BOOKING MODAL */}
         {selectedProperty && (
           <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
@@ -152,25 +197,6 @@ export default function PublicPropertiesPage() {
                 </div>
                 <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer">✕</button>
               </div>
-
-              {/* SHOW PROPERTY AMENITIES INSIDE POPUP */}
-              {selectedProperty.amenities && (() => {
-                let amList = []
-                try { amList = typeof selectedProperty.amenities === 'string' ? JSON.parse(selectedProperty.amenities) : selectedProperty.amenities } catch(e) { amList = [] }
-                if (amList.length === 0) return null
-                return (
-                  <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1.5">
-                    <p className="text-[10px] text-amber-400 font-extrabold uppercase">Property Amenities Included:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {amList.map((a: string, i: number) => (
-                        <span key={i} className="text-[10px] bg-neutral-900 border border-neutral-800 text-neutral-300 px-2 py-0.5 rounded-md">
-                          ✓ {a}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
 
               {bookingSubmitted ? (
                 <div className="py-8 text-center space-y-2">
