@@ -16,6 +16,9 @@ export default function PublicPropertiesPage() {
   const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
 
   const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
+  const [modalDescUnlocked, setModalDescUnlocked] = useState(false)
+  const [modalAmenitiesUnlocked, setModalAmenitiesUnlocked] = useState(false)
+
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
   const [demographics, setDemographics] = useState('Couple with Kids')
@@ -194,7 +197,11 @@ export default function PublicPropertiesPage() {
 
                     <div className="p-5 pt-0">
                       <button
-                        onClick={() => setSelectedProperty(property)}
+                        onClick={() => {
+                          setSelectedProperty(property)
+                          setModalDescUnlocked(false)
+                          setModalAmenitiesUnlocked(false)
+                        }}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
                       >
                         Book Now
@@ -252,77 +259,142 @@ export default function PublicPropertiesPage() {
           </div>
         )}
 
-        {selectedProperty && (
-          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
-              <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
-                <div>
-                  <h3 className="font-extrabold text-white text-base">Reserve: {selectedProperty.title}</h3>
-                  <p className="text-xs text-amber-500 font-bold">📍 {selectedProperty.location || 'Kampala, Uganda'}</p>
+        {/* BOOKING MODAL WITH COMPACT TOGGLES & DEMOGRAPHICS SELECTION */}
+        {selectedProperty && (() => {
+          let modalAmenities: string[] = []
+          try {
+            if (Array.isArray(selectedProperty.amenities)) {
+              modalAmenities = selectedProperty.amenities
+            } else if (typeof selectedProperty.amenities === 'string') {
+              if (selectedProperty.amenities.startsWith('{') && selectedProperty.amenities.endsWith('}')) {
+                modalAmenities = selectedProperty.amenities.slice(1, -1).split(',').map(s => s.replace(/^"(.*)"$/, '$1').trim()).filter(Boolean)
+              } else if (selectedProperty.amenities.startsWith('[')) {
+                modalAmenities = JSON.parse(selectedProperty.amenities)
+              } else {
+                modalAmenities = selectedProperty.amenities.split(',').map(s => s.trim()).filter(Boolean)
+              }
+            }
+          } catch (e) {
+            modalAmenities = []
+          }
+
+          const displayPrice = selectedProperty.price_per_night || selectedProperty.nightly_price || selectedProperty.price || 0
+
+          return (
+            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-5 space-y-4 my-auto shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
+                  <div>
+                    <h3 className="font-extrabold text-white text-base leading-tight">{selectedProperty.title}</h3>
+                    <p className="text-xs text-amber-500 font-bold mt-0.5">📍 {selectedProperty.location || 'Uganda'} • ${displayPrice} / night</p>
+                  </div>
+                  <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer p-1">✕</button>
                 </div>
-                <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer">✕</button>
+
+                {/* MODAL DESCRIPTION TOGGLE */}
+                {selectedProperty.description && (
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => setModalDescUnlocked(!modalDescUnlocked)}
+                      className="w-full py-2 px-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-bold text-neutral-300 flex items-center justify-between cursor-pointer hover:text-white"
+                    >
+                      <span>📖 {modalDescUnlocked ? 'Hide About This Stay' : 'View About This Stay'}</span>
+                      <span>{modalDescUnlocked ? '▲' : '▼'}</span>
+                    </button>
+                    {modalDescUnlocked && (
+                      <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed">
+                        {selectedProperty.description}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MODAL AMENITIES TOGGLE */}
+                {modalAmenities.length > 0 && (
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => setModalAmenitiesUnlocked(!modalAmenitiesUnlocked)}
+                      className="w-full py-2 px-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs font-bold text-amber-400 flex items-center justify-between cursor-pointer"
+                    >
+                      <span>✨ {modalAmenitiesUnlocked ? 'Hide Amenities' : `View Amenities (${modalAmenities.length})`}</span>
+                      <span>{modalAmenitiesUnlocked ? '▲' : '▼'}</span>
+                    </button>
+                    {modalAmenitiesUnlocked && (
+                      <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl">
+                        {modalAmenities.map((amenity, idx) => (
+                          <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1 font-semibold">
+                            ✓ {amenity}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {bookingSubmitted ? (
+                  <div className="py-8 text-center space-y-2">
+                    <span className="text-4xl">✅</span>
+                    <h4 className="font-extrabold text-white text-base">Reservation Submitted!</h4>
+                    <p className="text-xs text-neutral-400">Our host team will review your stay details and contact you via WhatsApp.</p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleBookingSubmit} className="space-y-3.5 pt-2 border-t border-neutral-800">
+                    <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Reserve Your Stay</h4>
+
+                    <div>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">YOUR FULL NAME</label>
+                      <input type="text" required value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="John Doe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-amber-400 font-extrabold block mb-1">WHATSAPP NUMBER</label>
+                      <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
+                    </div>
+
+                    {/* RESTORED DEMOGRAPHICS & GUEST COUNT ROW */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">DEMOGRAPHIC</label>
+                        <select value={demographics} onChange={e => setDemographics(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 cursor-pointer">
+                          <option value="Couple with Kids">👨‍👩‍👧‍👦 Couple with Kids</option>
+                          <option value="Couple Only">👩‍❤️‍👨 Couple Only</option>
+                          <option value="Solo Business Traveler">💼 Solo Business</option>
+                          <option value="Group of Friends">🥳 Group Friends</option>
+                          <option value="Family Relocation">🏠 Relocation</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">TOTAL GUESTS</label>
+                        <input type="number" min="1" required value={guestCount} onChange={e => setGuestCount(e.target.value)} placeholder="2" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-IN</label>
+                        <input type="date" required value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-OUT</label>
+                        <input type="date" required value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">SPECIAL REQUESTS / NOTES</label>
+                      <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
+                    </div>
+
+                    <button type="submit" disabled={loading} className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2 shadow-lg">
+                      {loading ? 'Submitting Reservation...' : 'Submit Private Reservation Request'}
+                    </button>
+                  </form>
+                )}
               </div>
-
-              {bookingSubmitted ? (
-                <div className="py-8 text-center space-y-2">
-                  <span className="text-4xl">✅</span>
-                  <h4 className="font-extrabold text-white text-base">Reservation Submitted!</h4>
-                  <p className="text-xs text-neutral-400">Our host team will review your stay details and contact you via WhatsApp.</p>
-                </div>
-              ) : (
-                <form onSubmit={handleBookingSubmit} className="space-y-3.5">
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">YOUR FULL NAME</label>
-                    <input type="text" required value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="Jane Doe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-amber-400 font-extrabold block mb-1">WHATSAPP NUMBER</label>
-                    <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">GUEST DEMOGRAPHIC</label>
-                      <select value={demographics} onChange={e => setDemographics(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 cursor-pointer">
-                        <option value="Couple with Kids">👨‍👩‍👧‍👦 Couple with Kids</option>
-                        <option value="Couple Only">👩‍❤️‍👨 Couple Only</option>
-                        <option value="Solo Business Traveler">💼 Solo Business Traveler</option>
-                        <option value="Group of Friends">🥳 Group of Friends</option>
-                        <option value="Family Relocation">🏠 Family Relocation</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">TOTAL GUESTS</label>
-                      <input type="number" min="1" required value={guestCount} onChange={e => setGuestCount(e.target.value)} placeholder="2" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-IN DATE</label>
-                      <input type="date" required value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-OUT DATE</label>
-                      <input type="date" required value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">SPECIAL REQUESTS / NOTES</label>
-                    <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need baby cot, airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
-                  </div>
-
-                  <button type="submit" disabled={loading} className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2 shadow-lg">
-                    {loading ? 'Submitting Reservation...' : 'Submit Private Reservation Request'}
-                  </button>
-                </form>
-              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
 
       </div>
       <Footer />
