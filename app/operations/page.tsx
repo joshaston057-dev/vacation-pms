@@ -304,12 +304,19 @@ export default function OperationsPortal() {
                   const status = b.status || 'Pending Host Review'
                   const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
                   
-                  const rawContact = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || b.telephone || ''
-                  const cleanPhone = rawContact.replace(/[^0-9]/g, '')
+                  const rawNameStr = b.guest_name || ''
+                  let parsedGuestName = rawNameStr
+                  let parsedPhone = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || ''
+
+                  if (rawNameStr.includes('| Ph:')) {
+                    const parts = rawNameStr.split('| Ph:')
+                    parsedGuestName = parts[0].trim()
+                    if (!parsedPhone) parsedPhone = parts[1].trim()
+                  }
+
+                  const cleanPhone = parsedPhone.replace(/[^0-9]/g, '')
                   const propName = b.property_name || b.property || b.title || 'the requested property'
-                  
-                  // Comprehensive fallback for guest notes / special requests across all possible column names
-                  const guestNotes = b.special_requests || b.notes || b.message || b.comment || b.request || ''
+                  const guestNotes = b.special_requests || b.notes || b.message || b.comment || ''
 
                   return (
                     <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
@@ -323,13 +330,12 @@ export default function OperationsPortal() {
                           </span>
                         </div>
                         <div className="text-xs text-neutral-300 space-y-2 bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
-                          <p>👤 <strong className="text-white">Guest Name:</strong> {b.guest_name || 'N/A'}</p>
-                          <p>💬 <strong className="text-white">WhatsApp Contact:</strong> <span className={rawContact ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{rawContact || 'Not provided'}</span></p>
+                          <p>👤 <strong className="text-white">Guest Name:</strong> {parsedGuestName || 'N/A'}</p>
+                          <p>💬 <strong className="text-white">WhatsApp Contact:</strong> <span className={parsedPhone ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{parsedPhone || 'Not provided'}</span></p>
                           {b.demographics && <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics}</p>}
                           {b.guest_count && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {b.guest_count}</p>}
                           <p>📅 <strong className="text-white">Dates:</strong> {b.check_in || 'N/A'} → {b.check_out || 'N/A'}</p>
                           
-                          {/* PROMINENT GUEST NOTES HIGHLIGHT BOX */}
                           <div className={`p-2.5 rounded-lg border text-xs leading-relaxed ${
                             guestNotes ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-500 italic'
                           }`}>
@@ -339,7 +345,6 @@ export default function OperationsPortal() {
                       </div>
 
                       <div className="space-y-2 pt-3 border-t border-neutral-800">
-                        {/* DIRECT WHATSAPP CHAT LINK WITH MANUAL PROMPT FALLBACK */}
                         <button
                           onClick={() => {
                             if (!cleanPhone) {
@@ -347,20 +352,20 @@ export default function OperationsPortal() {
                               if (manualPhone) {
                                 const cleaned = manualPhone.replace(/[^0-9]/g, '')
                                 const textMsg = encodeURIComponent(
-                                  `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. Notes received: "${guestNotes || 'None'}"`
+                                  `Hello ${parsedGuestName || 'Guest'}! Thank you for reserving ${propName} with La Estancia.`
                                 )
                                 window.open(`https://api.whatsapp.com/send?phone=${cleaned}&text=${textMsg}`, '_blank')
                               }
                               return
                             }
                             const textMsg = encodeURIComponent(
-                              `Hello ${b.guest_name || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We received your note: "${guestNotes || 'None'}" and are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
+                              `Hello ${parsedGuestName || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
                             )
                             window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${textMsg}`, '_blank')
                           }}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
                         >
-                          💬 Message Guest on WhatsApp {rawContact ? `(${rawContact})` : '(Enter Number)'}
+                          💬 Message Guest on WhatsApp {parsedPhone ? `(${parsedPhone})` : '(Enter Number)'}
                         </button>
 
                         <div className="grid grid-cols-2 gap-2">
