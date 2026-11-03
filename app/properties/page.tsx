@@ -55,8 +55,9 @@ export default function PublicPropertiesPage() {
 
     setLoading(true)
 
+    // Pack all info including check-in and check-out dates securely into guest_name
     const packedPayload = {
-      guest_name: `Prop: [${selectedProperty.title}] | Guest: ${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | Notes: ${specialRequests || 'None'}`
+      guest_name: `Prop: [${selectedProperty.title}] | Guest: ${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | In: ${checkIn} | Out: ${checkOut} | Notes: ${specialRequests || 'None'}`
     }
 
     let { error } = await supabase.from('bookings').insert([packedPayload])

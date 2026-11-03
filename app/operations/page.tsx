@@ -310,6 +310,8 @@ export default function OperationsPortal() {
                   let parsedPhone = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || ''
                   let parsedDemographic = b.demographics || ''
                   let parsedGuests = b.guest_count || ''
+                  let parsedCheckIn = b.check_in || 'N/A'
+                  let parsedCheckOut = b.check_out || 'N/A'
                   let parsedNotes = b.special_requests || b.notes || b.message || ''
 
                   if (rawNameStr.includes('Prop: [')) {
@@ -328,13 +330,17 @@ export default function OperationsPortal() {
                     const guestsMatch = rawNameStr.match(/Guests:\s*(.*?)(?=\s*\||$)/)
                     if (guestsMatch) parsedGuests = guestsMatch[1].trim()
 
+                    const inMatch = rawNameStr.match(/In:\s*(.*?)(?=\s*\||$)/)
+                    if (inMatch) parsedCheckIn = inMatch[1].trim()
+
+                    const outMatch = rawNameStr.match(/Out:\s*(.*?)(?=\s*\||$)/)
+                    if (outMatch) parsedCheckOut = outMatch[1].trim()
+
                     const notesMatch = rawNameStr.match(/Notes:\s*(.*?)(?=\s*\||$)/)
                     if (notesMatch) parsedNotes = notesMatch[1].trim()
                   }
 
                   const cleanPhone = parsedPhone.replace(/[^0-9]/g, '')
-                  const checkInDate = b.check_in || 'N/A'
-                  const checkOutDate = b.check_out || 'N/A'
 
                   return (
                     <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
@@ -352,7 +358,7 @@ export default function OperationsPortal() {
                           <p>💬 <strong className="text-white">WhatsApp:</strong> <span className={cleanPhone ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{cleanPhone ? `+${cleanPhone}` : 'Not provided'}</span></p>
                           {parsedDemographic && <p>👥 <strong className="text-amber-400">Demographic:</strong> {parsedDemographic}</p>}
                           {parsedGuests && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {parsedGuests}</p>}
-                          <p>📅 <strong className="text-white">Dates:</strong> {checkInDate} → {checkOutDate}</p>
+                          <p>📅 <strong className="text-white">Dates:</strong> {parsedCheckIn} → {parsedCheckOut}</p>
                           
                           <div className={`p-2.5 rounded-lg border text-xs leading-relaxed ${
                             parsedNotes && parsedNotes !== 'None' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-500 italic'
