@@ -129,6 +129,8 @@ export default function OperationsPortal() {
       finalImages = [...finalImages, ...newUrls]
     }
 
+    const pgArrayString = `{${selectedAmenities.map(a => `"${a.replace(/"/g, '\\"')}"`).join(',')}}`
+
     const payload: any = {
       title: propTitle,
       category: propCategory,
@@ -136,7 +138,7 @@ export default function OperationsPortal() {
       location: propLocation,
       description: propDescription,
       images: JSON.stringify(finalImages),
-      amenities: selectedAmenities.join(', ') // Stored as a clean text string to prevent array literal errors
+      amenities: pgArrayString
     }
 
     let res = isAddingNew
@@ -317,10 +319,16 @@ export default function OperationsPortal() {
                   let amenitiesList: string[] = []
                   try { imageList = typeof p.images === 'string' ? JSON.parse(p.images) : (p.images || []) } catch (e) { imageList = [] }
                   try { 
-                    if (typeof p.amenities === 'string') {
-                      amenitiesList = p.amenities.startsWith('[') ? JSON.parse(p.amenities) : p.amenities.split(',').map((s: string) => s.trim()).filter(Boolean)
-                    } else if (Array.isArray(p.amenities)) {
+                    if (Array.isArray(p.amenities)) {
                       amenitiesList = p.amenities
+                    } else if (typeof p.amenities === 'string') {
+                      if (p.amenities.startsWith('{') && p.amenities.endsWith('}')) {
+                        amenitiesList = p.amenities.slice(1, -1).split(',').map(s => s.replace(/^"(.*)"$/, '$1').trim()).filter(Boolean)
+                      } else if (p.amenities.startsWith('[')) {
+                        amenitiesList = JSON.parse(p.amenities)
+                      } else {
+                        amenitiesList = p.amenities.split(',').map(s => s.trim()).filter(Boolean)
+                      }
                     }
                   } catch (e) { 
                     amenitiesList = [] 
