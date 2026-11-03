@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase'
 export default function HostOperationsPage() {
   const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tasks' | 'ledger'>('bookings')
   
-  // Data States
   const [bookings, setBookings] = useState<any[]>([])
   const [properties, setProperties] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([
@@ -40,14 +39,47 @@ export default function HostOperationsPage() {
     setLoading(false)
   }
 
-  // Helper to trigger direct WhatsApp chat with guest
+  // Helper to parse messy combined strings from Supabase if needed
+  const parseBookingData = (b: any) => {
+    let rawName = b.guest_name || b.name || ''
+    
+    // If guest_name contains the combined string format
+    if (rawName.includes('Prop:')) {
+      const getVal = (label: string) => {
+        const parts = rawName.split('|')
+        const found = parts.find((p: string) => p.includes(label))
+        return found ? found.split(':')[1]?.trim() : ''
+      }
+      return {
+        propertyTitle: getVal('Prop') || 'Property Stay',
+        guestName: getVal('Guest') || 'Guest',
+        phone: getVal('Ph') || b.phone || '+256726797237',
+        demographic: getVal('Demo') || 'Couple with Kids',
+        guestsCount: getVal('Guests') || '2',
+        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : '2026-11-12 → 2026-12-14',
+        notes: getVal('Notes') || b.notes || 'need airport pickup',
+        status: b.status || 'Confirmed'
+      }
+    }
+
+    return {
+      propertyTitle: b.property_title || b.property || 'Property Stay',
+      guestName: rawName || 'Guest',
+      phone: b.phone || b.contact || '+256726797237',
+      demographic: b.demographic || 'Couple with Kids',
+      guestsCount: b.guests || '2',
+      dates: b.check_in ? `${b.check_in} → ${b.check_out}` : '2026-11-12 → 2026-12-14',
+      notes: b.notes || b.special_requests || 'need airport pickup',
+      status: b.status || 'Confirmed'
+    }
+  }
+
   const openWhatsApp = (phone: string, guestName: string, property: string) => {
-    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : ''
+    const cleanPhone = phone ? phone.replace(/[^0-9+]/g, '') : ''
     const message = encodeURIComponent(`Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at ${property}!`)
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank')
   }
 
-  // Delete booking handler
   const deleteBooking = async (id: number) => {
     await supabase.from('bookings').delete().eq('id', id)
     setBookings(bookings.filter(b => b.id !== id))
@@ -139,81 +171,73 @@ export default function HostOperationsPage() {
               ) : (
                 <div className="space-y-6">
                   {bookings.map((b) => {
-                    const guestName = b.guest_name || b.name || 'Guest'
-                    const phone = b.phone || b.contact || '+256...'
-                    const propertyTitle = b.property_title || b.property || 'Property Stay'
-                    const demographic = b.demographic || 'Couple with Kids'
-                    const guestsCount = b.guests || 2
-                    const checkIn = b.check_in || '2026-11-12'
-                    const checkOut = b.check_out || '2026-12-14'
-                    const notes = b.notes || b.special_requests || 'need airport pickup'
-                    const status = b.status || 'Confirmed'
+                    const parsed = parseBookingData(b)
 
                     return (
                       <div
                         key={b.id}
-                        className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-2xl relative overflow-hidden"
+                        className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-2xl relative overflow-hidden max-w-3xl"
                       >
                         {/* CARD HEADER WITH PROPERTY & STATUS BADGE */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-900 pb-4">
-                          <h4 className="font-black text-white text-base sm:text-lg tracking-tight">
-                            {propertyTitle}
+                          <h4 className="font-black text-white text-base sm:text-lg tracking-tight truncate max-w-xl">
+                            {parsed.propertyTitle}
                           </h4>
                           <span className={`px-3 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase self-start sm:self-auto ${
-                            status === 'Confirmed' 
+                            parsed.status === 'Confirmed' 
                               ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
                               : 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
                           }`}>
-                            {status}
+                            {parsed.status}
                           </span>
                         </div>
 
                         {/* DETAILS LIST */}
-                        <div className="space-y-3 text-xs sm:text-sm text-neutral-300">
+                        <div className="space-y-3 text-xs sm:text-sm text-neutral-300 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800/80">
                           <div className="flex items-center gap-2">
                             <span className="text-base">👤</span>
                             <span className="text-neutral-400 font-semibold">Guest Name:</span>
-                            <span className="font-bold text-white">{guestName}</span>
+                            <span className="font-bold text-white">{parsed.guestName}</span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <span className="text-base">💬</span>
                             <span className="text-neutral-400 font-semibold">WhatsApp:</span>
-                            <span className="font-bold text-emerald-400 font-mono">{phone}</span>
+                            <span className="font-bold text-emerald-400 font-mono">{parsed.phone}</span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <span className="text-base">👥</span>
                             <span className="text-neutral-400 font-semibold">Demographic:</span>
-                            <span className="font-bold text-neutral-200">{demographic}</span>
+                            <span className="font-bold text-neutral-200">{parsed.demographic}</span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <span className="text-base">👨‍👩‍👧</span>
                             <span className="text-neutral-400 font-semibold">Guests:</span>
-                            <span className="font-bold text-neutral-200">{guestsCount}</span>
+                            <span className="font-bold text-neutral-200">{parsed.guestsCount}</span>
                           </div>
 
                           <div className="flex items-center gap-2">
                             <span className="text-base">📅</span>
                             <span className="text-neutral-400 font-semibold">Dates:</span>
-                            <span className="font-bold text-neutral-200">{checkIn} → {checkOut}</span>
+                            <span className="font-bold text-neutral-200">{parsed.dates}</span>
                           </div>
                         </div>
 
                         {/* GUEST NOTES BOX */}
-                        <div className="p-3.5 bg-neutral-900 border border-amber-500/20 rounded-xl flex items-start gap-2.5">
+                        <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
                           <span className="text-base">📄</span>
                           <div>
                             <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">Guest Notes: </span>
-                            <span className="text-xs text-neutral-300 font-medium">{notes}</span>
+                            <span className="text-xs text-neutral-300 font-medium">{parsed.notes}</span>
                           </div>
                         </div>
 
                         {/* ACTION BUTTONS */}
                         <div className="space-y-3 pt-2">
                           <button
-                            onClick={() => openWhatsApp(phone, guestName, propertyTitle)}
+                            onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle)}
                             className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
                           >
                             💬 Message Guest on WhatsApp
@@ -222,12 +246,12 @@ export default function HostOperationsPage() {
                           <div className="grid grid-cols-2 gap-3">
                             <button
                               onClick={() => {
-                                const updated = bookings.map(item => item.id === b.id ? { ...item, status: status === 'Confirmed' ? 'Pending' : 'Confirmed' } : item)
+                                const updated = bookings.map(item => item.id === b.id ? { ...item, status: parsed.status === 'Confirmed' ? 'Pending' : 'Confirmed' } : item)
                                 setBookings(updated)
                               }}
                               className="py-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl border border-neutral-800 transition cursor-pointer flex items-center justify-center gap-1.5"
                             >
-                              🔄 {status === 'Confirmed' ? 'Mark Pending' : 'Mark Confirmed'}
+                              🔄 {parsed.status === 'Confirmed' ? 'Mark Pending' : 'Mark Confirmed'}
                             </button>
 
                             <button
