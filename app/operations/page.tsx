@@ -723,4 +723,58 @@ export default function OperationsPortal() {
 
               <div>
                 <label className="text-[10px] text-neutral-400 font-bold block mb-1">DESCRIPTION</label>
-                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg
+                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
+              </div>
+
+              {/* AMENITIES CHECKLIST SELECTOR */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="text-[10px] text-amber-500 font-extrabold block uppercase tracking-wider">
+                  ✨ Select Property Amenities
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                  {AVAILABLE_AMENITIES.map(amenity => {
+                    const isSelected = selectedAmenities.includes(amenity)
+                    return (
+                      <button
+                        type="button"
+                        key={amenity}
+                        onClick={() => toggleAmenity(amenity)}
+                        className={`p-2 rounded-lg text-[11px] font-bold text-left transition cursor-pointer flex items-center justify-between ${
+                          isSelected ? 'bg-amber-500 text-black shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="line-clamp-1">{amenity}</span>
+                        {isSelected && <span>✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* GALLERY UPLOADER */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="text-[10px] text-amber-500 font-extrabold block uppercase">📷 Upload Gallery Photos</label>
+                <input type="file" multiple accept="image/*" onChange={e => setSelectedFiles(e.target.files)} className="w-full text-xs text-neutral-400 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-amber-500 file:text-black font-bold cursor-pointer" />
+                {uploading && <p className="text-xs text-amber-500 animate-pulse">Uploading photos...</p>}
+              </div>
+
+              <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
+                {editingProperty ? (
+                  <button type="button" onClick={() => handleDeleteProperty(editingProperty.id)} className="text-xs text-red-500 font-bold cursor-pointer">Delete Property</button>
+                ) : <div />}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="px-4 py-2 bg-neutral-800 text-xs text-white rounded-xl cursor-pointer">Cancel</button>
+                  <button type="submit" disabled={loading || uploading} className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl cursor-pointer">
+                    {loading || uploading ? 'Saving...' : 'Save Property'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </main>
+  )
+}
