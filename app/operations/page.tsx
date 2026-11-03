@@ -5,48 +5,39 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
+import UpsellMotionSlider from '../components/UpsellMotionSlider'
 import { supabase } from '@/lib/supabase'
 
-export default function OperationsPortal() {
-  const [activeTab, setActiveTab] = useState('bookings')
-  const [properties, setProperties] = useState<any[]>([])
+export default function HostOperationsPage() {
+  const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tasks' | 'ledger'>('bookings')
+  
+  // Data States
   const [bookings, setBookings] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
-  const [financials, setFinancials] = useState<any[]>([])
-  const [services, setServices] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [properties, setProperties] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([
+    { id: 1, title: 'Clean Turnover - Entebbe Unit', priority: 'High', status: 'Pending', assignedTo: 'Housekeeping', date: 'Today' },
+    { id: 2, title: 'Refill Cooking Gas - Kisaasi Apt', priority: 'Medium', status: 'Completed', assignedTo: 'Maintenance', date: 'Yesterday' }
+  ])
+  const [bills, setBills] = useState<any[]>([
+    { id: 1, description: 'Monthly Wi-Fi Internet', amount: '$50', status: 'Paid', date: 'Nov 1' },
+    { id: 2, description: 'Deep Cleaning Service', amount: '$30', status: 'Pending', date: 'Nov 2' }
+  ])
+
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchAllData()
+    fetchPortalData()
   }, [])
 
-  const fetchAllData = async () => {
+  const fetchPortalData = async () => {
     setLoading(true)
-    const [propRes, bookRes, taskRes, finRes, servRes] = await Promise.all([
-      supabase.from('properties').select('*').order('id', { ascending: false }),
-      supabase.from('bookings').select('*').order('id', { ascending: false }),
-      supabase.from('tasks').select('*').order('id', { ascending: false }),
-      supabase.from('financials').select('*').order('id', { ascending: false }),
-      supabase.from('services').select('*').order('id', { ascending: false })
-    ])
+    const { data: bookingData } = await supabase.from('bookings').select('*').order('id', { ascending: false })
+    if (bookingData) setBookings(bookingData)
 
-    if (propRes.data) setProperties(propRes.data)
-    if (bookRes.data) setBookings(bookRes.data)
-    if (taskRes.data) setTasks(taskRes.data)
-    if (finRes.data) setFinancials(finRes.data)
-    if (servRes.data) setServices(servRes.data)
+    const { data: propertyData } = await supabase.from('properties').select('*').order('id', { ascending: false })
+    if (propertyData) setProperties(propertyData)
+
     setLoading(false)
-  }
-
-  const handleUpdateBookingStatus = async (id: number, status: string) => {
-    await supabase.from('bookings').update({ status }).eq('id', id)
-    fetchAllData()
-  }
-
-  const handleDeleteBooking = async (id: number) => {
-    if (!confirm('Delete booking?')) return
-    await supabase.from('bookings').delete().eq('id', id)
-    fetchAllData()
   }
 
   return (
@@ -54,156 +45,168 @@ export default function OperationsPortal() {
       <div>
         <HeaderNav />
 
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-4">
-          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-            La Estancia Host Operations Portal
-          </h1>
-          <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-            Centralized PMS: Manage Bookings, Properties, and Operations.
-          </p>
+        {/* PORTAL HEADER */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
+                La Estancia Host Operations Portal
+              </h1>
+              <p className="text-xs sm:text-sm text-neutral-400 mt-1">
+                Centralized PMS: Manage Bookings, Properties, Upsells, Tasks, and Financial Ledgers.
+              </p>
+            </div>
+          </div>
+        </section>
 
-          <div className="flex flex-wrap items-center gap-2 pt-6 border-b border-neutral-800 pb-4">
+        {/* 🚀 UPSELL MOTION AD SLIDER */}
+        <UpsellMotionSlider />
+
+        {/* MAIN DASHBOARD CONTENT */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+          
+          {/* NAVIGATION TABS */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-4">
             <button
               onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg font-black' : 'bg-neutral-900 text-neutral-400 border border-neutral-800'
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === 'bookings'
+                  ? 'bg-amber-500 text-black shadow-lg'
+                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               📅 Bookings ({bookings.length})
             </button>
+
             <button
               onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg font-black' : 'bg-neutral-900 text-neutral-400 border border-neutral-800'
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === 'properties'
+                  ? 'bg-amber-500 text-black shadow-lg'
+                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               🏠 Properties ({properties.length})
             </button>
+
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === 'tasks'
+                  ? 'bg-amber-500 text-black shadow-lg'
+                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              🧹 Staff Tasks ({tasks.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                activeTab === 'ledger'
+                  ? 'bg-amber-500 text-black shadow-lg'
+                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              💰 Financial Ledger ({bills.length})
+            </button>
           </div>
-        </section>
 
-        {activeTab === 'bookings' && (
-          <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-            <h2 className="text-base font-extrabold text-white">Guest Reservation Requests</h2>
-            {bookings.length === 0 ? (
-              <div className="text-center py-20 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">
-                No reservation requests submitted yet.
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {bookings.map(b => {
-                  const status = b.status || 'Pending Host Review'
-                  const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
-                  const rawNameStr = b.guest_name || ''
-                  
-                  let parsedProperty = 'Requested Property'
-                  let parsedGuestName = rawNameStr
-                  let parsedPhone = ''
-                  let parsedDemographic = 'N/A'
-                  let parsedGuests = 'N/A'
-                  let parsedCheckIn = 'N/A'
-                  let parsedCheckOut = 'N/A'
-                  let parsedNotes = 'None'
-
-                  if (rawNameStr.includes('Prop: [')) {
-                    const propMatch = rawNameStr.match(/Prop:\s*\[(.*?)\]/)
-                    if (propMatch) parsedProperty = propMatch[1]
-
-                    const guestMatch = rawNameStr.match(/Guest:\s*(.*?)(?=\s*\||$)/)
-                    if (guestMatch) parsedGuestName = guestMatch[1].trim()
-
-                    const phMatch = rawNameStr.match(/Ph:\s*(.*?)(?=\s*\||$)/)
-                    if (phMatch) parsedPhone = phMatch[1].trim()
-
-                    const demoMatch = rawNameStr.match(/Demo:\s*(.*?)(?=\s*\||$)/)
-                    if (demoMatch) parsedDemographic = demoMatch[1].trim()
-
-                    const guestsMatch = rawNameStr.match(/Guests:\s*(.*?)(?=\s*\||$)/)
-                    if (guestsMatch) parsedGuests = guestsMatch[1].trim()
-
-                    const inMatch = rawNameStr.match(/In:\s*(.*?)(?=\s*\||$)/)
-                    if (inMatch) parsedCheckIn = inMatch[1].trim()
-
-                    const outMatch = rawNameStr.match(/Out:\s*(.*?)(?=\s*\||$)/)
-                    if (outMatch) parsedCheckOut = outMatch[1].trim()
-
-                    const notesMatch = rawNameStr.match(/Notes:\s*(.*?)(?=\s*\||$)/)
-                    if (notesMatch) parsedNotes = notesMatch[1].trim()
-                  }
-
-                  const cleanPhone = parsedPhone.replace(/[^0-9]/g, '')
-
-                  return (
-                    <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-extrabold text-white text-sm line-clamp-1">{parsedProperty}</h3>
-                          <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border ${
-                            isApproved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                          }`}>
-                            {status}
-                          </span>
-                        </div>
-                        <div className="text-xs text-neutral-300 space-y-2 bg-neutral-950 p-3.5 rounded-xl border border-neutral-800">
-                          <p>👤 <strong className="text-white">Guest Name:</strong> {parsedGuestName}</p>
-                          <p>💬 <strong className="text-white">WhatsApp:</strong> <span className={cleanPhone ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500'}>{cleanPhone ? `+${cleanPhone}` : 'Not provided'}</span></p>
-                          <p>👥 <strong className="text-amber-400">Demographic:</strong> {parsedDemographic}</p>
-                          <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {parsedGuests}</p>
-                          <p>📅 <strong className="text-white">Dates:</strong> {parsedCheckIn} → {parsedCheckOut}</p>
-                          <p>📝 <strong className="text-amber-400">Notes:</strong> {parsedNotes}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2 pt-3 border-t border-neutral-800">
-                        <button
-                          onClick={() => {
-                            const phoneToUse = cleanPhone || prompt('Enter guest WhatsApp number:')?.replace(/[^0-9]/g, '')
-                            if (!phoneToUse) return
-                            window.open(`https://api.whatsapp.com/send?phone=${phoneToUse}&text=Hello%20${parsedGuestName}`, '_blank')
-                          }}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow transition cursor-pointer"
-                        >
-                          💬 Message Guest on WhatsApp
-                        </button>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => handleUpdateBookingStatus(b.id, isApproved ? 'Pending Host Review' : 'Confirmed')}
-                            className="py-2 bg-neutral-800 hover:bg-neutral-700 text-xs font-bold text-neutral-300 rounded-xl cursor-pointer border border-neutral-700"
-                          >
-                            {isApproved ? '↩︎ Mark Pending' : '✓ Approve Stay'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteBooking(b.id)}
-                            className="py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl cursor-pointer border border-red-500/20"
-                          >
-                            🗑️ Delete
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {activeTab === 'properties' && (
-          <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-4">
-            <h2 className="text-base font-extrabold text-white">Properties List</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {properties.map(p => (
-                <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-2">
-                  <h3 className="font-extrabold text-white text-sm">{p.title}</h3>
-                  <p className="text-xs text-neutral-400">📍 {p.location}</p>
-                  <p className="text-xs text-amber-500 font-bold">${p.price_per_night || p.price} / night</p>
+          {/* TAB 1: BOOKINGS */}
+          {activeTab === 'bookings' && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="font-extrabold text-white text-base">Guest Reservation Requests</h3>
+              {loading ? (
+                <p className="text-xs text-neutral-500 animate-pulse">Loading reservation records...</p>
+              ) : bookings.length === 0 ? (
+                <div className="py-12 text-center text-neutral-500 text-xs font-bold">
+                  No reservation requests submitted yet.
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  {bookings.map(b => (
+                    <div key={b.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-neutral-300 space-y-1">
+                      <p className="font-bold text-amber-400">{b.guest_name}</p>
+                      <p className="text-[10px] text-neutral-500">Submitted: {new Date(b.created_at).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </section>
-        )}
+          )}
+
+          {/* TAB 2: PROPERTIES */}
+          {activeTab === 'properties' && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <div className="flex justify-between items-center">
+                <h3 className="font-extrabold text-white text-base">Property Listings Portfolio</h3>
+                <a href="/admin/add-property" className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-lg transition">
+                  + Add Property
+                </a>
+              </div>
+              {properties.length === 0 ? (
+                <p className="text-xs text-neutral-500 py-8 text-center">No properties added yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {properties.map(p => (
+                    <div key={p.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
+                      <h4 className="font-bold text-white text-sm">{p.title}</h4>
+                      <p className="text-xs text-amber-400 font-bold">${p.price_per_night || p.price || 0} / night</p>
+                      <p className="text-xs text-neutral-400">📍 {p.location || 'Uganda'}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: STAFF TASKS TRACKER */}
+          {activeTab === 'tasks' && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="font-extrabold text-white text-base">Automated Housekeeping & Staff Dispatch</h3>
+              <div className="space-y-3">
+                {tasks.map(t => (
+                  <div key={t.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
+                        {t.priority} Priority
+                      </span>
+                      <h4 className="font-extrabold text-white text-xs sm:text-sm inline">{t.title}</h4>
+                      <p className="text-xs text-neutral-400 mt-1">Assigned: {t.assignedTo} • Status: {t.status}</p>
+                    </div>
+                    <button className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 text-xs font-bold rounded-lg transition self-start sm:self-auto">
+                      📱 Dispatch on WhatsApp
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: FINANCIAL LEDGER */}
+          {activeTab === 'ledger' && (
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+              <h3 className="font-extrabold text-white text-base">Operational Bills & Financial Ledger</h3>
+              <div className="space-y-3">
+                {bills.map(bill => (
+                  <div key={bill.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between">
+                    <div>
+                      <h4 className="font-extrabold text-white text-xs sm:text-sm">{bill.description}</h4>
+                      <p className="text-xs text-neutral-400">{bill.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-extrabold text-amber-400 text-sm">{bill.amount}</p>
+                      <span className="text-[10px] font-bold text-neutral-500 uppercase">{bill.status}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+        </section>
       </div>
+
       <Footer />
     </main>
   )
