@@ -7,6 +7,21 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
+const AVAILABLE_AMENITIES = [
+  'Free High-Speed WiFi',
+  'Swimming Pool',
+  'Standby Generator / Inverter',
+  'Air Conditioning',
+  'Fully Equipped Kitchen',
+  'Private Parking',
+  '24/7 Security / CCTV',
+  'Washing Machine',
+  'Smart TV / Netflix',
+  'Balcony / City View',
+  'Gym / Fitness Center',
+  'Elevator Access'
+]
+
 export default function OperationsPortal() {
   const [activeTab, setActiveTab] = useState('properties')
 
@@ -27,6 +42,7 @@ export default function OperationsPortal() {
   const [propPrice, setPropPrice] = useState('')
   const [propLocation, setPropLocation] = useState('')
   const [propDescription, setPropDescription] = useState('')
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<string[]>([])
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
 
@@ -78,7 +94,14 @@ export default function OperationsPortal() {
     setLoading(false)
   }
 
-  // PROPERTY ACTIONS
+  const toggleAmenity = (amenity: string) => {
+    if (selectedAmenities.includes(amenity)) {
+      setSelectedAmenities(selectedAmenities.filter(a => a !== amenity))
+    } else {
+      setSelectedAmenities([...selectedAmenities, amenity])
+    }
+  }
+
   const uploadGalleryPhotos = async (files: FileList): Promise<string[]> => {
     setUploading(true)
     const uploadedUrls: string[] = []
@@ -112,6 +135,7 @@ export default function OperationsPortal() {
       price_per_night: parseFloat(propPrice) || 0,
       location: propLocation,
       description: propDescription,
+      amenities: JSON.stringify(selectedAmenities),
       images: JSON.stringify(finalImages)
     }
 
@@ -140,7 +164,6 @@ export default function OperationsPortal() {
     fetchAllData()
   }
 
-  // BOOKING ACTIONS
   const handleUpdateBookingStatus = async (id: number, status: string) => {
     await supabase.from('bookings').update({ status }).eq('id', id)
     fetchAllData()
@@ -152,7 +175,6 @@ export default function OperationsPortal() {
     fetchAllData()
   }
 
-  // TASK ACTIONS
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault()
     await supabase.from('tasks').insert([{
@@ -168,7 +190,6 @@ export default function OperationsPortal() {
     fetchAllData()
   }
 
-  // FINANCIAL ACTIONS
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
     await supabase.from('financials').insert([{
@@ -185,7 +206,6 @@ export default function OperationsPortal() {
     fetchAllData()
   }
 
-  // SERVICE ACTIONS
   const handleAddService = async (e: React.FormEvent) => {
     e.preventDefault()
     await supabase.from('services').insert([{
@@ -222,7 +242,7 @@ export default function OperationsPortal() {
               <button
                 onClick={() => {
                   setEditingProperty(null); setIsAddingNew(true); setPropTitle(''); setPropCategory('Apartment');
-                  setPropPrice(''); setPropLocation(''); setPropDescription(''); setExistingImages([]); setSelectedFiles(null);
+                  setPropPrice(''); setPropLocation(''); setPropDescription(''); setSelectedAmenities([]); setExistingImages([]); setSelectedFiles(null);
                 }}
                 className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
               >
@@ -296,11 +316,10 @@ export default function OperationsPortal() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {properties.map(p => {
                   let imageList: string[] = []
-                  try {
-                    imageList = typeof p.images === 'string' ? JSON.parse(p.images) : (p.images || [])
-                  } catch (e) {
-                    imageList = []
-                  }
+                  let amenitiesList: string[] = []
+                  try { imageList = typeof p.images === 'string' ? JSON.parse(p.images) : (p.images || []) } catch (e) { imageList = [] }
+                  try { amenitiesList = typeof p.amenities === 'string' ? JSON.parse(p.amenities) : (p.amenities || []) } catch (e) { amenitiesList = [] }
+
                   const mainImg = imageList.length > 0 ? imageList[0] : null
                   const displayPrice = p.price_per_night || p.nightly_price || p.price || 0
 
@@ -313,7 +332,7 @@ export default function OperationsPortal() {
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs font-bold">📷 No Photos</div>
                           )}
-                          <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md">
+                          <div className="absolute bottom-2 right-2 bg-black/85 text-white text-[10px] font-bold px-2 py-1 rounded-md">
                             📷 {imageList.length} Photos
                           </div>
                         </div>
@@ -322,6 +341,19 @@ export default function OperationsPortal() {
                           <h3 className="font-extrabold text-white text-sm line-clamp-1">{p.title}</h3>
                           <p className="text-xs text-neutral-400">📍 {p.location || 'Kampala, Uganda'}</p>
                           <p className="text-xs text-amber-500 font-extrabold">${displayPrice} / night</p>
+
+                          {amenitiesList.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {amenitiesList.slice(0, 3).map((a, i) => (
+                                <span key={i} className="text-[9px] bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-md">
+                                  ✓ {a}
+                                </span>
+                              ))}
+                              {amenitiesList.length > 3 && (
+                                <span className="text-[9px] text-neutral-500 font-bold self-center">+{amenitiesList.length - 3} more</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -330,11 +362,12 @@ export default function OperationsPortal() {
                           onClick={() => {
                             setEditingProperty(p); setIsAddingNew(false); setPropTitle(p.title || '');
                             setPropCategory(p.category || 'Apartment'); setPropPrice(String(p.price_per_night || p.price || ''));
-                            setPropLocation(p.location || ''); setPropDescription(p.description || ''); setExistingImages(imageList);
+                            setPropLocation(p.location || ''); setPropDescription(p.description || '');
+                            setSelectedAmenities(amenitiesList); setExistingImages(imageList);
                           }}
                           className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-bold text-xs rounded-xl border border-neutral-700 transition cursor-pointer"
                         >
-                          ✏️ Edit Property & Photos
+                          ✏️ Edit Property, Photos & Amenities
                         </button>
                       </div>
                     </div>
@@ -371,15 +404,16 @@ export default function OperationsPortal() {
                       <div className="text-xs text-neutral-300 space-y-1">
                         <p>👤 <strong className="text-white">Guest:</strong> {b.guest_name}</p>
                         <p>💬 <strong className="text-white">WhatsApp:</strong> {b.phone_number}</p>
+                        <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics || 'Standard'}</p>
                         <p>📅 <strong className="text-white">Dates:</strong> {b.check_in} to {b.check_out}</p>
                       </div>
                       <div className="space-y-2 pt-2 border-t border-neutral-800">
                         <button
                           onClick={() => {
                             const cleanPhone = (b.phone_number || '').replace(/[^0-9]/g, '')
-                            window.open(`https://wa.me/${cleanPhone}?text=Hello%20${b.guest_name},%20regarding%20your%20stay%20at%20La%20Estancia...`, '_blank')
+                            window.open(`https://wa.me/${cleanPhone}?text=Hello%20${b.guest_name},%20regarding%20your%20stay...`, '_blank')
                           }}
-                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl"
+                          className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl"
                         >
                           💬 Message Guest on WhatsApp
                         </button>
@@ -410,7 +444,7 @@ export default function OperationsPortal() {
         {activeTab === 'tasks' && (
           <section className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 h-fit shadow-xl">
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 h-fit">
                 <h2 className="text-sm font-extrabold text-white">Dispatch Task</h2>
                 <form onSubmit={handleAddTask} className="space-y-3">
                   <div>
@@ -431,19 +465,6 @@ export default function OperationsPortal() {
                       <input type="text" required value={taskStaffPhone} onChange={e => setTaskStaffPhone(e.target.value)} placeholder="+256..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">PRIORITY</label>
-                      <select value={taskPriority} onChange={e => setTaskPriority(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">DUE DATE</label>
-                      <input type="date" required value={taskDueDate} onChange={e => setTaskDueDate(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                    </div>
-                  </div>
                   <button type="submit" className="w-full py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Add Task</button>
                 </form>
               </div>
@@ -458,10 +479,7 @@ export default function OperationsPortal() {
                       <div key={t.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
                         <h3 className="font-extrabold text-white text-sm">{t.title}</h3>
                         <p className="text-xs text-neutral-400">🏠 {t.property_name} • 👤 {t.assignee_name}</p>
-                        <div className="flex gap-2">
-                          <button onClick={() => window.open(`https://wa.me/${(t.staff_phone||'').replace(/[^0-9]/g,'')}?text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">WhatsApp Staff</button>
-                          <button onClick={() => handleDeleteTask(t.id)} className="py-2 px-3 bg-red-500/10 text-red-400 text-xs font-bold rounded-xl">Delete</button>
-                        </div>
+                        <button onClick={() => window.open(`https://wa.me/${(t.staff_phone||'').replace(/[^0-9]/g,'')}?text=Task:%20${t.title}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">WhatsApp Staff</button>
                       </div>
                     ))}
                   </div>
@@ -541,12 +559,9 @@ export default function OperationsPortal() {
                           <p className="font-bold text-white text-xs">{f.title} <span className="text-[10px] text-neutral-400">({f.category})</span></p>
                           <p className="text-[10px] text-neutral-500">{f.date}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <span className={`font-black text-sm ${f.type === 'Income' ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {f.type === 'Income' ? '+' : '-'}${f.amount}
-                          </span>
-                          <button onClick={() => handleDeleteTransaction(f.id)} className="text-neutral-500 hover:text-red-400">✕</button>
-                        </div>
+                        <span className={`font-black text-sm ${f.type === 'Income' ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {f.type === 'Income' ? '+' : '-'}${f.amount}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -566,14 +581,6 @@ export default function OperationsPortal() {
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold block mb-1">SERVICE TITLE</label>
                     <input type="text" required value={serviceName} onChange={e => setServiceName(e.target.value)} placeholder="Airport Pickup" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold block mb-1">CATEGORY</label>
-                    <select value={serviceCategory} onChange={e => setServiceCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
-                      <option value="Transportation">Transportation</option>
-                      <option value="Dining & Meals">Dining & Meals</option>
-                      <option value="Cleaning & Laundry">Cleaning & Laundry</option>
-                    </select>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -596,18 +603,14 @@ export default function OperationsPortal() {
               <div className="lg:col-span-2 space-y-4">
                 <h2 className="text-sm font-extrabold text-white">Active Upsell Services</h2>
                 {services.length === 0 ? (
-                  <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">No services added yet.</div>
+                  <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl text-neutral-500 text-xs">No services added.</div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {services.map(s => (
                       <div key={s.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">{s.category}</span>
-                          <span className="font-black text-amber-500">${s.price}</span>
-                        </div>
                         <h3 className="font-extrabold text-white text-sm">{s.service_name}</h3>
-                        <p className="text-xs text-neutral-400">{s.company_name}</p>
-                        <button onClick={() => window.open(`https://wa.me/${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}?text=I%20want%20to%20book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">Book via WhatsApp</button>
+                        <p className="text-xs text-neutral-400">{s.company_name} • <strong className="text-amber-500">${s.price}</strong></p>
+                        <button onClick={() => window.open(`https://wa.me/${(s.whatsapp_contact||'').replace(/[^0-9]/g,'')}?text=Book%20${s.service_name}`, '_blank')} className="w-full py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">Book via WhatsApp</button>
                       </div>
                     ))}
                   </div>
@@ -619,24 +622,25 @@ export default function OperationsPortal() {
 
       </div>
 
-      {/* EDIT / ADD PROPERTY MODAL */}
+      {/* EDIT / ADD PROPERTY POPUP MODAL WITH AMENITIES SELECTOR */}
       {(editingProperty || isAddingNew) && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-4 my-8 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="font-extrabold text-white text-base">{isAddingNew ? 'Add Property' : 'Edit Property'}</h3>
-              <button onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="text-neutral-400 font-bold">✕</button>
+              <h3 className="font-extrabold text-white text-base">{isAddingNew ? 'Add New Property' : 'Edit Property & Amenities'}</h3>
+              <button onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="text-neutral-400 font-bold p-1">✕</button>
             </div>
 
             <form onSubmit={handleSaveProperty} className="space-y-3.5 max-h-[75vh] overflow-y-auto pr-1">
               <div>
-                <label className="text-[10px] text-neutral-400 font-bold block mb-1">TITLE</label>
-                <input type="text" required value={propTitle} onChange={e => setPropTitle(e.target.value)} placeholder="Luxury Villa" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
+                <label className="text-[10px] text-neutral-400 font-bold block mb-1">PROPERTY TITLE</label>
+                <input type="text" required value={propTitle} onChange={e => setPropTitle(e.target.value)} placeholder="Luxury Villa in Entebbe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] text-neutral-400 font-bold block mb-1">CATEGORY</label>
-                  <select value={propCategory} onChange={e => setPropCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white">
+                  <select value={propCategory} onChange={e => setPropCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white cursor-pointer">
                     <option value="Apartment">Apartment</option>
                     <option value="Standalone House">Standalone House</option>
                     <option value="Mansion">Mansion</option>
@@ -648,19 +652,47 @@ export default function OperationsPortal() {
                   <input type="number" required value={propPrice} onChange={e => setPropPrice(e.target.value)} placeholder="100" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
                 </div>
               </div>
+
               <div>
                 <label className="text-[10px] text-neutral-400 font-bold block mb-1">LOCATION</label>
-                <input type="text" required value={propLocation} onChange={e => setPropLocation(e.target.value)} placeholder="Entebbe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
-              </div>
-              <div>
-                <label className="text-[10px] text-neutral-400 font-bold block mb-1">DESCRIPTION</label>
-                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white resize-none" />
+                <input type="text" required value={propLocation} onChange={e => setPropLocation(e.target.value)} placeholder="Entebbe / Kisaasi" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white" />
               </div>
 
+              <div>
+                <label className="text-[10px] text-neutral-400 font-bold block mb-1">DESCRIPTION</label>
+                <textarea rows={3} value={propDescription} onChange={e => setPropDescription(e.target.value)} placeholder="Full stay details..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white resize-none" />
+              </div>
+
+              {/* AMENITIES CHECKLIST SELECTOR */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <label className="text-[10px] text-amber-500 font-extrabold block uppercase">Upload Gallery Photos</label>
+                <label className="text-[10px] text-amber-500 font-extrabold block uppercase tracking-wider">
+                  ✨ Select Property Amenities
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                  {AVAILABLE_AMENITIES.map(amenity => {
+                    const isSelected = selectedAmenities.includes(amenity)
+                    return (
+                      <button
+                        type="button"
+                        key={amenity}
+                        onClick={() => toggleAmenity(amenity)}
+                        className={`p-2 rounded-lg text-[11px] font-bold text-left transition cursor-pointer flex items-center justify-between ${
+                          isSelected ? 'bg-amber-500 text-black shadow' : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <span className="line-clamp-1">{amenity}</span>
+                        {isSelected && <span>✓</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* GALLERY UPLOADER */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="text-[10px] text-amber-500 font-extrabold block uppercase">📷 Upload Gallery Photos</label>
                 <input type="file" multiple accept="image/*" onChange={e => setSelectedFiles(e.target.files)} className="w-full text-xs text-neutral-400 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-amber-500 file:text-black font-bold cursor-pointer" />
-                {uploading && <p className="text-xs text-amber-500 animate-pulse">Uploading...</p>}
+                {uploading && <p className="text-xs text-amber-500 animate-pulse">Uploading photos...</p>}
               </div>
 
               <div className="flex justify-between items-center pt-3 border-t border-neutral-800">
@@ -669,7 +701,7 @@ export default function OperationsPortal() {
                 ) : <div />}
                 <div className="flex gap-2">
                   <button type="button" onClick={() => { setEditingProperty(null); setIsAddingNew(false); }} className="px-4 py-2 bg-neutral-800 text-xs text-white rounded-xl">Cancel</button>
-                  <button type="submit" disabled={loading || uploading} className="px-5 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save</button>
+                  <button type="submit" disabled={loading || uploading} className="px-5 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl">Save Property</button>
                 </div>
               </div>
             </form>
