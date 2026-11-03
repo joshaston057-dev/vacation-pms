@@ -305,24 +305,42 @@ export default function OperationsPortal() {
                   const isApproved = status.toLowerCase().includes('confirm') || status.toLowerCase().includes('approv')
                   
                   const rawNameStr = b.guest_name || ''
+                  let parsedProperty = b.property_name || b.property || b.title || 'the requested property'
                   let parsedGuestName = rawNameStr
                   let parsedPhone = b.phone_number || b.phone || b.whatsapp || b.contact || b.guest_phone || b.mobile || ''
+                  let parsedDemographic = b.demographics || ''
+                  let parsedGuests = b.guest_count || ''
+                  let parsedNotes = b.special_requests || b.notes || b.message || ''
 
-                  if (rawNameStr.includes('| Ph:')) {
-                    const parts = rawNameStr.split('| Ph:')
-                    parsedGuestName = parts[0].trim()
-                    if (!parsedPhone) parsedPhone = parts[1].trim()
+                  if (rawNameStr.includes('Prop: [')) {
+                    const propMatch = rawNameStr.match(/Prop:\s*\[(.*?)\]/)
+                    if (propMatch) parsedProperty = propMatch[1]
+
+                    const guestMatch = rawNameStr.match(/Guest:\s*(.*?)(?=\s*\||$)/)
+                    if (guestMatch) parsedGuestName = guestMatch[1].trim()
+
+                    const phMatch = rawNameStr.match(/Ph:\s*(.*?)(?=\s*\||$)/)
+                    if (phMatch) parsedPhone = phMatch[1].trim()
+
+                    const demoMatch = rawNameStr.match(/Demo:\s*(.*?)(?=\s*\||$)/)
+                    if (demoMatch) parsedDemographic = demoMatch[1].trim()
+
+                    const guestsMatch = rawNameStr.match(/Guests:\s*(.*?)(?=\s*\||$)/)
+                    if (guestsMatch) parsedGuests = guestsMatch[1].trim()
+
+                    const notesMatch = rawNameStr.match(/Notes:\s*(.*?)(?=\s*\||$)/)
+                    if (notesMatch) parsedNotes = notesMatch[1].trim()
                   }
 
                   const cleanPhone = parsedPhone.replace(/[^0-9]/g, '')
-                  const propName = b.property_name || b.property || b.title || 'the requested property'
-                  const guestNotes = b.special_requests || b.notes || b.message || b.comment || ''
+                  const checkInDate = b.check_in || 'N/A'
+                  const checkOutDate = b.check_out || 'N/A'
 
                   return (
                     <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-extrabold text-white text-sm line-clamp-1">{propName}</h3>
+                          <h3 className="font-extrabold text-white text-sm line-clamp-1">{parsedProperty}</h3>
                           <span className={`px-2.5 py-1 text-[10px] font-bold rounded-lg border flex-shrink-0 ${
                             isApproved ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                           }`}>
@@ -331,41 +349,37 @@ export default function OperationsPortal() {
                         </div>
                         <div className="text-xs text-neutral-300 space-y-2 bg-neutral-950 p-3.5 rounded-xl border border-neutral-800/80">
                           <p>👤 <strong className="text-white">Guest Name:</strong> {parsedGuestName || 'N/A'}</p>
-                          <p>💬 <strong className="text-white">WhatsApp Contact:</strong> <span className={parsedPhone ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{parsedPhone || 'Not provided'}</span></p>
-                          {b.demographics && <p>👥 <strong className="text-amber-400">Demographic:</strong> {b.demographics}</p>}
-                          {b.guest_count && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {b.guest_count}</p>}
-                          <p>📅 <strong className="text-white">Dates:</strong> {b.check_in || 'N/A'} → {b.check_out || 'N/A'}</p>
+                          <p>💬 <strong className="text-white">WhatsApp:</strong> <span className={cleanPhone ? 'text-emerald-400 font-mono font-bold' : 'text-neutral-500 italic'}>{cleanPhone ? `+${cleanPhone}` : 'Not provided'}</span></p>
+                          {parsedDemographic && <p>👥 <strong className="text-amber-400">Demographic:</strong> {parsedDemographic}</p>}
+                          {parsedGuests && <p>👨‍👩‍👧 <strong className="text-white">Guests:</strong> {parsedGuests}</p>}
+                          <p>📅 <strong className="text-white">Dates:</strong> {checkInDate} → {checkOutDate}</p>
                           
                           <div className={`p-2.5 rounded-lg border text-xs leading-relaxed ${
-                            guestNotes ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-500 italic'
+                            parsedNotes && parsedNotes !== 'None' ? 'bg-amber-500/10 border-amber-500/30 text-amber-300 font-semibold' : 'bg-neutral-900 border-neutral-800 text-neutral-500 italic'
                           }`}>
-                            📝 <strong className="text-amber-400">Guest Notes:</strong> {guestNotes || 'No special requests provided by guest.'}
+                            📝 <strong className="text-amber-400">Guest Notes:</strong> {parsedNotes || 'No special requests provided.'}
                           </div>
                         </div>
                       </div>
 
                       <div className="space-y-2 pt-3 border-t border-neutral-800">
+                        {/* CLEAN & UNCONGESTED WHATSAPP BUTTON */}
                         <button
                           onClick={() => {
-                            if (!cleanPhone) {
-                              const manualPhone = prompt('Enter guest WhatsApp number (e.g. +256700000000):')
-                              if (manualPhone) {
-                                const cleaned = manualPhone.replace(/[^0-9]/g, '')
-                                const textMsg = encodeURIComponent(
-                                  `Hello ${parsedGuestName || 'Guest'}! Thank you for reserving ${propName} with La Estancia.`
-                                )
-                                window.open(`https://api.whatsapp.com/send?phone=${cleaned}&text=${textMsg}`, '_blank')
-                              }
-                              return
+                            let phoneToUse = cleanPhone
+                            if (!phoneToUse) {
+                              const manual = prompt('Enter guest WhatsApp number (e.g. +256700000000):')
+                              if (manual) phoneToUse = manual.replace(/[^0-9]/g, '')
+                              else return
                             }
                             const textMsg = encodeURIComponent(
-                              `Hello ${parsedGuestName || 'Guest'}! Thank you for reserving ${propName} with La Estancia. We are reviewing your check-in dates (${b.check_in || 'tbd'} to ${b.check_out || 'tbd'}).`
+                              `Hello ${parsedGuestName || 'Guest'}! Thank you for reserving ${parsedProperty} with La Estancia. We received your note: "${parsedNotes || 'None'}".`
                             )
-                            window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${textMsg}`, '_blank')
+                            window.open(`https://api.whatsapp.com/send?phone=${phoneToUse}&text=${textMsg}`, '_blank')
                           }}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-2"
                         >
-                          💬 Message Guest on WhatsApp {parsedPhone ? `(${parsedPhone})` : '(Enter Number)'}
+                          💬 Message Guest on WhatsApp
                         </button>
 
                         <div className="grid grid-cols-2 gap-2">
