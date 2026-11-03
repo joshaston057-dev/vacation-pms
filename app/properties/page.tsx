@@ -52,9 +52,9 @@ export default function PublicPropertiesPage() {
     setLoading(true)
 
     let payload: any = {
-      property_name: selectedProperty.title,
+      property: selectedProperty.title,
       guest_name: guestName,
-      whatsapp: guestContact,
+      phone_number: guestContact,
       demographics: demographics,
       guest_count: parseInt(guestCount) || 1,
       check_in: checkIn,
@@ -65,23 +65,22 @@ export default function PublicPropertiesPage() {
 
     let { error } = await supabase.from('bookings').insert([payload])
 
-    if (error && (error.message.includes('whatsapp') || error.message.includes('column'))) {
-      delete payload.whatsapp
-      payload.phone_number = guestContact
+    if (error && error.message.includes('property')) {
+      delete payload.property
+      payload.property_name = selectedProperty.title
       let retry = await supabase.from('bookings').insert([payload])
       error = retry.error
 
       if (error) {
-        delete payload.phone_number
-        payload.phone = guestContact
-        let retryPhone = await supabase.from('bookings').insert([payload])
-        error = retryPhone.error
+        delete payload.property_name
+        payload.title = selectedProperty.title
+        let retryTitle = await supabase.from('bookings').insert([payload])
+        error = retryTitle.error
       }
     }
 
     if (error) {
       const basicPayload = {
-        property_name: selectedProperty.title,
         guest_name: guestName,
         check_in: checkIn,
         check_out: checkOut,
