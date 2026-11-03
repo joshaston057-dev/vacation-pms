@@ -34,16 +34,25 @@ export default function HostOperationsPage() {
     if (bookingData) setBookings(bookingData)
 
     const { data: propertyData } = await supabase.from('properties').select('*').order('id', { ascending: false })
-    if (propertyData) setProperties(propertyData)
+    
+    // Default properties fallback if database table is currently empty
+    if (propertyData && propertyData.length > 0) {
+      setProperties(propertyData)
+    } else {
+      setProperties([
+        { id: 101, title: '2 Bedroom Fully Furnished Airbnb Apartment', location: 'Ntinda, Kampala', price: 45, category: 'Apartment', status: 'Active' },
+        { id: 102, title: '5 Bedroom Fully Furnished Mansion', location: 'Entebbe', price: 70, category: 'Mansion', status: 'Active' },
+        { id: 103, title: '3 Bedroom Luxury Villa for Rent', location: 'Munyonyo', price: 70, category: 'Villa', status: 'Active' },
+        { id: 104, title: 'Furnished Short-Stay Studio', location: 'Kisaasi, Kampala', price: 35, category: 'Apartment', status: 'Active' }
+      ])
+    }
 
     setLoading(false)
   }
 
-  // Helper to parse messy combined strings from Supabase if needed
   const parseBookingData = (b: any) => {
     let rawName = b.guest_name || b.name || ''
     
-    // If guest_name contains the combined string format
     if (rawName.includes('Prop:')) {
       const getVal = (label: string) => {
         const parts = rawName.split('|')
@@ -104,7 +113,7 @@ export default function HostOperationsPage() {
           </div>
         </section>
 
-        {/* 🚀 UPSELL MOTION AD SLIDER */}
+        {/* 🚀 UPSELL & OPERATIONS MOTION SLIDER */}
         <UpsellMotionSlider />
 
         {/* MAIN DASHBOARD CONTENT */}
@@ -178,7 +187,6 @@ export default function HostOperationsPage() {
                         key={b.id}
                         className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-2xl relative overflow-hidden max-w-3xl"
                       >
-                        {/* CARD HEADER WITH PROPERTY & STATUS BADGE */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-900 pb-4">
                           <h4 className="font-black text-white text-base sm:text-lg tracking-tight truncate max-w-xl">
                             {parsed.propertyTitle}
@@ -192,7 +200,6 @@ export default function HostOperationsPage() {
                           </span>
                         </div>
 
-                        {/* DETAILS LIST */}
                         <div className="space-y-3 text-xs sm:text-sm text-neutral-300 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800/80">
                           <div className="flex items-center gap-2">
                             <span className="text-base">👤</span>
@@ -225,7 +232,6 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        {/* GUEST NOTES BOX */}
                         <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
                           <span className="text-base">📄</span>
                           <div>
@@ -234,7 +240,6 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        {/* ACTION BUTTONS */}
                         <div className="space-y-3 pt-2">
                           <button
                             onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle)}
@@ -273,21 +278,48 @@ export default function HostOperationsPage() {
 
           {/* TAB 2: PROPERTIES */}
           {activeTab === 'properties' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
-              {properties.length === 0 ? (
-                <p className="text-xs text-neutral-500 py-8 text-center">No properties added yet.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {properties.map((p) => (
-                    <div key={p.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-2">
-                      <h4 className="font-bold text-white text-sm">{p.title}</h4>
-                      <p className="text-xs text-amber-400 font-bold">${p.price_per_night || p.price || 0} / night</p>
-                      <p className="text-xs text-neutral-400">📍 {p.location || 'Uganda'}</p>
-                    </div>
-                  ))}
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+                <div>
+                  <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
+                  <p className="text-xs text-neutral-400">Manage rates, status, and active listings across Entebbe, Munyonyo, and Ntinda.</p>
                 </div>
-              )}
+                <button
+                  onClick={() => alert('Add Property Modal / Navigation route: /admin/add-property')}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition self-start sm:self-auto cursor-pointer"
+                >
+                  + Add New Property
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+                {properties.map((p) => (
+                  <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                          {p.category || 'Short-Stay'}
+                        </span>
+                        <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
+                        <p className="text-xs text-neutral-400 font-medium">📍 {p.location || 'Uganda'}</p>
+                      </div>
+                      <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold text-[10px] rounded-full uppercase">
+                        {p.status || 'Active'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
+                      <div>
+                        <span className="text-neutral-500 font-medium">Nightly Rate: </span>
+                        <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night || 45} / night</span>
+                      </div>
+                      <a href="/properties" className="text-neutral-400 hover:text-white font-bold transition">
+                        View Details →
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
