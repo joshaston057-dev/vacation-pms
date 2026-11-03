@@ -49,7 +49,10 @@ export default function PublicPropertiesPage() {
     e.preventDefault()
     if (!selectedProperty) return
 
-    const newBooking = {
+    setLoading(true)
+
+    // Primary payload matching all fields
+    const fullBooking: any = {
       property_name: selectedProperty.title,
       guest_name: guestName,
       phone_number: guestContact,
@@ -61,10 +64,33 @@ export default function PublicPropertiesPage() {
       status: 'Pending Host Review'
     }
 
-    const { error } = await supabase.from('bookings').insert([newBooking])
+    // Try full insert
+    let { error } = await supabase.from('bookings').insert([fullBooking])
+
+    // Fallback 1: If 'phone_number' column is named 'phone' in your database
+    if (error && error.message.toLowerCase().includes('phone_number')) {
+      delete fullBooking.phone_number
+      fullBooking.phone = guestContact
+      const retry = await supabase.from('bookings').insert([fullBooking])
+      error = retry.error
+    }
+
+    // Fallback 2: If optional columns aren't in Supabase schema yet
+    if (error) {
+      const basicBooking: any = {
+        property_name: selectedProperty.title,
+        guest_name: guestName,
+        phone_number: guestContact,
+        check_in: checkIn,
+        check_out: checkOut,
+        status: 'Pending Host Review'
+      }
+      const retryBasic = await supabase.from('bookings').insert([basicBooking])
+      error = retryBasic.error
+    }
 
     if (error) {
-      alert('Failed to submit reservation.')
+      alert('Error submitting reservation: ' + error.message)
     } else {
       setBookingSubmitted(true)
       setTimeout(() => {
@@ -77,6 +103,7 @@ export default function PublicPropertiesPage() {
         setSpecialRequests('')
       }, 2500)
     }
+    setLoading(false)
   }
 
   return (
@@ -94,7 +121,7 @@ export default function PublicPropertiesPage() {
         </section>
 
         <section className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-          {loading ? (
+          {loading && properties.length === 0 ? (
             <div className="text-center py-20 text-neutral-500 text-sm font-bold animate-pulse">Loading properties...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -102,7 +129,21 @@ export default function PublicPropertiesPage() {
                 let imageList: string[] = []
                 let amenitiesList: string[] = []
                 try { imageList = typeof property.images === 'string' ? JSON.parse(property.images) : (property.images || []) } catch (e) { imageList = [] }
-                try { amenitiesList = typeof property.amenities === 'string' ? JSON.parse(property.amenities) : (property.amenities || []) } catch (e) { amenitiesList = [] }
+                try { 
+                  if (Array.isArray(property.amenities)) {
+                    amenitiesList = property.amenities
+                  } else if (typeof property.amenities === 'string') {
+                    if (property.amenities.startsWith('{') && property.amenities.endsWith('}')) {
+                      amenitiesList = property.amenities.slice(1, -1).split(',').map(s => s.replace(/^"(.*)"$/, '$1').trim()).filter(Boolean)
+                    } else if (property.amenities.startsWith('[')) {
+                      amenitiesList = JSON.parse(property.amenities)
+                    } else {
+                      amenitiesList = property.amenities.split(',').map(s => s.trim()).filter(Boolean)
+                    }
+                  }
+                } catch (e) { 
+                  amenitiesList = [] 
+                }
 
                 const mainImage = imageList.length > 0 ? imageList[0] : null
                 const displayPrice = property.price_per_night || property.nightly_price || property.price || 0
@@ -250,8 +291,8 @@ export default function PublicPropertiesPage() {
                     <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need baby cot, airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
                   </div>
 
-                  <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2">
-                    Submit Private Reservation Request
+                  <button type="submit" disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2">
+                    {loading ? 'Submitting Reservation...' : 'Submit Private Reservation Request'}
                   </button>
                 </form>
               )}
