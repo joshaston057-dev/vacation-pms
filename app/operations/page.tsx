@@ -88,6 +88,41 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
+  // AUTOMATED CASH / MOMO APPROVAL TRIGGER
+  const handleApproveBooking = async (b: any) => {
+    const parsed = parseBookingData(b)
+    
+    try {
+      const response = await fetch('/api/approve-booking', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: b.id,
+          amountPaid: b.total_price || b.paid_amount || 150,
+          paymentMethod: 'MoMo / Cash',
+          guestName: parsed.guestName,
+          phone: parsed.phone,
+          propertyTitle: parsed.propertyTitle,
+          checkIn: b.check_in || '2026-11-12',
+          checkOut: b.check_out || '2026-12-14',
+          demographic: parsed.demographic
+        })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        alert(`✅ Payment Approved! Access Door Code Generated: ${result.doorCode}`)
+        window.open(result.whatsappUrl, '_blank')
+        fetchPortalData()
+      } else {
+        alert('Approval error: ' + result.error)
+      }
+    } catch (err) {
+      alert('Network error while executing booking approval.')
+    }
+  }
+
   const deleteBooking = async (id: number) => {
     await supabase.from('bookings').delete().eq('id', id)
     setBookings(bookings.filter(b => b.id !== id))
@@ -231,148 +266,4 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
-                          <span className="text-base">📄</span>
-                          <div>
-                            <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">GUEST NOTES: </span>
-                            <span className="text-xs text-neutral-300 font-medium">{parsed.notes}</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 pt-2">
-                          <button
-                            onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle)}
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
-                          >
-                            💬 Message Guest on WhatsApp
-                          </button>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              onClick={() => {
-                                const updated = bookings.map(item => item.id === b.id ? { ...item, status: parsed.status === 'Confirmed' ? 'Pending' : 'Confirmed' } : item)
-                                setBookings(updated)
-                              }}
-                              className="py-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 font-bold text-xs rounded-xl border border-neutral-800 transition cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              🔄 {parsed.status === 'Confirmed' ? 'Mark Pending' : 'Mark Confirmed'}
-                            </button>
-
-                            <button
-                              onClick={() => deleteBooking(b.id)}
-                              className="py-2.5 bg-rose-950/40 hover:bg-rose-900/50 text-rose-400 font-bold text-xs rounded-xl border border-rose-900/50 transition cursor-pointer flex items-center justify-center gap-1.5"
-                            >
-                              🗑️ Delete
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 2: PROPERTIES */}
-          {activeTab === 'properties' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
-                <div>
-                  <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
-                  <p className="text-xs text-neutral-400">Manage rates, status, and active listings across Entebbe, Munyonyo, and Ntinda.</p>
-                </div>
-                <button
-                  onClick={() => alert('Add Property Modal / Route')}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
-                >
-                  + Add New Property
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
-                {properties.map((p) => (
-                  <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition">
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                          {p.category || 'Short-Stay'}
-                        </span>
-                        <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
-                        <p className="text-xs text-neutral-400 font-medium">📍 {p.location || 'Uganda'}</p>
-                      </div>
-                      <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold text-[10px] rounded-full uppercase">
-                        {p.status || 'Active'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
-                      <div>
-                        <span className="text-neutral-500 font-medium">Nightly Rate: </span>
-                        <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night || 45} / night</span>
-                      </div>
-                      <a href="/" className="text-neutral-400 hover:text-white font-bold transition">
-                        View Details →
-                      </a>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: STAFF TASKS */}
-          {activeTab === 'tasks' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-lg">Automated Housekeeping & Staff Dispatch</h3>
-              <div className="space-y-3">
-                {tasks.map((t) => (
-                  <div key={t.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
-                        {t.priority} Priority
-                      </span>
-                      <h4 className="font-extrabold text-white text-xs sm:text-sm inline">{t.title}</h4>
-                      <p className="text-xs text-neutral-400 mt-1">Assigned: {t.assignedTo} • Status: {t.status}</p>
-                    </div>
-                    <button
-                      onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer"
-                    >
-                      💬 Dispatch on WhatsApp
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: FINANCIAL LEDGER */}
-          {activeTab === 'ledger' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-lg">Operational Bills & Financial Ledger</h3>
-              <div className="space-y-3">
-                {bills.map((bill) => (
-                  <div key={bill.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex items-center justify-between">
-                    <div>
-                      <h4 className="font-extrabold text-white text-xs sm:text-sm">{bill.description}</h4>
-                      <p className="text-xs text-neutral-400">{bill.date}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-extrabold text-amber-400 text-sm">{bill.amount}</p>
-                      <span className="text-[10px] font-bold text-neutral-500 uppercase">{bill.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </section>
-      </div>
-
-      <Footer />
-    </main>
-  )
-}
+                        <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5"></div>
