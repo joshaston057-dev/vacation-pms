@@ -3,327 +3,217 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-export default function BookingModal({ property, onClose }: { property: any; onClose: () => void }) {
-  const [step, setStep] = useState<1 | 2 | 3>(1)
-  
-  // Step 1: Dates
-  const [checkIn, setCheckIn] = useState('2026-11-12')
-  const [checkOut, setCheckOut] = useState('2026-12-14')
-  const [nights, setNights] = useState(32)
+interface BookingModalProps {
+  isOpen: boolean
+  onClose: () => void
+  propertyId: number | string
+  propertyTitle: string
+  nightlyPrice: number
+}
 
-  // Step 2: Demographics
+export default function BookingModal({ isOpen, onClose, propertyId, propertyTitle, nightlyPrice }: BookingModalProps) {
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
-  const [adults, setAdults] = useState(2)
-  const [children, setChildren] = useState(0)
-  const [childAges, setChildAges] = useState('')
-  const [nationality, setNationality] = useState('Ugandan')
-  const [purpose, setPurpose] = useState('Business') // 'Business' | 'Leisure' | 'Party'
-  const [source, setSource] = useState('TikTok')
-  const [notes, setNotes] = useState('need airport pickup')
+  const [demographic, setDemographic] = useState('Solo Traveler')
+  const [guestsCount, setGuestsCount] = useState(1)
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [notes, setNotes] = useState('')
+  const [paymentOption, setPaymentOption] = useState<'full' | 'deposit'>('deposit')
+  const [loading, setLoading] = useState(false)
+  const [bookingSuccess, setBookingSuccess] = useState(false)
 
-  // Step 3: Payment Type
-  const [paymentOption, setPaymentOption] = useState<'full' | 'split'>('full')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  if (!isOpen) return null
 
-  // Pricing Logic (NO CLEANING FEE)
-  const nightlyPrice = property?.price || property?.price_per_night || 45
-  const staySubtotal = nights * nightlyPrice
-  const securityDeposit = purpose === 'Party' ? 50 : 0 // Refundable deposit if Party/Event
-  const totalAmount = staySubtotal + securityDeposit
-  
-  const paymentDueNow = paymentOption === 'full' ? totalAmount : Math.round(totalAmount * 0.30)
+  const calculateTotalPrice = () => {
+    if (!checkIn || !checkOut) return nightlyPrice
+    const start = new Date(checkIn)
+    const end = new Date(checkOut)
+    const nights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)))
+    return nights * nightlyPrice
+  }
 
-  const handleCreateBooking = async () => {
-    setIsSubmitting(true)
+  const totalPrice = calculateTotalPrice()
+  const depositAmount = Math.round(totalPrice * 0.3)
+  const amountToPayNow = paymentOption === 'full' ? totalPrice : depositAmount
 
-    // Formatted demographic string
-    const demographicInfo = children > 0 
-      ? `${adults} Adults, ${children} Child (${childAges})`
-      : `Couple with Kids`
+  const handleSubmitBooking = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
 
-    const propertyTitle = property?.title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda'
+    try {
+      // 1. Fetch the host_id belonging to the target property
+      const { data: propertyData } = await supabase
+        .from('properties')
+        .select('host_id')
+        .eq('id', propertyId)
+        .maybeSingle()
 
-    // Insert into Supabase
-    const { data, error } = await supabase.from('bookings').insert([
-      {
-        property_title: propertyTitle,
-        guest_name: guestName || 'Guest',
-        phone: phone || '+256726797237',
-        demographic: demographicInfo,
-        guests: adults + children,
-        check_in: checkIn,
-        check_out: checkOut,
-        notes: notes,
-        total_price: totalAmount,
-        paid_amount: paymentDueNow,
-        status: 'Confirmed'
-      }
-    ]).select()
+      const assignedHostId = propertyData?.host_id || null
 
-    if (!error) {
-      // Auto-Create Housekeeping Task in Host Operations Portal
-      await supabase.from('tasks').insert([
+      // 2. Insert booking record WITH host_id attached
+      const { error } = await supabase.from('bookings').insert([
         {
-          title: `Clean Turnover - ${propertyTitle}`,
-          priority: 'High',
+          property_title: propertyTitle,
+          guest_name: guestName,
+          phone: phone,
+          demographic: demographic,
+          guests: guestsCount,
+          check_in: checkIn,
+          check_out: checkOut,
+          notes: notes,
+          total_price: totalPrice,
+          paid_amount: amountToPayNow,
           status: 'Pending',
-          assigned_to: 'Housekeeping',
-          due_date: checkOut
+          host_id: assignedHostId // 👈 ATTACHES BOOKING TO SPECIFIC HOST
         }
       ])
 
-      // Trigger Pre-Formatted WhatsApp Message with Correct Name & Property
-      const cleanPhone = (phone || '+256726797237').replace(/[^0-9]/g, '')
-      const message = encodeURIComponent(
-        `Hello ${guestName || 'Guest'}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${propertyTitle}]!\n\n` +
-        `Dates: ${checkIn} → ${checkOut}\n` +
-        `Guests: ${demographicInfo}\n` +
-        `Paid: $${paymentDueNow} (${paymentOption === 'full' ? '100% Paid' : '30% Deposit'})`
-      )
-      
-      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
-      onClose()
-      window.location.reload()
-    } else {
-      alert('Error saving reservation. Please try again.')
-    }
+      if (error) throw error
 
-    setIsSubmitting(false)
+      setBookingSuccess(true)
+    } catch (err: any) {
+      alert('Failed to submit booking: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-neutral-950 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-6 text-white shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-5">
         
-        {/* MODAL HEADER */}
-        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-          <div>
-            <h3 className="font-black text-lg text-amber-400">
-              {step === 1 && 'Step 1: Choose Stay Dates'}
-              {step === 2 && 'Step 2: Guest Demographics'}
-              {step === 3 && 'Step 3: Payment & Reservation'}
-            </h3>
-            <p className="text-xs text-neutral-400 truncate max-w-xs">{property?.title || 'Property Reservation'}</p>
-          </div>
-          <button onClick={onClose} className="text-neutral-500 hover:text-white font-bold p-1">✕</button>
+        <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+          <h3 className="font-extrabold text-white text-lg">Reserve {propertyTitle}</h3>
+          <button onClick={onClose} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
         </div>
 
-        {/* STEP 1: DATES & AVAILABILITY */}
-        {step === 1 && (
-          <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Check-in Date</label>
-                <input
-                  type="date"
-                  value={checkIn}
-                  onChange={(e) => setCheckIn(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white font-mono"
-                />
-              </div>
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Check-out Date</label>
-                <input
-                  type="date"
-                  value={checkOut}
-                  onChange={(e) => setCheckOut(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="bg-neutral-900 p-3.5 rounded-xl border border-neutral-800 flex justify-between items-center">
-              <span>Nightly Rate (All-Inclusive):</span>
-              <span className="font-extrabold text-amber-400 text-sm">${nightlyPrice} / night</span>
-            </div>
-
+        {bookingSuccess ? (
+          <div className="py-8 text-center space-y-4">
+            <span className="text-4xl">🎉</span>
+            <h4 className="text-xl font-bold text-white">Booking Request Received!</h4>
+            <p className="text-xs text-neutral-400 max-w-sm mx-auto">
+              Your reservation request for <strong className="text-white">{propertyTitle}</strong> has been sent. The host will approve your payment and send your 4-digit keyless access code via WhatsApp!
+            </p>
             <button
-              onClick={() => setStep(2)}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl transition cursor-pointer text-sm"
+              onClick={() => { setBookingSuccess(false); onClose() }}
+              className="px-6 py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl"
             >
-              Check Availability & Continue →
+              Close Window
             </button>
           </div>
-        )}
-
-        {/* STEP 2: DEMOGRAPHICS & GUEST DETAILS */}
-        {step === 2 && (
-          <div className="space-y-3 text-xs">
+        ) : (
+          <form onSubmit={handleSubmitBooking} className="space-y-4">
             <div>
-              <label className="block text-neutral-400 font-bold mb-1">Guest Name</label>
+              <label className="block text-xs font-bold text-neutral-400 mb-1">Your Full Name</label>
               <input
                 type="text"
-                placeholder="e.g. kevin"
+                required
+                placeholder="e.g. Brian Smith"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white"
+                className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
               />
             </div>
 
-            <div>
-              <label className="block text-neutral-400 font-bold mb-1">WhatsApp Number</label>
-              <input
-                type="text"
-                placeholder="+256780564778"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white font-mono"
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">WhatsApp Phone Number</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="+256 700 000 000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                />
+              </div>
 
-            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">Adults</label>
-                <input
-                  type="number"
-                  value={adults}
-                  onChange={(e) => setAdults(Number(e.target.value))}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Children</label>
-                <input
-                  type="number"
-                  value={children}
-                  onChange={(e) => setChildren(Number(e.target.value))}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white"
-                />
-              </div>
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Child Ages</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 3yrs"
-                  value={childAges}
-                  onChange={(e) => setChildAges(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Stay Purpose</label>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Demographic Group</label>
                 <select
-                  value={purpose}
-                  onChange={(e) => setPurpose(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white"
+                  value={demographic}
+                  onChange={(e) => setDemographic(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
                 >
-                  <option value="Business">Business / Work</option>
-                  <option value="Leisure">Vacation / Leisure</option>
-                  <option value="Party">Party / Event ($50 Deposit)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Lead Source</label>
-                <select
-                  value={source}
-                  onChange={(e) => setSource(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white"
-                >
-                  <option value="TikTok">TikTok</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="Referral">Friend Referral</option>
-                  <option value="Google">Google Search</option>
+                  <option value="Solo Traveler">Solo Traveler</option>
+                  <option value="Couple">Couple</option>
+                  <option value="Couple with Kids">Couple with Kids</option>
+                  <option value="Business Group">Business Group</option>
                 </select>
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Check-In Date</label>
+                <input
+                  type="date"
+                  required
+                  value={checkIn}
+                  onChange={(e) => setCheckIn(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-2.5 rounded-xl focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-400 mb-1">Check-Out Date</label>
+                <input
+                  type="date"
+                  required
+                  value={checkOut}
+                  onChange={(e) => setCheckOut(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-2.5 rounded-xl focus:outline-none focus:border-amber-500"
+                />
+              </div>
+            </div>
+
             <div>
-              <label className="block text-neutral-400 font-bold mb-1">Guest Notes / Requests</label>
-              <textarea
-                placeholder="e.g. need airport pickup or i have a playing board"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white h-16"
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setStep(1)}
-                className="w-1/3 py-2.5 bg-neutral-900 border border-neutral-800 text-neutral-300 font-bold rounded-xl"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="w-2/3 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl"
-              >
-                Proceed to Payment →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 3: PAYMENT & CONFIRMATION */}
-        {step === 3 && (
-          <div className="space-y-4 text-xs">
-            <div className="bg-neutral-900 border border-neutral-800 p-4 rounded-xl space-y-2">
-              <div className="flex justify-between text-neutral-400">
-                <span>{nights} Nights x ${nightlyPrice}</span>
-                <span className="font-bold text-white">${staySubtotal}</span>
-              </div>
-              
-              <div className="flex justify-between text-neutral-400">
-                <span>Cleaning Fee:</span>
-                <span className="font-bold text-emerald-400">$0 (Free / Included)</span>
-              </div>
-
-              {securityDeposit > 0 && (
-                <div className="flex justify-between text-amber-400 font-bold">
-                  <span>Party Security Deposit:</span>
-                  <span>+${securityDeposit}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between border-t border-neutral-800 pt-2 font-black text-sm text-white">
-                <span>Total Amount:</span>
-                <span className="text-amber-400">${totalAmount}</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-neutral-400 font-bold">Select Payment Schedule:</label>
+              <label className="block text-xs font-bold text-neutral-400 mb-1">Select Payment Option</label>
               <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPaymentOption('deposit')}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition ${
+                    paymentOption === 'deposit' ? 'bg-amber-500/15 border-amber-500 text-amber-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                  }`}
+                >
+                  <span className="block text-xs font-extrabold">30% Deposit</span>
+                  <span className="block text-sm font-black text-white mt-1">${depositAmount}</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setPaymentOption('full')}
                   className={`p-3 rounded-xl border text-left cursor-pointer transition ${
-                    paymentOption === 'full'
-                      ? 'bg-amber-500/10 border-amber-500 text-amber-400'
-                      : 'bg-neutral-900 border-neutral-800 text-neutral-400'
+                    paymentOption === 'full' ? 'bg-amber-500/15 border-amber-500 text-amber-400' : 'bg-neutral-950 border-neutral-800 text-neutral-400'
                   }`}
                 >
-                  <p className="font-extrabold text-sm">Pay 100% Full</p>
-                  <p className="text-[10px] mt-1">${totalAmount} now</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentOption('split')}
-                  className={`p-3 rounded-xl border text-left cursor-pointer transition ${
-                    paymentOption === 'split'
-                      ? 'bg-amber-500/10 border-amber-500 text-amber-400'
-                      : 'bg-neutral-900 border-neutral-800 text-neutral-400'
-                  }`}
-                >
-                  <p className="font-extrabold text-sm">Pay 30% Deposit</p>
-                  <p className="text-[10px] mt-1">${paymentDueNow} now (Balance 24h prior)</p>
+                  <span className="block text-xs font-extrabold">100% Full Payment</span>
+                  <span className="block text-sm font-black text-white mt-1">${totalPrice}</span>
                 </button>
               </div>
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-neutral-400 mb-1">Special Notes / Requests</label>
+              <textarea
+                rows={2}
+                placeholder="e.g. Arriving late evening, need quiet room..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-2.5 rounded-xl focus:outline-none focus:border-amber-500"
+              />
+            </div>
+
             <button
-              onClick={handleCreateBooking}
-              disabled={isSubmitting}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm rounded-xl shadow-lg transition cursor-pointer"
+              type="submit"
+              disabled={loading}
+              className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black text-xs py-3.5 rounded-xl shadow-lg transition cursor-pointer"
             >
-              {isSubmitting ? 'Creating Reservation...' : `Confirm & Reserve $${paymentDueNow} (MoMo / Card)`}
+              {loading ? 'Submitting Reservation...' : `Confirm & Request Stay ($${amountToPayNow} Due)`}
             </button>
-          </div>
+          </form>
         )}
 
       </div>

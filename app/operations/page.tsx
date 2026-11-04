@@ -21,32 +21,8 @@ export default function HostOperationsPage() {
   const [newPriority, setNewPriority] = useState('High')
 
   // ACTIVE TASKS STATE
-  const [tasks, setTasks] = useState<any[]>([
-    { 
-      id: 1, 
-      title: 'Clean Turnover - Ntinda Apt', 
-      priority: 'High', 
-      status: 'Pending', 
-      assignedTo: 'Sarah (Housekeeping)', 
-      phone: '+256780564778',
-      due_date: '2026-12-14'
-    },
-    { 
-      id: 2, 
-      title: 'Refill Cooking Gas - Munyonyo Mansion', 
-      priority: 'Medium', 
-      status: 'Pending', 
-      assignedTo: 'John (Gas Runner)', 
-      phone: '+256726797237',
-      due_date: '2026-11-10'
-    }
-  ])
-
-  const [bills, setBills] = useState<any[]>([
-    { id: 1, description: 'Monthly Wi-Fi Internet', amount: '$50', status: 'Paid', date: 'Nov 1, 2026' },
-    { id: 2, description: 'Deep Cleaning Service', amount: '$30', status: 'Pending', date: 'Nov 2, 2026' }
-  ])
-
+  const [tasks, setTasks] = useState<any[]>([])
+  const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -56,44 +32,47 @@ export default function HostOperationsPage() {
   const fetchPortalData = async () => {
     setLoading(true)
     try {
+      // 1. Get currently authenticated host user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      // 2. Fetch ONLY bookings assigned to THIS host's ID
       const { data: bookingData } = await supabase
         .from('bookings')
         .select('*')
+        .eq('host_id', user.id)
         .order('id', { ascending: false })
 
-      if (bookingData && bookingData.length > 0) {
+      if (bookingData) {
         setBookings(bookingData)
-      } else {
-        setBookings([
-          {
-            id: 999,
-            property_title: '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
-            guest_name: 'Lussy',
-            phone: '+256780564778',
-            demographic: 'Couple with Kids',
-            guests: 2,
-            check_in: '2026-11-12',
-            check_out: '2026-12-14',
-            notes: 'i need a cat',
-            total_price: 150,
-            paid_amount: 45,
-            status: 'Pending'
-          }
-        ])
       }
 
-      const { data: propertyData } = await supabase.from('properties').select('*').order('id', { ascending: false })
+      // 3. Fetch ONLY properties belonging to THIS host
+      const { data: propertyData } = await supabase
+        .from('properties')
+        .select('*')
+        .eq('host_id', user.id)
+        .order('id', { ascending: false })
       
-      if (propertyData && propertyData.length > 0) {
+      if (propertyData) {
         setProperties(propertyData)
-      } else {
-        setProperties([
-          { id: 101, title: '2 bedroom fully furnished Airbnb apartment for rent in Ntinda', location: 'Ntinda, Kampala', price: 45, category: 'Apartment', status: 'Active' },
-          { id: 102, title: '5 Bedroom Fully Furnished Mansion', location: 'Entebbe', price: 70, category: 'Mansion', status: 'Active' },
-          { id: 103, title: '3 Bedroom Luxury Villa for Rent', location: 'Munyonyo', price: 70, category: 'Villa', status: 'Active' },
-          { id: 104, title: 'Furnished Short-Stay Studio', location: 'Kisaasi, Kampala', price: 35, category: 'Studio', status: 'Active' }
-        ])
       }
+
+      // 4. Fetch tasks assigned to THIS host
+      const { data: taskData } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('host_id', user.id)
+        .order('id', { ascending: false })
+
+      if (taskData) {
+        setTasks(taskData)
+      }
+
     } catch (err) {
       console.error('Portal Data Error:', err)
     } finally {
@@ -116,24 +95,24 @@ export default function HostOperationsPage() {
         phone: getVal('Ph') || b.phone || '+256780564778',
         demographic: getVal('Demo') || 'Couple with Kids',
         guestsCount: getVal('Guests') || '2',
-        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : '2026-11-10 → 2026-12-14',
-        notes: getVal('Notes') || b.notes || 'i need a cat',
-        totalPrice: b.total_price || 150,
-        paidAmount: b.paid_amount || 45,
+        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : 'Check-in → Check-out',
+        notes: getVal('Notes') || b.notes || 'No extra notes',
+        totalPrice: b.total_price || 0,
+        paidAmount: b.paid_amount || 0,
         status: b.status || 'Pending'
       }
     }
 
     return {
-      propertyTitle: b.property_title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
+      propertyTitle: b.property_title || 'Property Reservation',
       guestName: rawName,
-      phone: b.phone || '+256780564778',
-      demographic: b.demographic || 'Couple with Kids',
-      guestsCount: b.guests || '2',
-      dates: b.check_in ? `${b.check_in} → ${b.check_out}` : '2026-11-10 → 2026-12-14',
-      notes: b.notes || 'i need a cat',
-      totalPrice: b.total_price || 150,
-      paidAmount: b.paid_amount || 45,
+      phone: b.phone || '',
+      demographic: b.demographic || 'Guest Stay',
+      guestsCount: b.guests || 1,
+      dates: b.check_in ? `${b.check_in} → ${b.check_out}` : 'Stay Dates',
+      notes: b.notes || 'No extra notes',
+      totalPrice: b.total_price || 0,
+      paidAmount: b.paid_amount || 0,
       status: b.status || 'Pending'
     }
   }
@@ -148,22 +127,26 @@ export default function HostOperationsPage() {
   }
 
   // ADD CUSTOM TASK WITH STAFF WHATSAPP NUMBER
-  const handleAddCustomTask = (e: React.FormEvent) => {
+  const handleAddCustomTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle || !newStaffName || !newStaffPhone) {
       alert('Please fill in the task title, staff name, and WhatsApp phone number.')
       return
     }
 
+    const { data: { user } } = await supabase.auth.getUser()
+
     const newTask = {
-      id: Date.now(),
       title: newTaskTitle,
       priority: newPriority,
       status: 'Pending',
       assignedTo: newStaffName,
       phone: newStaffPhone,
+      host_id: user?.id || null,
       due_date: new Date().toISOString().split('T')[0]
     }
+
+    await supabase.from('tasks').insert([newTask])
 
     setTasks([newTask, ...tasks])
     setNewTaskTitle('')
@@ -188,7 +171,8 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  const deleteTask = (id: number) => {
+  const deleteTask = async (id: number) => {
+    await supabase.from('tasks').delete().eq('id', id)
     setTasks(tasks.filter(t => t.id !== id))
   }
 
@@ -206,8 +190,8 @@ export default function HostOperationsPage() {
           guestName: parsed.guestName,
           phone: parsed.phone,
           propertyTitle: parsed.propertyTitle,
-          checkIn: b.check_in || '2026-11-12',
-          checkOut: b.check_out || '2026-12-14',
+          checkIn: b.check_in,
+          checkOut: b.check_out,
           demographic: parsed.demographic
         })
       })
@@ -309,7 +293,7 @@ export default function HostOperationsPage() {
                 <p className="text-xs text-neutral-500 animate-pulse">Loading reservation records...</p>
               ) : bookings.length === 0 ? (
                 <div className="py-12 text-center text-neutral-500 text-xs font-bold">
-                  No reservation requests submitted yet.
+                  No reservation requests submitted for your account yet.
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -394,7 +378,7 @@ export default function HostOperationsPage() {
 
                           <button
                             onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle, parsed.paidAmount)}
-                            className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-1"
+                            className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-1"
                           >
                             💬 WhatsApp
                           </button>
@@ -459,11 +443,9 @@ export default function HostOperationsPage() {
             </div>
           )}
 
-          {/* TAB 3: STAFF TASKS & CUSTOM TASK CREATOR */}
+          {/* TAB 3: STAFF TASKS */}
           {activeTab === 'tasks' && (
             <div className="space-y-6">
-              
-              {/* ADD CUSTOM TASK FORM */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
                 <h3 className="font-extrabold text-white text-lg">➕ Create & Dispatch Custom Task</h3>
                 <p className="text-xs text-neutral-400">Assign any duty (cleaning, gas refill, electrical repair) and input your staff member's direct WhatsApp phone number.</p>
@@ -502,7 +484,6 @@ export default function HostOperationsPage() {
                 </form>
               </div>
 
-              {/* EXISTING TASKS LIST */}
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
                 <h3 className="font-extrabold text-white text-lg">Active Staff Duties & Dispatch Queue</h3>
                 
@@ -540,7 +521,6 @@ export default function HostOperationsPage() {
                   ))}
                 </div>
               </div>
-
             </div>
           )}
 

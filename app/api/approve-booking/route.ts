@@ -5,10 +5,19 @@ export async function POST(req: Request) {
   try {
     const { bookingId, amountPaid, paymentMethod, guestName, phone, propertyTitle, checkIn, checkOut, demographic } = await req.json()
 
-    // 1. Generate unique 4-digit guest check-in access code
+    // 1. Generate unique 4-digit check-in access code
     const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
 
-    // 2. Update booking status safely
+    // 2. Fetch booking record to retrieve host_id
+    const { data: bookingRecord } = await supabase
+      .from('bookings')
+      .select('host_id')
+      .eq('id', bookingId)
+      .maybeSingle()
+
+    const hostId = bookingRecord?.host_id || null
+
+    // 3. Update booking status safely
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({
@@ -19,7 +28,7 @@ export async function POST(req: Request) {
 
     if (bookingError) throw bookingError
 
-    // 3. Auto-toggle property status to Occupied in database
+    // 4. Auto-toggle property status to Occupied
     if (propertyTitle) {
       await supabase
         .from('properties')
@@ -27,26 +36,27 @@ export async function POST(req: Request) {
         .ilike('title', `%${propertyTitle}%`)
     }
 
-    // 4. Auto-inject housekeeping turnover task for check-out day
+    // 5. Auto-inject housekeeping turnover task tagged with host_id
     await supabase.from('tasks').insert([
       {
         title: `Clean Turnover - ${propertyTitle}`,
         priority: 'High',
         status: 'Pending',
         assigned_to: 'Housekeeping',
-        due_date: checkOut
+        due_date: checkOut,
+        host_id: hostId
       }
     ])
 
-    // 5. Build pre-formatted WhatsApp message URL
+    // 6. Build pre-formatted WhatsApp message URL
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '')
     const whatsappText = encodeURIComponent(
       `🎉 Payment Approved!\n\n` +
       `Hello ${guestName}, your reservation for ${propertyTitle} is fully CONFIRMED.\n\n` +
       `📅 Stay Dates: ${checkIn} → ${checkOut}\n` +
-      `👥 Guests: ${demographic}\n` +
-      `💳 Payment: $${amountPaid} (${paymentMethod})\n` +
-      `🔑 Access Code: ${doorCode} (Active at 2:00 PM on ${checkIn})\n\n` +
+      `👥 Group: ${demographic}\n` +
+      `💳 Payment Received: $${amountPaid} (${paymentMethod})\n` +
+      `🔑 Access Code: ${doorCode} (Active at 2:00 PM on check-in day)\n\n` +
       `We look forward to hosting you at La Estancia Vacation Homes!`
     )
 
