@@ -8,28 +8,28 @@ export default function BookingModal({ property, onClose }: { property: any; onC
   
   // Step 1: Dates
   const [checkIn, setCheckIn] = useState('2026-11-12')
-  const [checkOut, setCheckOut] = useState('2026-11-15')
-  const [nights, setNights] = useState(3)
+  const [checkOut, setCheckOut] = useState('2026-12-14')
+  const [nights, setNights] = useState(32)
 
   // Step 2: Demographics
   const [guestName, setGuestName] = useState('')
   const [phone, setPhone] = useState('')
   const [adults, setAdults] = useState(2)
-  const [children, setChildren] = useState(1)
-  const [childAges, setChildAges] = useState('3 yrs')
+  const [children, setChildren] = useState(0)
+  const [childAges, setChildAges] = useState('')
   const [nationality, setNationality] = useState('Ugandan')
   const [purpose, setPurpose] = useState('Business') // 'Business' | 'Leisure' | 'Party'
   const [source, setSource] = useState('TikTok')
-  const [notes, setNotes] = useState('Need early check-in & airport pickup')
+  const [notes, setNotes] = useState('need airport pickup')
 
   // Step 3: Payment Type
   const [paymentOption, setPaymentOption] = useState<'full' | 'split'>('full')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Pricing Logic (NO CLEANING FEE)
-  const nightlyPrice = property?.price || 45
+  const nightlyPrice = property?.price || property?.price_per_night || 45
   const staySubtotal = nights * nightlyPrice
-  const securityDeposit = purpose === 'Party' ? 50 : 0 // Deposit applied ONLY if Party/Event
+  const securityDeposit = purpose === 'Party' ? 50 : 0 // Refundable deposit if Party/Event
   const totalAmount = staySubtotal + securityDeposit
   
   const paymentDueNow = paymentOption === 'full' ? totalAmount : Math.round(totalAmount * 0.30)
@@ -37,32 +37,35 @@ export default function BookingModal({ property, onClose }: { property: any; onC
   const handleCreateBooking = async () => {
     setIsSubmitting(true)
 
-    // 1. Structure the demographic & notes payload
-    const demographicInfo = `${adults} Adults, ${children} Child (${childAges}), ${nationality}`
-    const combinedNotes = `Purpose: ${purpose} | Source: ${source} | Notes: ${notes}`
+    // Formatted demographic payload
+    const demographicInfo = children > 0 
+      ? `${adults} Adults, ${children} Child (${childAges})`
+      : `Couple with Kids`
 
-    // 2. Insert into Supabase Bookings Table
+    // Combined Notes string formatted for clean parsing in Host Portal
+    const rawNote = notes ? `Notes: ${notes}` : 'Notes: None'
+
     const { data, error } = await supabase.from('bookings').insert([
       {
-        property_title: property?.title || 'Uganda Short-Stay Property',
+        property_title: property?.title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
         guest_name: guestName,
         phone: phone,
         demographic: demographicInfo,
         guests: adults + children,
         check_in: checkIn,
         check_out: checkOut,
-        notes: combinedNotes,
+        notes: notes,
         total_price: totalAmount,
         paid_amount: paymentDueNow,
-        status: 'PAID'
+        status: 'Confirmed'
       }
     ]).select()
 
     if (!error) {
-      // 3. Auto-Create Housekeeping & Prep Tasks for Host Operations Portal
+      // Auto-Create Housekeeping Task in Host Operations Portal
       await supabase.from('tasks').insert([
         {
-          title: `Clean Turnover - ${property?.title || 'Unit'}`,
+          title: `Clean Turnover - ${property?.title || 'Apartment'}`,
           priority: 'High',
           status: 'Pending',
           assigned_to: 'Housekeeping',
@@ -70,37 +73,39 @@ export default function BookingModal({ property, onClose }: { property: any; onC
         }
       ])
 
-      // 4. Trigger Direct WhatsApp Confirmation Link
+      // Trigger Pre-Formatted WhatsApp Message
       const message = encodeURIComponent(
-        `Confirmed ${guestName}!\n` +
-        `Stay: ${property?.title || 'La Estancia Property'}\n` +
-        `Details: ${demographicInfo}\n` +
+        `Hello ${guestName}, thank you for booking ${property?.title || 'La Estancia Vacation Homes'}!\n` +
         `Dates: ${checkIn} → ${checkOut}\n` +
-        `Paid: $${paymentDueNow} (${paymentOption === 'full' ? '100% Paid' : '30% Deposit'})\n` +
-        `Guest Code: ${Math.floor(1000 + Math.random() * 9000)} (Active 2pm on Check-in)`
+        `Guests: ${demographicInfo}\n` +
+        `Paid: $${paymentDueNow} (${paymentOption === 'full' ? '100% Paid' : '30% Deposit'})`
       )
       
       window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank')
       onClose()
+      window.location.reload()
     } else {
-      alert('Error creating booking. Please try again.')
+      alert('Error saving reservation. Please try again.')
     }
 
     setIsSubmitting(false)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-neutral-950 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-6 text-white shadow-2xl relative">
         
         {/* MODAL HEADER */}
         <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-          <h3 className="font-black text-lg text-amber-400">
-            {step === 1 && 'Step 1: Choose Stay Dates'}
-            {step === 2 && 'Step 2: Guest Demographics'}
-            {step === 3 && 'Step 3: Payment & Reservation'}
-          </h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-white font-bold">✕</button>
+          <div>
+            <h3 className="font-black text-lg text-amber-400">
+              {step === 1 && 'Step 1: Choose Stay Dates'}
+              {step === 2 && 'Step 2: Guest Demographics'}
+              {step === 3 && 'Step 3: Payment & Reservation'}
+            </h3>
+            <p className="text-xs text-neutral-400 truncate max-w-xs">{property?.title || 'Property Reservation'}</p>
+          </div>
+          <button onClick={onClose} className="text-neutral-500 hover:text-white font-bold p-1">✕</button>
         </div>
 
         {/* STEP 1: DATES & AVAILABILITY */}
@@ -127,9 +132,9 @@ export default function BookingModal({ property, onClose }: { property: any; onC
               </div>
             </div>
 
-            <div className="bg-neutral-900 p-3 rounded-xl border border-neutral-800 flex justify-between items-center">
+            <div className="bg-neutral-900 p-3.5 rounded-xl border border-neutral-800 flex justify-between items-center">
               <span>Nightly Rate (All-Inclusive):</span>
-              <span className="font-extrabold text-amber-400">${nightlyPrice} / night</span>
+              <span className="font-extrabold text-amber-400 text-sm">${nightlyPrice} / night</span>
             </div>
 
             <button
@@ -145,10 +150,10 @@ export default function BookingModal({ property, onClose }: { property: any; onC
         {step === 2 && (
           <div className="space-y-3 text-xs">
             <div>
-              <label className="block text-neutral-400 font-bold mb-1">Full Name</label>
+              <label className="block text-neutral-400 font-bold mb-1">Guest Name</label>
               <input
                 type="text"
-                placeholder="e.g. Davis Owembabazi"
+                placeholder="e.g. kevin"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
                 className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white"
@@ -156,10 +161,10 @@ export default function BookingModal({ property, onClose }: { property: any; onC
             </div>
 
             <div>
-              <label className="block text-neutral-400 font-bold mb-1">WhatsApp Phone Number</label>
+              <label className="block text-neutral-400 font-bold mb-1">WhatsApp Number</label>
               <input
                 type="text"
-                placeholder="+256726797237"
+                placeholder="+256780564778"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white font-mono"
@@ -189,7 +194,7 @@ export default function BookingModal({ property, onClose }: { property: any; onC
                 <label className="block text-neutral-400 font-bold mb-1">Child Ages</label>
                 <input
                   type="text"
-                  placeholder="3yrs"
+                  placeholder="e.g. 3yrs"
                   value={childAges}
                   onChange={(e) => setChildAges(e.target.value)}
                   className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white"
@@ -207,11 +212,11 @@ export default function BookingModal({ property, onClose }: { property: any; onC
                 >
                   <option value="Business">Business / Work</option>
                   <option value="Leisure">Vacation / Leisure</option>
-                  <option value="Party">Party / Event (Requires Deposit)</option>
+                  <option value="Party">Party / Event ($50 Deposit)</option>
                 </select>
               </div>
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">How did you find us?</label>
+                <label className="block text-neutral-400 font-bold mb-1">Lead Source</label>
                 <select
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
@@ -219,19 +224,19 @@ export default function BookingModal({ property, onClose }: { property: any; onC
                 >
                   <option value="TikTok">TikTok</option>
                   <option value="Instagram">Instagram</option>
-                  <option value="Friend Referral">Friend Referral</option>
-                  <option value="Google Search">Google Search</option>
+                  <option value="Referral">Friend Referral</option>
+                  <option value="Google">Google Search</option>
                 </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-neutral-400 font-bold mb-1">Special Requests / Upsell Notes</label>
+              <label className="block text-neutral-400 font-bold mb-1">Guest Notes / Requests</label>
               <textarea
-                placeholder="e.g. Need airport pickup, extra mattress, or early check-in"
+                placeholder="e.g. need airport pickup or I have a playing board"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-neutral-900 border border-neutral-800 p-2 rounded-xl text-white h-16"
+                className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white h-16"
               />
             </div>
 
@@ -279,7 +284,6 @@ export default function BookingModal({ property, onClose }: { property: any; onC
               </div>
             </div>
 
-            {/* PAYMENT CHOICE */}
             <div className="space-y-2">
               <label className="block text-neutral-400 font-bold">Select Payment Schedule:</label>
               <div className="grid grid-cols-2 gap-3">
@@ -316,7 +320,7 @@ export default function BookingModal({ property, onClose }: { property: any; onC
               disabled={isSubmitting}
               className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm rounded-xl shadow-lg transition cursor-pointer"
             >
-              {isSubmitting ? 'Processing Payment...' : `Confirm & Pay $${paymentDueNow} (MoMo / Card)`}
+              {isSubmitting ? 'Creating Reservation...' : `Confirm & Reserve $${paymentDueNow} (MoMo / Card)`}
             </button>
           </div>
         )}
