@@ -43,13 +43,13 @@ export default function HostOperationsPage() {
           {
             id: 999,
             property_title: '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
-            guest_name: 'Kevin',
+            guest_name: 'Lussy',
             phone: '+256780564778',
-            demographic: '2 Adults',
+            demographic: 'Couple with Kids',
             guests: 2,
             check_in: '2026-11-12',
             check_out: '2026-12-14',
-            notes: 'i have a playing board',
+            notes: 'i need a cat',
             total_price: 150,
             paid_amount: 45,
             status: 'Pending'
@@ -92,8 +92,10 @@ export default function HostOperationsPage() {
         demographic: getVal('Demo') || 'Couple with Kids',
         guestsCount: getVal('Guests') || '2',
         dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : '2026-11-10 → 2026-12-14',
-        notes: getVal('Notes') || b.notes || 'i have a playing board',
-        status: b.status || 'Confirmed'
+        notes: getVal('Notes') || b.notes || 'i need a cat',
+        totalPrice: b.total_price || 150,
+        paidAmount: b.paid_amount || 45,
+        status: b.status || 'Pending'
       }
     }
 
@@ -104,14 +106,19 @@ export default function HostOperationsPage() {
       demographic: b.demographic || 'Couple with Kids',
       guestsCount: b.guests || '2',
       dates: b.check_in ? `${b.check_in} → ${b.check_out}` : '2026-11-10 → 2026-12-14',
-      notes: b.notes || 'i have a playing board',
-      status: b.status || 'Confirmed'
+      notes: b.notes || 'i need a cat',
+      totalPrice: b.total_price || 150,
+      paidAmount: b.paid_amount || 45,
+      status: b.status || 'Pending'
     }
   }
 
-  const openWhatsApp = (phone: string, guestName: string, property: string) => {
+  const openWhatsApp = (phone: string, guestName: string, property: string, paidAmount: number) => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '256780564778'
-    const message = encodeURIComponent(`Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${property}]!`)
+    const message = encodeURIComponent(
+      `Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${property}]!\n\n` +
+      `To confirm your reservation, please send your deposit of $${paidAmount} (30%) via MTN/Airtel MoMo to +256780564778.`
+    )
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
@@ -125,7 +132,7 @@ export default function HostOperationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: b.id,
-          amountPaid: b.total_price || b.paid_amount || 150,
+          amountPaid: parsed.paidAmount,
           paymentMethod: 'MoMo / Cash',
           guestName: parsed.guestName,
           phone: parsed.phone,
@@ -141,7 +148,7 @@ export default function HostOperationsPage() {
       if (result.success) {
         alert(`✅ Payment Approved! Access Door Code: ${result.doorCode}\nProperty status updated to OCCUPIED!`)
         window.open(result.whatsappUrl, '_blank')
-        fetchPortalData() // Refresh live dashboard and property statuses
+        fetchPortalData()
       } else {
         alert('Approval error: ' + result.error)
       }
@@ -153,9 +160,7 @@ export default function HostOperationsPage() {
   // MANUAL PROPERTY STATUS TOGGLE FUNCTION
   const togglePropertyStatus = async (propId: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'Occupied' ? 'Active' : 'Occupied'
-    
     await supabase.from('properties').update({ status: nextStatus }).eq('id', propId)
-    
     setProperties(properties.map(p => p.id === propId ? { ...p, status: nextStatus } : p))
   }
 
@@ -270,6 +275,7 @@ export default function HostOperationsPage() {
                           </span>
                         </div>
 
+                        {/* RESERVATION DETAILS WITH CLEAR FINANCIAL BREAKDOWN */}
                         <div className="space-y-3 text-xs sm:text-sm text-neutral-300 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800/80">
                           <div className="flex items-center gap-2">
                             <span className="text-base">👤</span>
@@ -300,6 +306,19 @@ export default function HostOperationsPage() {
                             <span className="text-neutral-400 font-semibold">Dates:</span>
                             <span className="font-bold text-neutral-200">{parsed.dates}</span>
                           </div>
+
+                          {/* MONEY BREAKDOWN BADGES */}
+                          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-neutral-800/80 mt-2">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg">
+                              <span className="text-neutral-400 text-xs font-semibold">Total Stay:</span>
+                              <span className="font-black text-amber-400 text-xs">${parsed.totalPrice}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/30 border border-emerald-500/30 rounded-lg">
+                              <span className="text-emerald-400 text-xs font-semibold">30% Deposit Due:</span>
+                              <span className="font-black text-emerald-400 text-xs">${parsed.paidAmount}</span>
+                            </div>
+                          </div>
                         </div>
 
                         <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
@@ -310,7 +329,7 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        {/* ACTION BUTTONS WITH AUTOMATED MOMO APPROVAL & OCCUPIED TOGGLE */}
+                        {/* ACTION BUTTONS */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
                           <button
                             onClick={() => handleApproveBooking(b)}
@@ -320,7 +339,7 @@ export default function HostOperationsPage() {
                           </button>
 
                           <button
-                            onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle)}
+                            onClick={() => openWhatsApp(parsed.phone, parsed.guestName, parsed.propertyTitle, parsed.paidAmount)}
                             className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer flex items-center justify-center gap-1"
                           >
                             💬 WhatsApp
@@ -342,7 +361,7 @@ export default function HostOperationsPage() {
             </div>
           )}
 
-          {/* TAB 2: PROPERTIES (FEATURING OCCUPIED TOGGLE BADGES) */}
+          {/* TAB 2: PROPERTIES */}
           {activeTab === 'properties' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
@@ -370,7 +389,6 @@ export default function HostOperationsPage() {
                         <p className="text-xs text-neutral-400 font-medium">📍 {p.location || 'Uganda'}</p>
                       </div>
 
-                      {/* INTERACTIVE OCCUPIED / ACTIVE TOGGLE BUTTON */}
                       <button
                         onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
                         className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
@@ -413,7 +431,7 @@ export default function HostOperationsPage() {
                       <p className="text-xs text-neutral-400 mt-1">Assigned: {t.assignedTo} • Status: {t.status}</p>
                     </div>
                     <button
-                      onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title)}
+                      onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title, 0)}
                       className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                     >
                       💬 Dispatch on WhatsApp
