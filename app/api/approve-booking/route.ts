@@ -5,21 +5,40 @@ export async function POST(req: Request) {
   try {
     const { bookingId, amountPaid, paymentMethod, guestName, phone, propertyTitle, checkIn, checkOut, demographic } = await req.json()
 
-    // 1. Generate unique 4-digit guest check-in code
+    // 1. Generate unique 4-digit guest check-in access code
     const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
 
-    // 2. Update booking status safely without crashing on paid_amount column
+    // 2. Update booking status safely
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({
         status: 'Confirmed',
-        notes: `Paid: $${amountPaid} (${paymentMethod}) | Code: ${doorCode}`
+        notes: `Paid: $${amountPaid} (${paymentMethod}) | Access Code: ${doorCode}`
       })
       .eq('id', bookingId)
 
     if (bookingError) throw bookingError
 
-    // 3. Build Automated WhatsApp Confirmation
+    // 3. Auto-toggle property status to Occupied in database
+    if (propertyTitle) {
+      await supabase
+        .from('properties')
+        .update({ status: 'Occupied' })
+        .ilike('title', `%${propertyTitle}%`)
+    }
+
+    // 4. Auto-inject housekeeping turnover task for check-out day
+    await supabase.from('tasks').insert([
+      {
+        title: `Clean Turnover - ${propertyTitle}`,
+        priority: 'High',
+        status: 'Pending',
+        assigned_to: 'Housekeeping',
+        due_date: checkOut
+      }
+    ])
+
+    // 5. Build pre-formatted WhatsApp message URL
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '')
     const whatsappText = encodeURIComponent(
       `🎉 Payment Approved!\n\n` +
@@ -27,8 +46,8 @@ export async function POST(req: Request) {
       `📅 Stay Dates: ${checkIn} → ${checkOut}\n` +
       `👥 Guests: ${demographic}\n` +
       `💳 Payment: $${amountPaid} (${paymentMethod})\n` +
-      `🔑 Door Access Code: ${doorCode}\n\n` +
-      `We look forward to welcoming you to La Estancia Vacation Homes!`
+      `🔑 Access Code: ${doorCode} (Active at 2:00 PM on ${checkIn})\n\n` +
+      `We look forward to hosting you at La Estancia Vacation Homes!`
     )
 
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${whatsappText}`

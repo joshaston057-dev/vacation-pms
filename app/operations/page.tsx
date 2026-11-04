@@ -39,7 +39,6 @@ export default function HostOperationsPage() {
       if (bookingData && bookingData.length > 0) {
         setBookings(bookingData)
       } else {
-        // Safe fallback so cards render even if Supabase table is empty
         setBookings([
           {
             id: 999,
@@ -116,7 +115,7 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  // AUTOMATED CASH / MOMO APPROVAL TRIGGER
+  // AUTOMATED CASH / MOMO APPROVAL & OCCUPIED TOGGLE TRIGGER
   const handleApproveBooking = async (b: any) => {
     const parsed = parseBookingData(b)
     
@@ -140,15 +139,24 @@ export default function HostOperationsPage() {
       const result = await response.json()
 
       if (result.success) {
-        alert(`✅ Payment Approved! Access Door Code Generated: ${result.doorCode}`)
+        alert(`✅ Payment Approved! Access Door Code: ${result.doorCode}\nProperty status updated to OCCUPIED!`)
         window.open(result.whatsappUrl, '_blank')
-        fetchPortalData()
+        fetchPortalData() // Refresh live dashboard and property statuses
       } else {
         alert('Approval error: ' + result.error)
       }
     } catch (err) {
       alert('Network error while executing booking approval.')
     }
+  }
+
+  // MANUAL PROPERTY STATUS TOGGLE FUNCTION
+  const togglePropertyStatus = async (propId: number, currentStatus: string) => {
+    const nextStatus = currentStatus === 'Occupied' ? 'Active' : 'Occupied'
+    
+    await supabase.from('properties').update({ status: nextStatus }).eq('id', propId)
+    
+    setProperties(properties.map(p => p.id === propId ? { ...p, status: nextStatus } : p))
   }
 
   const deleteBooking = async (id: number) => {
@@ -302,7 +310,7 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        {/* ACTION BUTTONS WITH MOMO APPROVAL TRIGGER */}
+                        {/* ACTION BUTTONS WITH AUTOMATED MOMO APPROVAL & OCCUPIED TOGGLE */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
                           <button
                             onClick={() => handleApproveBooking(b)}
@@ -334,7 +342,7 @@ export default function HostOperationsPage() {
             </div>
           )}
 
-          {/* TAB 2: PROPERTIES */}
+          {/* TAB 2: PROPERTIES (FEATURING OCCUPIED TOGGLE BADGES) */}
           {activeTab === 'properties' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-6 shadow-xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
@@ -361,9 +369,18 @@ export default function HostOperationsPage() {
                         <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
                         <p className="text-xs text-neutral-400 font-medium">📍 {p.location || 'Uganda'}</p>
                       </div>
-                      <span className="px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold text-[10px] rounded-full uppercase">
-                        {p.status || 'Active'}
-                      </span>
+
+                      {/* INTERACTIVE OCCUPIED / ACTIVE TOGGLE BUTTON */}
+                      <button
+                        onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
+                        className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
+                          p.status === 'Occupied'
+                            ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                            : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                        }`}
+                      >
+                        ● {p.status || 'Active'}
+                      </button>
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
