@@ -13,10 +13,35 @@ export default function HostOperationsPage() {
   
   const [bookings, setBookings] = useState<any[]>([])
   const [properties, setProperties] = useState<any[]>([])
+
+  // STATE FOR CUSTOM TASK FORM INPUTS
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newStaffName, setNewStaffName] = useState('')
+  const [newStaffPhone, setNewStaffPhone] = useState('')
+  const [newPriority, setNewPriority] = useState('High')
+
+  // ACTIVE TASKS STATE
   const [tasks, setTasks] = useState<any[]>([
-    { id: 1, title: 'Clean Turnover - Ntinda Apt', priority: 'High', status: 'Pending', assignedTo: 'Housekeeping', phone: '+256780564778' },
-    { id: 2, title: 'Refill Cooking Gas - Munyonyo Mansion', priority: 'Medium', status: 'Completed', assignedTo: 'Maintenance', phone: '+256726797237' }
+    { 
+      id: 1, 
+      title: 'Clean Turnover - Ntinda Apt', 
+      priority: 'High', 
+      status: 'Pending', 
+      assignedTo: 'Sarah (Housekeeping)', 
+      phone: '+256780564778',
+      due_date: '2026-12-14'
+    },
+    { 
+      id: 2, 
+      title: 'Refill Cooking Gas - Munyonyo Mansion', 
+      priority: 'Medium', 
+      status: 'Pending', 
+      assignedTo: 'John (Gas Runner)', 
+      phone: '+256726797237',
+      due_date: '2026-11-10'
+    }
   ])
+
   const [bills, setBills] = useState<any[]>([
     { id: 1, description: 'Monthly Wi-Fi Internet', amount: '$50', status: 'Paid', date: 'Nov 1, 2026' },
     { id: 2, description: 'Deep Cleaning Service', amount: '$30', status: 'Pending', date: 'Nov 2, 2026' }
@@ -122,7 +147,51 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  // AUTOMATED CASH / MOMO APPROVAL & OCCUPIED TOGGLE TRIGGER
+  // ADD CUSTOM TASK WITH STAFF WHATSAPP NUMBER
+  const handleAddCustomTask = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTaskTitle || !newStaffName || !newStaffPhone) {
+      alert('Please fill in the task title, staff name, and WhatsApp phone number.')
+      return
+    }
+
+    const newTask = {
+      id: Date.now(),
+      title: newTaskTitle,
+      priority: newPriority,
+      status: 'Pending',
+      assignedTo: newStaffName,
+      phone: newStaffPhone,
+      due_date: new Date().toISOString().split('T')[0]
+    }
+
+    setTasks([newTask, ...tasks])
+    setNewTaskTitle('')
+    setNewStaffName('')
+    setNewStaffPhone('')
+  }
+
+  // DISPATCH TASK TO STAFF ON WHATSAPP
+  const dispatchSpecialist = (task: any) => {
+    const cleanPhone = (task.phone || '').replace(/[^0-9]/g, '')
+    const staffName = task.assignedTo || 'Staff Member'
+
+    const message = encodeURIComponent(
+      `🛠️ DUTY WORK ORDER - LA ESTANCIA\n\n` +
+      `Hello ${staffName},\n\n` +
+      `You have been allocated a new task:\n` +
+      `📌 Task: ${task.title}\n` +
+      `⚡ Priority: ${task.priority}\n\n` +
+      `Please reply to confirm receipt and notify once completed!`
+    )
+
+    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
+  }
+
+  const deleteTask = (id: number) => {
+    setTasks(tasks.filter(t => t.id !== id))
+  }
+
   const handleApproveBooking = async (b: any) => {
     const parsed = parseBookingData(b)
     
@@ -157,7 +226,6 @@ export default function HostOperationsPage() {
     }
   }
 
-  // MANUAL PROPERTY STATUS TOGGLE FUNCTION
   const togglePropertyStatus = async (propId: number, currentStatus: string) => {
     const nextStatus = currentStatus === 'Occupied' ? 'Active' : 'Occupied'
     await supabase.from('properties').update({ status: nextStatus }).eq('id', propId)
@@ -182,13 +250,12 @@ export default function HostOperationsPage() {
                 La Estancia Host Operations Portal
               </h1>
               <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-                Centralized PMS: Manage Bookings, Properties, Upsells, Tasks, and Financial Ledgers.
+                Centralized PMS: Manage Bookings, Properties, Staff Dispatch, and Financial Ledgers.
               </p>
             </div>
           </div>
         </section>
 
-        {/* UPSELL & OPERATIONS SLIDER */}
         <UpsellMotionSlider />
 
         {/* DASHBOARD CONTENT */}
@@ -199,9 +266,7 @@ export default function HostOperationsPage() {
             <button
               onClick={() => setActiveTab('bookings')}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'bookings'
-                  ? 'bg-amber-500 text-black shadow-lg'
-                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               📅 Bookings ({bookings.length})
@@ -210,9 +275,7 @@ export default function HostOperationsPage() {
             <button
               onClick={() => setActiveTab('properties')}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'properties'
-                  ? 'bg-amber-500 text-black shadow-lg'
-                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               🏠 Properties ({properties.length})
@@ -221,9 +284,7 @@ export default function HostOperationsPage() {
             <button
               onClick={() => setActiveTab('tasks')}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'tasks'
-                  ? 'bg-amber-500 text-black shadow-lg'
-                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               🧹 Staff Tasks ({tasks.length})
@@ -232,9 +293,7 @@ export default function HostOperationsPage() {
             <button
               onClick={() => setActiveTab('ledger')}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'ledger'
-                  ? 'bg-amber-500 text-black shadow-lg'
-                  : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
               💰 Financial Ledger ({bills.length})
@@ -267,15 +326,12 @@ export default function HostOperationsPage() {
                             [{parsed.propertyTitle}]
                           </h4>
                           <span className={`px-3 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase self-start sm:self-auto ${
-                            parsed.status === 'Confirmed' 
-                              ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-400' 
-                              : 'bg-amber-500/10 border border-amber-500/30 text-amber-400'
+                            parsed.status === 'Confirmed' ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400' : 'bg-amber-500/15 border border-amber-500/30 text-amber-400'
                           }`}>
                             {parsed.status}
                           </span>
                         </div>
 
-                        {/* RESERVATION DETAILS WITH CLEAR FINANCIAL BREAKDOWN */}
                         <div className="space-y-3 text-xs sm:text-sm text-neutral-300 bg-neutral-900/60 p-4 rounded-xl border border-neutral-800/80">
                           <div className="flex items-center gap-2">
                             <span className="text-base">👤</span>
@@ -307,7 +363,6 @@ export default function HostOperationsPage() {
                             <span className="font-bold text-neutral-200">{parsed.dates}</span>
                           </div>
 
-                          {/* MONEY BREAKDOWN BADGES */}
                           <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-neutral-800/80 mt-2">
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-950 border border-neutral-800 rounded-lg">
                               <span className="text-neutral-400 text-xs font-semibold">Total Stay:</span>
@@ -329,7 +384,6 @@ export default function HostOperationsPage() {
                           </div>
                         </div>
 
-                        {/* ACTION BUTTONS */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2">
                           <button
                             onClick={() => handleApproveBooking(b)}
@@ -369,12 +423,6 @@ export default function HostOperationsPage() {
                   <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
                   <p className="text-xs text-neutral-400">Manage rates, status, and active listings across Entebbe, Munyonyo, and Ntinda.</p>
                 </div>
-                <button
-                  onClick={() => alert('Add Property Modal')}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
-                >
-                  + Add New Property
-                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
@@ -382,7 +430,7 @@ export default function HostOperationsPage() {
                   <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition">
                     <div className="flex justify-between items-start gap-2">
                       <div>
-                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
                           {p.category || 'Short-Stay'}
                         </span>
                         <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
@@ -392,9 +440,7 @@ export default function HostOperationsPage() {
                       <button
                         onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
                         className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
-                          p.status === 'Occupied'
-                            ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
-                            : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                          p.status === 'Occupied' ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
                         }`}
                       >
                         ● {p.status || 'Active'}
@@ -406,9 +452,6 @@ export default function HostOperationsPage() {
                         <span className="text-neutral-500 font-medium">Nightly Rate: </span>
                         <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night || 45} / night</span>
                       </div>
-                      <a href="/" className="text-neutral-400 hover:text-white font-bold transition">
-                        View Details →
-                      </a>
                     </div>
                   </div>
                 ))}
@@ -416,29 +459,88 @@ export default function HostOperationsPage() {
             </div>
           )}
 
-          {/* TAB 3: STAFF TASKS */}
+          {/* TAB 3: STAFF TASKS & CUSTOM TASK CREATOR */}
           {activeTab === 'tasks' && (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
-              <h3 className="font-extrabold text-white text-lg">Automated Housekeeping & Staff Dispatch</h3>
-              <div className="space-y-3">
-                {tasks.map((t) => (
-                  <div key={t.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30 mr-2">
-                        {t.priority} Priority
-                      </span>
-                      <h4 className="font-extrabold text-white text-xs sm:text-sm inline">{t.title}</h4>
-                      <p className="text-xs text-neutral-400 mt-1">Assigned: {t.assignedTo} • Status: {t.status}</p>
-                    </div>
-                    <button
-                      onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title, 0)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer"
-                    >
-                      💬 Dispatch on WhatsApp
-                    </button>
-                  </div>
-                ))}
+            <div className="space-y-6">
+              
+              {/* ADD CUSTOM TASK FORM */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                <h3 className="font-extrabold text-white text-lg">➕ Create & Dispatch Custom Task</h3>
+                <p className="text-xs text-neutral-400">Assign any duty (cleaning, gas refill, electrical repair) and input your staff member's direct WhatsApp phone number.</p>
+                
+                <form onSubmit={handleAddCustomTask} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+                  <input
+                    type="text"
+                    placeholder="Task Title (e.g. Refill Gas Cylinder)"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Staff Name (e.g. John Gas Man)"
+                    value={newStaffName}
+                    onChange={(e) => setNewStaffName(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="WhatsApp Phone (+2567...)"
+                    value={newStaffPhone}
+                    onChange={(e) => setNewStaffPhone(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                  />
+
+                  <button
+                    type="submit"
+                    className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs py-3 rounded-xl shadow-lg transition cursor-pointer"
+                  >
+                    + Add & Save Task
+                  </button>
+                </form>
               </div>
+
+              {/* EXISTING TASKS LIST */}
+              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
+                <h3 className="font-extrabold text-white text-lg">Active Staff Duties & Dispatch Queue</h3>
+                
+                <div className="space-y-3">
+                  {tasks.map((t) => (
+                    <div key={t.id} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                            {t.priority} Priority
+                          </span>
+                        </div>
+                        <h4 className="font-extrabold text-white text-sm">{t.title}</h4>
+                        <p className="text-xs text-neutral-400 mt-1">
+                          👤 Assigned To: <strong className="text-amber-400">{t.assignedTo}</strong> • 💬 WhatsApp: <span className="font-mono text-emerald-400">{t.phone}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => dispatchSpecialist(t)}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-lg"
+                        >
+                          💬 Dispatch on WhatsApp
+                        </button>
+                        
+                        <button
+                          onClick={() => deleteTask(t.id)}
+                          className="px-3 py-2.5 bg-rose-950/50 text-rose-400 text-xs font-bold rounded-xl border border-rose-900/50 hover:bg-rose-900/50 transition cursor-pointer"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           )}
 
