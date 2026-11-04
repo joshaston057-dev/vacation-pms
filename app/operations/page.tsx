@@ -35,15 +35,14 @@ export default function HostOperationsPage() {
 
     const { data: propertyData } = await supabase.from('properties').select('*').order('id', { ascending: false })
     
-    // Default properties fallback if database table is currently empty
     if (propertyData && propertyData.length > 0) {
       setProperties(propertyData)
     } else {
       setProperties([
-        { id: 101, title: '2 Bedroom Fully Furnished Airbnb Apartment', location: 'Ntinda, Kampala', price: 45, category: 'Apartment', status: 'Active' },
+        { id: 101, title: '2 bedroom fully furnished Airbnb apartment for rent in Ntinda', location: 'Ntinda, Kampala', price: 45, category: 'Apartment', status: 'Active' },
         { id: 102, title: '5 Bedroom Fully Furnished Mansion', location: 'Entebbe', price: 70, category: 'Mansion', status: 'Active' },
         { id: 103, title: '3 Bedroom Luxury Villa for Rent', location: 'Munyonyo', price: 70, category: 'Villa', status: 'Active' },
-        { id: 104, title: 'Furnished Short-Stay Studio', location: 'Kisaasi, Kampala', price: 35, category: 'Apartment', status: 'Active' }
+        { id: 104, title: 'Furnished Short-Stay Studio', location: 'Kisaasi, Kampala', price: 35, category: 'Studio', status: 'Active' }
       ])
     }
 
@@ -51,7 +50,7 @@ export default function HostOperationsPage() {
   }
 
   const parseBookingData = (b: any) => {
-    let rawName = b.guest_name || b.name || ''
+    let rawName = b.guest_name || b.name || 'Guest'
     
     if (rawName.includes('Prop:')) {
       const getVal = (label: string) => {
@@ -62,31 +61,31 @@ export default function HostOperationsPage() {
       return {
         propertyTitle: getVal('Prop') || 'Property Stay',
         guestName: getVal('Guest') || 'Guest',
-        phone: getVal('Ph') || b.phone || '+256726797237',
+        phone: getVal('Ph') || b.phone || '+256780564778',
         demographic: getVal('Demo') || 'Couple with Kids',
         guestsCount: getVal('Guests') || '2',
-        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : '2026-11-12 → 2026-12-14',
-        notes: getVal('Notes') || b.notes || 'need airport pickup',
+        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : '2026-11-10 → 2026-12-14',
+        notes: getVal('Notes') || b.notes || 'i have a playing board',
         status: b.status || 'Confirmed'
       }
     }
 
     return {
-      propertyTitle: b.property_title || b.property || 'Property Stay',
-      guestName: rawName || 'Guest',
-      phone: b.phone || b.contact || '+256726797237',
+      propertyTitle: b.property_title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
+      guestName: rawName,
+      phone: b.phone || '+256780564778',
       demographic: b.demographic || 'Couple with Kids',
       guestsCount: b.guests || '2',
-      dates: b.check_in ? `${b.check_in} → ${b.check_out}` : '2026-11-12 → 2026-12-14',
-      notes: b.notes || b.special_requests || 'need airport pickup',
+      dates: b.check_in ? `${b.check_in} → ${b.check_out}` : '2026-11-10 → 2026-12-14',
+      notes: b.notes || 'i have a playing board',
       status: b.status || 'Confirmed'
     }
   }
 
   const openWhatsApp = (phone: string, guestName: string, property: string) => {
-    const cleanPhone = phone ? phone.replace(/[^0-9+]/g, '') : ''
-    const message = encodeURIComponent(`Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at ${property}!`)
-    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank')
+    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '256780564778'
+    const message = encodeURIComponent(`Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${property}]!`)
+    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
   const deleteBooking = async (id: number) => {
@@ -113,13 +112,13 @@ export default function HostOperationsPage() {
           </div>
         </section>
 
-        {/* 🚀 UPSELL & OPERATIONS MOTION SLIDER */}
+        {/* UPSELL & OPERATIONS SLIDER */}
         <UpsellMotionSlider />
 
-        {/* MAIN DASHBOARD CONTENT */}
+        {/* DASHBOARD CONTENT */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           
-          {/* NAVIGATION TABS */}
+          {/* TABS */}
           <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-4">
             <button
               onClick={() => setActiveTab('bookings')}
@@ -189,7 +188,7 @@ export default function HostOperationsPage() {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-900 pb-4">
                           <h4 className="font-black text-white text-base sm:text-lg tracking-tight truncate max-w-xl">
-                            {parsed.propertyTitle}
+                            [{parsed.propertyTitle}]
                           </h4>
                           <span className={`px-3 py-1 rounded-full text-xs font-extrabold tracking-wide uppercase self-start sm:self-auto ${
                             parsed.status === 'Confirmed' 
@@ -235,7 +234,7 @@ export default function HostOperationsPage() {
                         <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
                           <span className="text-base">📄</span>
                           <div>
-                            <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">Guest Notes: </span>
+                            <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">GUEST NOTES: </span>
                             <span className="text-xs text-neutral-300 font-medium">{parsed.notes}</span>
                           </div>
                         </div>
@@ -285,8 +284,8 @@ export default function HostOperationsPage() {
                   <p className="text-xs text-neutral-400">Manage rates, status, and active listings across Entebbe, Munyonyo, and Ntinda.</p>
                 </div>
                 <button
-                  onClick={() => alert('Add Property Modal / Navigation route: /admin/add-property')}
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition self-start sm:self-auto cursor-pointer"
+                  onClick={() => alert('Add Property Modal / Route')}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
                 >
                   + Add New Property
                 </button>
@@ -313,7 +312,7 @@ export default function HostOperationsPage() {
                         <span className="text-neutral-500 font-medium">Nightly Rate: </span>
                         <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night || 45} / night</span>
                       </div>
-                      <a href="/properties" className="text-neutral-400 hover:text-white font-bold transition">
+                      <a href="/" className="text-neutral-400 hover:text-white font-bold transition">
                         View Details →
                       </a>
                     </div>
@@ -323,7 +322,7 @@ export default function HostOperationsPage() {
             </div>
           )}
 
-          {/* TAB 3: STAFF TASKS TRACKER */}
+          {/* TAB 3: STAFF TASKS */}
           {activeTab === 'tasks' && (
             <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
               <h3 className="font-extrabold text-white text-lg">Automated Housekeeping & Staff Dispatch</h3>
@@ -339,7 +338,7 @@ export default function HostOperationsPage() {
                     </div>
                     <button
                       onClick={() => openWhatsApp(t.phone, t.assignedTo, t.title)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition self-start sm:self-auto flex items-center gap-1.5 cursor-pointer"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer"
                     >
                       💬 Dispatch on WhatsApp
                     </button>

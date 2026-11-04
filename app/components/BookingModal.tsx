@@ -37,19 +37,19 @@ export default function BookingModal({ property, onClose }: { property: any; onC
   const handleCreateBooking = async () => {
     setIsSubmitting(true)
 
-    // Formatted demographic payload
+    // Formatted demographic string
     const demographicInfo = children > 0 
       ? `${adults} Adults, ${children} Child (${childAges})`
       : `Couple with Kids`
 
-    // Combined Notes string formatted for clean parsing in Host Portal
-    const rawNote = notes ? `Notes: ${notes}` : 'Notes: None'
+    const propertyTitle = property?.title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda'
 
+    // Insert into Supabase
     const { data, error } = await supabase.from('bookings').insert([
       {
-        property_title: property?.title || '2 bedroom fully furnished Airbnb apartment for rent in Ntinda',
-        guest_name: guestName,
-        phone: phone,
+        property_title: propertyTitle,
+        guest_name: guestName || 'Guest',
+        phone: phone || '+256726797237',
         demographic: demographicInfo,
         guests: adults + children,
         check_in: checkIn,
@@ -65,7 +65,7 @@ export default function BookingModal({ property, onClose }: { property: any; onC
       // Auto-Create Housekeeping Task in Host Operations Portal
       await supabase.from('tasks').insert([
         {
-          title: `Clean Turnover - ${property?.title || 'Apartment'}`,
+          title: `Clean Turnover - ${propertyTitle}`,
           priority: 'High',
           status: 'Pending',
           assigned_to: 'Housekeeping',
@@ -73,15 +73,16 @@ export default function BookingModal({ property, onClose }: { property: any; onC
         }
       ])
 
-      // Trigger Pre-Formatted WhatsApp Message
+      // Trigger Pre-Formatted WhatsApp Message with Correct Name & Property
+      const cleanPhone = (phone || '+256726797237').replace(/[^0-9]/g, '')
       const message = encodeURIComponent(
-        `Hello ${guestName}, thank you for booking ${property?.title || 'La Estancia Vacation Homes'}!\n` +
+        `Hello ${guestName || 'Guest'}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${propertyTitle}]!\n\n` +
         `Dates: ${checkIn} → ${checkOut}\n` +
         `Guests: ${demographicInfo}\n` +
         `Paid: $${paymentDueNow} (${paymentOption === 'full' ? '100% Paid' : '30% Deposit'})`
       )
       
-      window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}?text=${message}`, '_blank')
+      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
       onClose()
       window.location.reload()
     } else {
@@ -233,7 +234,7 @@ export default function BookingModal({ property, onClose }: { property: any; onC
             <div>
               <label className="block text-neutral-400 font-bold mb-1">Guest Notes / Requests</label>
               <textarea
-                placeholder="e.g. need airport pickup or I have a playing board"
+                placeholder="e.g. need airport pickup or i have a playing board"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="w-full bg-neutral-900 border border-neutral-800 p-2.5 rounded-xl text-white h-16"
