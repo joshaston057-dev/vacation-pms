@@ -21,12 +21,14 @@ export default function HostOperationsPage() {
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ADD PROPERTY MODAL STATES
+  // ADD PROPERTY MODAL & FILE UPLOAD STATES
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
   const [propTitle, setPropTitle] = useState('')
   const [propCategory, setPropCategory] = useState('Apartment')
   const [propLocation, setPropLocation] = useState('')
   const [propPrice, setPropPrice] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [propSubmitting, setPropSubmitting] = useState(false)
 
   // CUSTOM TASK INPUT STATES
@@ -94,7 +96,16 @@ export default function HostOperationsPage() {
     }
   }
 
-  // CREATE NEW PROPERTY WORKFLOW
+  // Handle File Pick from Device Gallery
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setSelectedFile(file)
+      setImagePreview(URL.createObjectURL(file))
+    }
+  }
+
+  // CREATE NEW PROPERTY WITH GALLERY IMAGE UPLOAD
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!propTitle || !propLocation || !propPrice) {
@@ -112,11 +123,35 @@ export default function HostOperationsPage() {
         return
       }
 
+      let imageUrl = ''
+
+      // 1. Upload photo to Supabase Storage if picked from gallery
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop()
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(fileName, selectedFile)
+
+        if (uploadError) {
+          console.error('Storage upload error:', uploadError)
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from('property-images')
+            .getPublicUrl(fileName)
+          
+          imageUrl = publicUrlData.publicUrl
+        }
+      }
+
+      // 2. Insert record into database
       const newProperty = {
         title: propTitle,
         category: propCategory,
         location: propLocation,
         price: parseFloat(propPrice),
+        image_url: imageUrl,
         status: 'Active',
         host_id: user.id
       }
@@ -132,9 +167,12 @@ export default function HostOperationsPage() {
         setProperties([data[0], ...properties])
       }
 
+      // Reset Form
       setPropTitle('')
       setPropLocation('')
       setPropPrice('')
+      setSelectedFile(null)
+      setImagePreview(null)
       setShowAddPropertyModal(false)
       alert(`🎉 Property "${propTitle}" added successfully!`)
     } catch (err: any) {
@@ -533,7 +571,15 @@ export default function HostOperationsPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
                   {properties.map((p) => (
-                    <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition relative">
+                    <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition relative overflow-hidden">
+                      {p.image_url && (
+                        <img 
+                          src={p.image_url} 
+                          alt={p.title} 
+                          className="w-full h-40 object-cover rounded-xl border border-neutral-800"
+                        />
+                      )}
+
                       <div className="flex justify-between items-start gap-2">
                         <div>
                           <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
@@ -676,7 +722,7 @@ export default function HostOperationsPage() {
         </section>
       </div>
 
-      {/* MODAL: ADD NEW PROPERTY */}
+      {/* MODAL: ADD NEW PROPERTY WITH DIRECT GALLERY FILE UPLOAD */}
       {showAddPropertyModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -741,6 +787,28 @@ export default function HostOperationsPage() {
                 />
               </div>
 
+              {/* DIRECT DEVICE GALLERY PHOTO PICKER */}
+              <div>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">Property Photo (Choose from Gallery)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-neutral-400 px-3 py-2 rounded-xl focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
+                />
+                
+                {imagePreview && (
+                  <div className="mt-3">
+                    <p className="text-[10px] text-neutral-400 mb-1 font-bold">Preview Selected Photo:</p>
+                    <img 
+                      src={imagePreview} 
+                      alt="Selected Preview" 
+                      className="w-full h-32 object-cover rounded-xl border border-amber-500/50"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -754,7 +822,7 @@ export default function HostOperationsPage() {
                   disabled={propSubmitting}
                   className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer"
                 >
-                  {propSubmitting ? 'Saving Property...' : 'Save & Publish Listing'}
+                  {propSubmitting ? 'Uploading & Saving...' : 'Save & Publish Listing'}
                 </button>
               </div>
             </form>
