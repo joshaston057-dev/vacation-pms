@@ -10,7 +10,7 @@ export default function HostSignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [phone, setPhone] = useState('')
-  const [propertyLocation, setPropertyLocation] = useState('Kampala')
+  const [propertyLocation, setPropertyLocation] = useState('')
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
@@ -53,10 +53,10 @@ export default function HostSignupPage() {
             
             <div className="text-center space-y-2">
               <h1 className="text-2xl font-black text-white tracking-tight">
-                Become a La Estancia Host
+                Become a Host
               </h1>
               <p className="text-xs text-neutral-400">
-                Register to access the Host Operations Portal and manage your short-stay listings.
+                Register globally to access your Host Operations Portal and manage your short-stay listings.
               </p>
             </div>
 
@@ -92,7 +92,7 @@ export default function HostSignupPage() {
                   <input
                     type="email"
                     required
-                    placeholder="host@laestancia.com"
+                    placeholder="host@agency.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
@@ -112,16 +112,15 @@ export default function HostSignupPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-neutral-300 mb-1">Property Location</label>
-                  <select
+                  <label className="block text-xs font-bold text-neutral-300 mb-1">Property Location / City, Country</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Nairobi, Kenya or London, UK"
                     value={propertyLocation}
                     onChange={(e) => setPropertyLocation(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Kampala">Kampala (Ntinda, Kisaasi, Munyonyo)</option>
-                    <option value="Entebbe">Entebbe</option>
-                    <option value="International">International / Outside Uganda</option>
-                  </select>
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500 font-bold"
+                  />
                 </div>
 
                 <div>
@@ -141,7 +140,7 @@ export default function HostSignupPage() {
                   disabled={loading}
                   className="w-full bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs py-3.5 rounded-xl shadow-lg transition cursor-pointer"
                 >
-                  {loading ? 'Registering Host Account...' : '⚡ Register as Host'}
+                  {loading ? 'Registering Host Account...' : '⚡ Register as Global Host'}
                 </button>
               </form>
             )}
