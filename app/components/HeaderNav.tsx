@@ -1,73 +1,55 @@
 'use client'
 
-import Link from 'next/link'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 export default function HeaderNav() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+      // 1. Terminate host auth session in Supabase
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+
+      // 2. Redirect to login page and refresh routing cache
+      router.push('/login')
+      router.refresh()
+    } catch (err: any) {
+      alert('Error logging out: ' + err.message)
+    }
+  }
 
   return (
-    <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-40">
-      <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+    <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur-md sticky top-0 z-40">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         
-        {/* LOGO */}
-        <Link href="/" className="text-lg font-extrabold text-white tracking-wide flex items-center gap-2">
-          <span className="text-amber-500">La Estancia</span> Vacation Homes
-        </Link>
+        {/* BRAND LOGO */}
+        <a href="/" className="flex items-center gap-2">
+          <span className="text-xl font-black text-white tracking-tight">
+            La Estancia <span className="text-amber-500 font-extrabold">PMS</span>
+          </span>
+        </a>
 
-        {/* DESKTOP NAVIGATION */}
-        <nav className="hidden md:flex items-center gap-5 text-xs font-bold text-neutral-300">
-          <Link href="/properties" className="hover:text-amber-500 transition-colors">
-            Property Category
-          </Link>
-          <Link href="/services" className="hover:text-amber-500 transition-colors">
-            Services
-          </Link>
-          <Link href="/blog" className="hover:text-amber-500 transition-colors">
-            Blog
-          </Link>
-          <Link href="/about" className="hover:text-amber-500 transition-colors bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20 text-amber-400">
-            About Us
-          </Link>
-          <Link 
-            href="/operations" 
-            className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-extrabold rounded-xl transition shadow-md flex items-center gap-1.5"
+        {/* NAV ACTIONS */}
+        <div className="flex items-center gap-3">
+          <a
+            href="/operations"
+            className="text-xs font-extrabold text-neutral-300 hover:text-white px-3 py-2 rounded-lg transition"
           >
-            ⚙️ Host Operations
-          </Link>
-        </nav>
+            Dashboard
+          </a>
 
-        {/* MOBILE TOGGLE */}
-        <button
-          type="button"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden text-neutral-300 hover:text-white p-2 rounded-lg bg-neutral-800 border border-neutral-700 text-xs font-bold cursor-pointer"
-        >
-          {mobileMenuOpen ? '✕ Close' : '☰ Menu'}
-        </button>
+          {/* LOG OUT BUTTON */}
+          <button
+            onClick={handleLogout}
+            className="text-xs font-black bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-900/50 px-3.5 py-2 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+          >
+            🚪 Log Out
+          </button>
+        </div>
 
       </div>
-
-      {/* MOBILE DROPDOWN MENU */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-neutral-900 border-b border-neutral-800 px-4 pt-2 pb-4 space-y-3">
-          <Link href="/properties" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
-            Property Category
-          </Link>
-          <Link href="/services" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
-            Services
-          </Link>
-          <Link href="/blog" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-neutral-300 py-1">
-            Blog
-          </Link>
-          <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-xs font-bold text-amber-400 py-1">
-            About Us
-          </Link>
-          <Link href="/operations" onClick={() => setMobileMenuOpen(false)} className="block text-center py-2.5 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">
-            ⚙️ Host Operations
-          </Link>
-        </div>
-      )}
     </header>
   )
 }
