@@ -11,19 +11,21 @@ import { supabase } from '@/lib/supabase'
 export default function HostOperationsPage() {
   const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tasks' | 'ledger'>('bookings')
   
+  // HOST BUSINESS BRANDING
+  const [businessName, setBusinessName] = useState('Vacation Homes Agency')
+  const [isEditingBrand, setIsEditingBrand] = useState(false)
+
   const [bookings, setBookings] = useState<any[]>([])
   const [properties, setProperties] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [bills, setBills] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // STATE FOR CUSTOM TASK FORM INPUTS
+  // CUSTOM TASK INPUT STATES
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [newStaffName, setNewStaffName] = useState('')
   const [newStaffPhone, setNewStaffPhone] = useState('')
   const [newPriority, setNewPriority] = useState('High')
-
-  // ACTIVE TASKS STATE
-  const [tasks, setTasks] = useState<any[]>([])
-  const [bills, setBills] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchPortalData()
@@ -32,7 +34,6 @@ export default function HostOperationsPage() {
   const fetchPortalData = async () => {
     setLoading(true)
     try {
-      // 1. Get currently authenticated host user
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
@@ -40,43 +41,67 @@ export default function HostOperationsPage() {
         return
       }
 
-      // 2. Fetch ONLY bookings assigned to THIS host's ID
+      // 1. Fetch custom business name from public.profiles
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('business_name')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profile?.business_name) {
+        setBusinessName(profile.business_name)
+      }
+
+      // 2. Fetch ONLY bookings assigned to THIS host ID
       const { data: bookingData } = await supabase
         .from('bookings')
         .select('*')
         .eq('host_id', user.id)
         .order('id', { ascending: false })
 
-      if (bookingData) {
-        setBookings(bookingData)
-      }
+      if (bookingData) setBookings(bookingData)
 
-      // 3. Fetch ONLY properties belonging to THIS host
+      // 3. Fetch ONLY properties belonging to THIS host ID
       const { data: propertyData } = await supabase
         .from('properties')
         .select('*')
         .eq('host_id', user.id)
         .order('id', { ascending: false })
       
-      if (propertyData) {
-        setProperties(propertyData)
-      }
+      if (propertyData) setProperties(propertyData)
 
-      // 4. Fetch tasks assigned to THIS host
+      // 4. Fetch tasks belonging to THIS host ID
       const { data: taskData } = await supabase
         .from('tasks')
         .select('*')
         .eq('host_id', user.id)
         .order('id', { ascending: false })
 
-      if (taskData) {
-        setTasks(taskData)
-      }
+      if (taskData) setTasks(taskData)
 
     } catch (err) {
-      console.error('Portal Data Error:', err)
+      console.error('Portal Data Isolation Error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // SAVE CUSTOM BUSINESS NAME TO PUBLIC.PROFILES TABLE
+  const handleSaveBusinessName = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, business_name: businessName })
+
+      if (error) throw error
+
+      setIsEditingBrand(false)
+      alert(`✅ Business Name updated to "${businessName}"! All WhatsApp dispatches will now use this brand.`)
+    } catch (err: any) {
+      alert('Error updating business name: ' + err.message)
     }
   }
 
@@ -92,10 +117,10 @@ export default function HostOperationsPage() {
       return {
         propertyTitle: getVal('Prop') || 'Property Stay',
         guestName: getVal('Guest') || 'Guest',
-        phone: getVal('Ph') || b.phone || '+256780564778',
-        demographic: getVal('Demo') || 'Couple with Kids',
-        guestsCount: getVal('Guests') || '2',
-        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : 'Check-in → Check-out',
+        phone: getVal('Ph') || b.phone || '',
+        demographic: getVal('Demo') || 'Guest Stay',
+        guestsCount: getVal('Guests') || '1',
+        dates: getVal('In') ? `${getVal('In')} → ${getVal('Out')}` : 'Stay Dates',
         notes: getVal('Notes') || b.notes || 'No extra notes',
         totalPrice: b.total_price || 0,
         paidAmount: b.paid_amount || 0,
@@ -117,16 +142,34 @@ export default function HostOperationsPage() {
     }
   }
 
+  // DYNAMIC WHATSAPP DISPATCH USING HOST'S BUSINESS BRAND
   const openWhatsApp = (phone: string, guestName: string, property: string, paidAmount: number) => {
-    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : '256780564778'
+    const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : ''
     const message = encodeURIComponent(
-      `Hello ${guestName}, thank you for choosing La Estancia Vacation Homes regarding your stay at [${property}]!\n\n` +
-      `To confirm your reservation, please send your deposit of $${paidAmount} (30%) via MTN/Airtel MoMo to +256780564778.`
+      `Hello ${guestName}, thank you for choosing ${businessName} regarding your stay at [${property}]!\n\n` +
+      `To confirm your reservation, please send your deposit of $${paidAmount} (30%) via Mobile Money / Transfer.`
     )
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  // ADD CUSTOM TASK WITH STAFF WHATSAPP NUMBER
+  // DISPATCH TASK TO STAFF WITH HOST BRANDING
+  const dispatchSpecialist = (task: any) => {
+    const cleanPhone = (task.phone || '').replace(/[^0-9]/g, '')
+    const staffName = task.assignedTo || task.assigned_to || 'Staff Member'
+
+    const message = encodeURIComponent(
+      `🛠️ DUTY WORK ORDER - ${businessName.toUpperCase()}\n\n` +
+      `Hello ${staffName},\n\n` +
+      `You have been allocated a new duty:\n` +
+      `📌 Task: ${task.title}\n` +
+      `⚡ Priority: ${task.priority}\n\n` +
+      `Please reply to confirm receipt and notify once completed!`
+    )
+
+    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
+  }
+
+  // ADD CUSTOM TASK WITH DIRECT STAFF PHONE
   const handleAddCustomTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle || !newStaffName || !newStaffPhone) {
@@ -154,23 +197,6 @@ export default function HostOperationsPage() {
     setNewStaffPhone('')
   }
 
-  // DISPATCH TASK TO STAFF ON WHATSAPP
-  const dispatchSpecialist = (task: any) => {
-    const cleanPhone = (task.phone || '').replace(/[^0-9]/g, '')
-    const staffName = task.assignedTo || 'Staff Member'
-
-    const message = encodeURIComponent(
-      `🛠️ DUTY WORK ORDER - LA ESTANCIA\n\n` +
-      `Hello ${staffName},\n\n` +
-      `You have been allocated a new task:\n` +
-      `📌 Task: ${task.title}\n` +
-      `⚡ Priority: ${task.priority}\n\n` +
-      `Please reply to confirm receipt and notify once completed!`
-    )
-
-    window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
-  }
-
   const deleteTask = async (id: number) => {
     await supabase.from('tasks').delete().eq('id', id)
     setTasks(tasks.filter(t => t.id !== id))
@@ -192,7 +218,8 @@ export default function HostOperationsPage() {
           propertyTitle: parsed.propertyTitle,
           checkIn: b.check_in,
           checkOut: b.check_out,
-          demographic: parsed.demographic
+          demographic: parsed.demographic,
+          businessName: businessName
         })
       })
 
@@ -226,15 +253,42 @@ export default function HostOperationsPage() {
       <div>
         <HeaderNav />
 
-        {/* PORTAL HEADER */}
+        {/* PORTAL HEADER & BRANDING CONTROL */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-6">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                La Estancia Host Operations Portal
-              </h1>
-              <p className="text-xs sm:text-sm text-neutral-400 mt-1">
-                Centralized PMS: Manage Bookings, Properties, Staff Dispatch, and Financial Ledgers.
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                  {businessName} Operations
+                </h1>
+                <button
+                  onClick={() => setIsEditingBrand(!isEditingBrand)}
+                  className="text-xs bg-neutral-900 border border-neutral-800 hover:border-amber-500 text-amber-400 font-bold px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  ✏️ Edit Business Name
+                </button>
+              </div>
+
+              {isEditingBrand && (
+                <div className="mt-3 flex items-center gap-2 bg-neutral-900 border border-neutral-800 p-3 rounded-xl max-w-md">
+                  <input
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Ewright Furnished Apartments"
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-2 rounded-lg w-full focus:outline-none focus:border-amber-500 font-bold"
+                  />
+                  <button
+                    onClick={handleSaveBusinessName}
+                    className="bg-amber-500 text-black font-extrabold text-xs px-4 py-2 rounded-lg shadow whitespace-nowrap cursor-pointer"
+                  >
+                    Save Brand
+                  </button>
+                </div>
+              )}
+
+              <p className="text-xs text-neutral-400 mt-1">
+                Centralized PMS: Manage Bookings, Properties, Staff Dispatch, and Financial Ledgers under <strong className="text-amber-400">{businessName}</strong>.
               </p>
             </div>
           </div>
@@ -293,7 +347,7 @@ export default function HostOperationsPage() {
                 <p className="text-xs text-neutral-500 animate-pulse">Loading reservation records...</p>
               ) : bookings.length === 0 ? (
                 <div className="py-12 text-center text-neutral-500 text-xs font-bold">
-                  No reservation requests submitted for your account yet.
+                  No reservation requests submitted for {businessName} yet.
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -336,12 +390,6 @@ export default function HostOperationsPage() {
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <span className="text-base">👨‍👩‍👧</span>
-                            <span className="text-neutral-400 font-semibold">Guests:</span>
-                            <span className="font-bold text-neutral-200">{parsed.guestsCount}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
                             <span className="text-base">📅</span>
                             <span className="text-neutral-400 font-semibold">Dates:</span>
                             <span className="font-bold text-neutral-200">{parsed.dates}</span>
@@ -357,14 +405,6 @@ export default function HostOperationsPage() {
                               <span className="text-emerald-400 text-xs font-semibold">30% Deposit Due:</span>
                               <span className="font-black text-emerald-400 text-xs">${parsed.paidAmount}</span>
                             </div>
-                          </div>
-                        </div>
-
-                        <div className="p-3.5 bg-neutral-900 border border-amber-500/30 rounded-xl flex items-start gap-2.5">
-                          <span className="text-base">📄</span>
-                          <div>
-                            <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">GUEST NOTES: </span>
-                            <span className="text-xs text-neutral-300 font-medium">{parsed.notes}</span>
                           </div>
                         </div>
 
@@ -405,7 +445,7 @@ export default function HostOperationsPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
                 <div>
                   <h3 className="font-extrabold text-white text-lg">Property Listings Portfolio</h3>
-                  <p className="text-xs text-neutral-400">Manage rates, status, and active listings across Entebbe, Munyonyo, and Ntinda.</p>
+                  <p className="text-xs text-neutral-400">Manage rates, status, and active listings.</p>
                 </div>
               </div>
 
@@ -448,8 +488,6 @@ export default function HostOperationsPage() {
             <div className="space-y-6">
               <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 space-y-4 shadow-xl">
                 <h3 className="font-extrabold text-white text-lg">➕ Create & Dispatch Custom Task</h3>
-                <p className="text-xs text-neutral-400">Assign any duty (cleaning, gas refill, electrical repair) and input your staff member's direct WhatsApp phone number.</p>
-                
                 <form onSubmit={handleAddCustomTask} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                   <input
                     type="text"
@@ -461,7 +499,7 @@ export default function HostOperationsPage() {
 
                   <input
                     type="text"
-                    placeholder="Staff Name (e.g. John Gas Man)"
+                    placeholder="Staff Name (e.g. John Gas Runner)"
                     value={newStaffName}
                     onChange={(e) => setNewStaffName(e.target.value)}
                     className="bg-neutral-950 border border-neutral-800 text-xs text-white px-3 py-3 rounded-xl focus:outline-none focus:border-amber-500"
@@ -479,7 +517,7 @@ export default function HostOperationsPage() {
                     type="submit"
                     className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs py-3 rounded-xl shadow-lg transition cursor-pointer"
                   >
-                    + Add & Save Task
+                    + Add Task
                   </button>
                 </form>
               </div>
@@ -493,12 +531,12 @@ export default function HostOperationsPage() {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
-                            {t.priority} Priority
+                            {t.priority || 'High'} Priority
                           </span>
                         </div>
                         <h4 className="font-extrabold text-white text-sm">{t.title}</h4>
                         <p className="text-xs text-neutral-400 mt-1">
-                          👤 Assigned To: <strong className="text-amber-400">{t.assignedTo}</strong> • 💬 WhatsApp: <span className="font-mono text-emerald-400">{t.phone}</span>
+                          👤 Assigned To: <strong className="text-amber-400">{t.assignedTo || t.assigned_to}</strong> • 💬 WhatsApp: <span className="font-mono text-emerald-400">{t.phone}</span>
                         </p>
                       </div>
 

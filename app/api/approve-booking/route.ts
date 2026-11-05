@@ -3,12 +3,26 @@ import { supabase } from '@/lib/supabase'
 
 export async function POST(req: Request) {
   try {
-    const { bookingId, amountPaid, paymentMethod, guestName, phone, propertyTitle, checkIn, checkOut, demographic } = await req.json()
+    const { 
+      bookingId, 
+      amountPaid, 
+      paymentMethod, 
+      guestName, 
+      phone, 
+      propertyTitle, 
+      checkIn, 
+      checkOut, 
+      demographic, 
+      businessName 
+    } = await req.json()
 
-    // 1. Generate unique 4-digit check-in access code
+    // 1. Set host brand name or fallback
+    const brand = businessName || 'Vacation Homes Agency'
+    
+    // 2. Generate unique 4-digit check-in access code
     const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
 
-    // 2. Fetch booking record to retrieve host_id
+    // 3. Fetch booking record to retrieve host_id
     const { data: bookingRecord } = await supabase
       .from('bookings')
       .select('host_id')
@@ -17,7 +31,7 @@ export async function POST(req: Request) {
 
     const hostId = bookingRecord?.host_id || null
 
-    // 3. Update booking status safely
+    // 4. Update booking status safely
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({
@@ -28,7 +42,7 @@ export async function POST(req: Request) {
 
     if (bookingError) throw bookingError
 
-    // 4. Auto-toggle property status to Occupied
+    // 5. Auto-toggle property status to Occupied
     if (propertyTitle) {
       await supabase
         .from('properties')
@@ -36,7 +50,7 @@ export async function POST(req: Request) {
         .ilike('title', `%${propertyTitle}%`)
     }
 
-    // 5. Auto-inject housekeeping turnover task tagged with host_id
+    // 6. Auto-inject housekeeping turnover task tagged with host_id
     await supabase.from('tasks').insert([
       {
         title: `Clean Turnover - ${propertyTitle}`,
@@ -48,7 +62,7 @@ export async function POST(req: Request) {
       }
     ])
 
-    // 6. Build pre-formatted WhatsApp message URL
+    // 7. Build pre-formatted WhatsApp message URL using custom brand name
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '')
     const whatsappText = encodeURIComponent(
       `🎉 Payment Approved!\n\n` +
@@ -57,7 +71,7 @@ export async function POST(req: Request) {
       `👥 Group: ${demographic}\n` +
       `💳 Payment Received: $${amountPaid} (${paymentMethod})\n` +
       `🔑 Access Code: ${doorCode} (Active at 2:00 PM on check-in day)\n\n` +
-      `We look forward to hosting you at La Estancia Vacation Homes!`
+      `We look forward to hosting you at ${brand}!`
     )
 
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${whatsappText}`
