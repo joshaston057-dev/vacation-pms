@@ -21,14 +21,14 @@ export default function HostOperationsPage() {
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ADD PROPERTY MODAL & FILE UPLOAD STATES
+  // ADD PROPERTY MODAL & MULTI-FILE UPLOAD STATES
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
   const [propTitle, setPropTitle] = useState('')
   const [propCategory, setPropCategory] = useState('Apartment')
   const [propLocation, setPropLocation] = useState('')
   const [propPrice, setPropPrice] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [propSubmitting, setPropSubmitting] = useState(false)
 
   // CUSTOM TASK INPUT STATES
@@ -96,16 +96,19 @@ export default function HostOperationsPage() {
     }
   }
 
-  // Handle File Pick from Device Gallery
+  // Handle Multiple File Selection from Device Gallery
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0]
-      setSelectedFile(file)
-      setImagePreview(URL.createObjectURL(file))
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArray = Array.from(e.target.files)
+      setSelectedFiles(filesArray)
+
+      // Create local previews for all selected photos
+      const previews = filesArray.map((file) => URL.createObjectURL(file))
+      setImagePreviews(previews)
     }
   }
 
-  // CREATE NEW PROPERTY WITH GALLERY IMAGE UPLOAD
+  // CREATE NEW PROPERTY WITH MULTI-PHOTO GALLERY UPLOAD
   const handleCreateProperty = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!propTitle || !propLocation || !propPrice) {
@@ -123,27 +126,31 @@ export default function HostOperationsPage() {
         return
       }
 
-      let imageUrl = ''
+      const uploadedUrls: string[] = []
 
-      // 1. Upload photo to Supabase Storage if picked from gallery
-      if (selectedFile) {
-        const fileExt = selectedFile.name.split('.').pop()
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`
+      // 1. Upload all selected gallery photos to Supabase Storage
+      if (selectedFiles.length > 0) {
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const file = selectedFiles[i]
+          const fileExt = file.name.split('.').pop()
+          const fileName = `${user.id}/${Date.now()}_${i}.${fileExt}`
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(fileName, selectedFile)
-
-        if (uploadError) {
-          console.error('Storage upload error:', uploadError)
-        } else {
-          const { data: publicUrlData } = supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('property-images')
-            .getPublicUrl(fileName)
-          
-          imageUrl = publicUrlData.publicUrl
+            .upload(fileName, file)
+
+          if (!uploadError) {
+            const { data: publicUrlData } = supabase.storage
+              .from('property-images')
+              .getPublicUrl(fileName)
+            
+            uploadedUrls.push(publicUrlData.publicUrl)
+          }
         }
       }
+
+      // First photo becomes the lead cover image
+      const leadCoverImage = uploadedUrls.length > 0 ? uploadedUrls[0] : ''
 
       // 2. Insert record into database
       const newProperty = {
@@ -151,7 +158,8 @@ export default function HostOperationsPage() {
         category: propCategory,
         location: propLocation,
         price: parseFloat(propPrice),
-        image_url: imageUrl,
+        image_url: leadCoverImage,
+        images: uploadedUrls,
         status: 'Active',
         host_id: user.id
       }
@@ -171,10 +179,10 @@ export default function HostOperationsPage() {
       setPropTitle('')
       setPropLocation('')
       setPropPrice('')
-      setSelectedFile(null)
-      setImagePreview(null)
+      setSelectedFiles([])
+      setImagePreviews([])
       setShowAddPropertyModal(false)
-      alert(`🎉 Property "${propTitle}" added successfully!`)
+      alert(`🎉 Property "${propTitle}" published with ${uploadedUrls.length} photos!`)
     } catch (err: any) {
       alert('Error creating property: ' + err.message)
     } finally {
@@ -570,50 +578,82 @@ export default function HostOperationsPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
-                  {properties.map((p) => (
-                    <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition relative overflow-hidden">
-                      {p.image_url && (
-                        <img 
-                          src={p.image_url} 
-                          alt={p.title} 
-                          className="w-full h-40 object-cover rounded-xl border border-neutral-800"
-                        />
-                      )}
+                  {properties.map((p) => {
+                    const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
 
-                      <div className="flex justify-between items-start gap-2">
-                        <div>
-                          <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                            {p.category || 'Short-Stay'}
-                          </span>
-                          <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
-                          <p className="text-xs text-neutral-400 font-medium">📍 {p.location}</p>
+                    return (
+                      <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition relative overflow-hidden">
+                        
+                        {/* GALLERY DISPLAY WITH LEAD COVER BADGE */}
+                        {gallery.length > 0 && (
+                          <div className="space-y-2">
+                            <div className="relative">
+                              <img 
+                                src={gallery[0]} 
+                                alt={p.title} 
+                                className="w-full h-44 object-cover rounded-xl border border-neutral-800"
+                              />
+                              <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-md text-amber-400 text-[10px] font-black px-2.5 py-1 rounded-lg border border-amber-500/40">
+                                ⭐ Lead Cover Photo
+                              </span>
+                            </div>
+
+                            {/* GALLERY THUMBNAILS GRID */}
+                            {gallery.length > 1 && (
+                              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                                {gallery.map((url: string, idx: number) => (
+                                  <img
+                                    key={idx}
+                                    src={url}
+                                    alt={`Gallery photo ${idx + 1}`}
+                                    className={`w-12 h-12 object-cover rounded-lg border cursor-pointer ${
+                                      idx === 0 ? 'border-amber-500' : 'border-neutral-800 opacity-70'
+                                    }`}
+                                  />
+                                ))}
+                                <span className="text-[10px] text-neutral-500 font-bold whitespace-nowrap pl-1">
+                                  +{gallery.length - 1} photos
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                              {p.category || 'Apartment'}
+                            </span>
+                            <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
+                            <p className="text-xs text-neutral-400 font-medium">📍 {p.location}</p>
+                          </div>
+
+                          <button
+                            onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
+                            className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
+                              p.status === 'Occupied' ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                            }`}
+                          >
+                            ● {p.status || 'Active'}
+                          </button>
                         </div>
 
-                        <button
-                          onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
-                          className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
-                            p.status === 'Occupied' ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                          }`}
-                        >
-                          ● {p.status || 'Active'}
-                        </button>
-                      </div>
+                        <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
+                          <div>
+                            <span className="text-neutral-500 font-medium">Nightly Rate: </span>
+                            <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night} / night</span>
+                          </div>
 
-                      <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
-                        <div>
-                          <span className="text-neutral-500 font-medium">Nightly Rate: </span>
-                          <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night} / night</span>
+                          <button
+                            onClick={() => deleteProperty(p.id)}
+                            className="text-xs text-rose-500 hover:text-rose-400 font-bold px-2 py-1 rounded bg-rose-950/30 border border-rose-900/40 cursor-pointer"
+                          >
+                            🗑️ Delete
+                          </button>
                         </div>
-
-                        <button
-                          onClick={() => deleteProperty(p.id)}
-                          className="text-xs text-rose-500 hover:text-rose-400 font-bold px-2 py-1 rounded bg-rose-950/30 border border-rose-900/40 cursor-pointer"
-                        >
-                          🗑️ Delete
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -722,10 +762,10 @@ export default function HostOperationsPage() {
         </section>
       </div>
 
-      {/* MODAL: ADD NEW PROPERTY WITH DIRECT GALLERY FILE UPLOAD */}
+      {/* MODAL: ADD NEW PROPERTY WITH MULTI-IMAGE GALLERY UPLOAD */}
       {showAddPropertyModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <h3 className="text-lg font-black text-white">➕ Add New Property</h3>
               <button
@@ -756,7 +796,7 @@ export default function HostOperationsPage() {
                   onChange={(e) => setPropCategory(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500 font-bold"
                 >
-                  <option value="Apartment">1-Bedroom Apartment</option>
+                  <option value="Apartment">Apartment</option>
                   <option value="House">Stand-Alone House</option>
                   <option value="Mansion">Luxury Mansion</option>
                   <option value="Villa">Villa / Resort</option>
@@ -768,7 +808,7 @@ export default function HostOperationsPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Entebbe, Uganda or London, UK"
+                  placeholder="e.g. Kisaasi, Kampala or London, UK"
                   value={propLocation}
                   onChange={(e) => setPropLocation(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
@@ -780,31 +820,54 @@ export default function HostOperationsPage() {
                 <input
                   type="number"
                   required
-                  placeholder="e.g. 85"
+                  placeholder="e.g. 45"
                   value={propPrice}
                   onChange={(e) => setPropPrice(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500 font-bold text-amber-400"
                 />
               </div>
 
-              {/* DIRECT DEVICE GALLERY PHOTO PICKER */}
+              {/* MULTI-PHOTO GALLERY PICKER */}
               <div>
-                <label className="block text-xs font-bold text-neutral-300 mb-1">Property Photo (Choose from Gallery)</label>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">
+                  Property Gallery Photos (Select Multiple)
+                </label>
                 <input
                   type="file"
+                  multiple
                   accept="image/*"
                   onChange={handleFileChange}
                   className="w-full bg-neutral-950 border border-neutral-800 text-xs text-neutral-400 px-3 py-2 rounded-xl focus:outline-none file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
                 />
-                
-                {imagePreview && (
-                  <div className="mt-3">
-                    <p className="text-[10px] text-neutral-400 mb-1 font-bold">Preview Selected Photo:</p>
-                    <img 
-                      src={imagePreview} 
-                      alt="Selected Preview" 
-                      className="w-full h-32 object-cover rounded-xl border border-amber-500/50"
-                    />
+                <p className="text-[10px] text-neutral-500 mt-1">
+                  💡 Tip: The first photo selected will automatically serve as your Lead Cover Picture.
+                </p>
+
+                {/* MULTI-PREVIEW GALLERY */}
+                {imagePreviews.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">
+                      Selected Photos ({imagePreviews.length}):
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-2 max-h-44 overflow-y-auto p-2 bg-neutral-950 rounded-xl border border-neutral-800">
+                      {imagePreviews.map((src, idx) => (
+                        <div key={idx} className="relative group">
+                          <img 
+                            src={src} 
+                            alt={`Preview ${idx}`} 
+                            className={`w-full h-20 object-cover rounded-lg border ${
+                              idx === 0 ? 'border-amber-500 ring-2 ring-amber-500/30' : 'border-neutral-800'
+                            }`}
+                          />
+                          {idx === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow">
+                              LEAD
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -822,7 +885,7 @@ export default function HostOperationsPage() {
                   disabled={propSubmitting}
                   className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer"
                 >
-                  {propSubmitting ? 'Uploading & Saving...' : 'Save & Publish Listing'}
+                  {propSubmitting ? `Uploading (${selectedFiles.length} photos)...` : 'Save & Publish Listing'}
                 </button>
               </div>
             </form>
