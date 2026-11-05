@@ -12,7 +12,7 @@ export default function GuestHomePage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // GUEST BOOKING FORM MODAL STATES
+  // GUEST BOOKING MODAL STATES
   const [selectedProp, setSelectedProp] = useState<any | null>(null)
   const [guestName, setGuestName] = useState('')
   const [guestPhone, setGuestPhone] = useState('')
@@ -28,17 +28,15 @@ export default function GuestHomePage() {
   const fetchPublicProperties = async () => {
     setLoading(true)
     try {
-      // Fetch only active property listings
       const { data, error } = await supabase
         .from('properties')
         .select('*')
-        .eq('status', 'Active')
         .order('id', { ascending: false })
 
       if (error) throw error
       if (data) setProperties(data)
     } catch (err) {
-      console.error('Error loading public properties:', err)
+      console.error('Error loading properties:', err)
     } finally {
       setLoading(false)
     }
@@ -47,15 +45,14 @@ export default function GuestHomePage() {
   const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!guestName || !guestPhone || !checkIn || !checkOut || !selectedProp) {
-      alert('Please complete all reservation fields.')
+      alert('Please fill in all booking details.')
       return
     }
 
     setSubmitting(true)
 
     try {
-      // Calculate total stay price (defaulting to nightly rate for simplicity)
-      const totalPrice = selectedProp.price || selectedProp.price_per_night || 50
+      const totalPrice = selectedProp.price || 50
       const depositAmount = Math.round(totalPrice * 0.30)
 
       const newBooking = {
@@ -72,10 +69,9 @@ export default function GuestHomePage() {
       }
 
       const { error } = await supabase.from('bookings').insert([newBooking])
-
       if (error) throw error
 
-      alert(`🎉 Reservation Request Sent! The host will contact you on WhatsApp (${guestPhone}) to confirm deposit collection.`)
+      alert(`🎉 Reservation Request Sent! The host will contact you on WhatsApp (${guestPhone}) to confirm.`)
       setSelectedProp(null)
       setGuestName('')
       setGuestPhone('')
@@ -93,33 +89,41 @@ export default function GuestHomePage() {
       <div>
         <HeaderNav />
 
-        {/* HERO SECTION FOR GUESTS */}
+        {/* HERO SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-6 text-center space-y-4">
           <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400">
-            Luxury Short-Stay Vacation Homes & Apartments
+            La Estancia Vacation Homes
           </span>
           <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
             Find & Book Your Next Stay
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl mx-auto">
-            Browse our curated portfolio of premium apartments, stand-alone houses, and luxury villas. Secure your reservation with direct host verification.
+            Browse our curated portfolio of premium apartments, stand-alone houses, and luxury villas.
           </p>
         </section>
 
         <UpsellMotionSlider />
 
-        {/* PUBLIC PROPERTY CATALOG (NO HOST ACTIONS) */}
+        {/* PROPERTY CATALOG */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-6">
-          <div className="border-b border-neutral-800 pb-4">
-            <h2 className="text-xl font-black text-white">Available Stays</h2>
-            <p className="text-xs text-neutral-400">Explore rates and amenities available for instant booking request.</p>
+          <div className="border-b border-neutral-800 pb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-black text-white">Available Stays</h2>
+              <p className="text-xs text-neutral-400">Explore rates and amenities available for instant booking.</p>
+            </div>
+            <a
+              href="/operations"
+              className="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:border-amber-500 text-amber-400 text-xs font-bold rounded-xl transition"
+            >
+              Access Host Portal →
+            </a>
           </div>
 
           {loading ? (
             <p className="text-xs text-neutral-500 animate-pulse text-center py-10">Loading available properties...</p>
           ) : properties.length === 0 ? (
-            <div className="py-16 text-center text-neutral-500 text-xs font-bold space-y-2">
-              <p>No properties currently listed for booking.</p>
+            <div className="py-16 text-center text-neutral-500 text-xs font-bold">
+              No properties currently listed.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -128,9 +132,7 @@ export default function GuestHomePage() {
 
                 return (
                   <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl hover:border-neutral-700 transition flex flex-col justify-between">
-                    
                     <div>
-                      {/* PROPERTY COVER PHOTO */}
                       {gallery.length > 0 && (
                         <img 
                           src={gallery[0]} 
@@ -145,7 +147,7 @@ export default function GuestHomePage() {
                             {p.category || 'Apartment'}
                           </span>
                           <span className="text-xs font-black text-amber-400">
-                            ${p.price || p.price_per_night} / night
+                            ${p.price || 50} / night
                           </span>
                         </div>
 
@@ -154,7 +156,6 @@ export default function GuestHomePage() {
                       </div>
                     </div>
 
-                    {/* PUBLIC BOOK NOW BUTTON */}
                     <div className="p-5 pt-0">
                       <button
                         onClick={() => setSelectedProp(p)}
@@ -163,7 +164,6 @@ export default function GuestHomePage() {
                         Book Now
                       </button>
                     </div>
-
                   </div>
                 )
               })}
@@ -172,7 +172,7 @@ export default function GuestHomePage() {
         </section>
       </div>
 
-      {/* GUEST OCCUPANCY DETAILS MODAL */}
+      {/* GUEST BOOKING MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
