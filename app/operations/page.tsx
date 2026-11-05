@@ -9,7 +9,7 @@ import UpsellMotionSlider from '../components/UpsellMotionSlider'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsPage() {
-  const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tasks' | 'ledger'>('bookings')
+  const [activeTab, setActiveTab] = useState<'bookings' | 'properties' | 'tasks' | 'ledger'>('properties')
   
   // HOST BUSINESS BRANDING
   const [businessName, setBusinessName] = useState('Vacation Homes Agency')
@@ -20,6 +20,14 @@ export default function HostOperationsPage() {
   const [tasks, setTasks] = useState<any[]>([])
   const [bills, setBills] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // ADD PROPERTY MODAL STATES
+  const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
+  const [propTitle, setPropTitle] = useState('')
+  const [propCategory, setPropCategory] = useState('Apartment')
+  const [propLocation, setPropLocation] = useState('')
+  const [propPrice, setPropPrice] = useState('')
+  const [propSubmitting, setPropSubmitting] = useState(false)
 
   // CUSTOM TASK INPUT STATES
   const [newTaskTitle, setNewTaskTitle] = useState('')
@@ -86,7 +94,56 @@ export default function HostOperationsPage() {
     }
   }
 
-  // SAVE CUSTOM BUSINESS NAME TO PUBLIC.PROFILES TABLE
+  // CREATE NEW PROPERTY WORKFLOW
+  const handleCreateProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!propTitle || !propLocation || !propPrice) {
+      alert('Please fill in all property fields.')
+      return
+    }
+
+    setPropSubmitting(true)
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        alert('Authentication error. Please log in again.')
+        return
+      }
+
+      const newProperty = {
+        title: propTitle,
+        category: propCategory,
+        location: propLocation,
+        price: parseFloat(propPrice),
+        status: 'Active',
+        host_id: user.id
+      }
+
+      const { data, error } = await supabase
+        .from('properties')
+        .insert([newProperty])
+        .select()
+
+      if (error) throw error
+
+      if (data) {
+        setProperties([data[0], ...properties])
+      }
+
+      setPropTitle('')
+      setPropLocation('')
+      setPropPrice('')
+      setShowAddPropertyModal(false)
+      alert(`🎉 Property "${propTitle}" added successfully!`)
+    } catch (err: any) {
+      alert('Error creating property: ' + err.message)
+    } finally {
+      setPropSubmitting(false)
+    }
+  }
+
   const handleSaveBusinessName = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -99,7 +156,7 @@ export default function HostOperationsPage() {
       if (error) throw error
 
       setIsEditingBrand(false)
-      alert(`✅ Business Name updated to "${businessName}"! All WhatsApp dispatches will now use this brand.`)
+      alert(`✅ Business Name updated to "${businessName}"!`)
     } catch (err: any) {
       alert('Error updating business name: ' + err.message)
     }
@@ -142,7 +199,6 @@ export default function HostOperationsPage() {
     }
   }
 
-  // DYNAMIC WHATSAPP DISPATCH USING HOST'S BUSINESS BRAND
   const openWhatsApp = (phone: string, guestName: string, property: string, paidAmount: number) => {
     const cleanPhone = phone ? phone.replace(/[^0-9]/g, '') : ''
     const message = encodeURIComponent(
@@ -152,7 +208,6 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  // DISPATCH TASK TO STAFF WITH HOST BRANDING
   const dispatchSpecialist = (task: any) => {
     const cleanPhone = (task.phone || '').replace(/[^0-9]/g, '')
     const staffName = task.assignedTo || task.assigned_to || 'Staff Member'
@@ -169,11 +224,10 @@ export default function HostOperationsPage() {
     window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${message}`, '_blank')
   }
 
-  // ADD CUSTOM TASK WITH DIRECT STAFF PHONE
   const handleAddCustomTask = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTaskTitle || !newStaffName || !newStaffPhone) {
-      alert('Please fill in the task title, staff name, and WhatsApp phone number.')
+      alert('Please fill in task title, staff name, and phone number.')
       return
     }
 
@@ -243,6 +297,12 @@ export default function HostOperationsPage() {
     setProperties(properties.map(p => p.id === propId ? { ...p, status: nextStatus } : p))
   }
 
+  const deleteProperty = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this property?')) return
+    await supabase.from('properties').delete().eq('id', id)
+    setProperties(properties.filter(p => p.id !== id))
+  }
+
   const deleteBooking = async (id: number) => {
     await supabase.from('bookings').delete().eq('id', id)
     setBookings(bookings.filter(b => b.id !== id))
@@ -299,42 +359,51 @@ export default function HostOperationsPage() {
         {/* DASHBOARD CONTENT */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-6">
           
-          {/* TABS */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-neutral-800 pb-4">
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              📅 Bookings ({bookings.length})
-            </button>
+          {/* TABS HEADER WITH PERMANENT ADD PROPERTY BUTTON */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-800 pb-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                📅 Bookings ({bookings.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab('properties')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                🏠 Properties ({properties.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab('tasks')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                🧹 Staff Tasks ({tasks.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab('ledger')}
+                className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
+                  activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                }`}
+              >
+                💰 Financial Ledger ({bills.length})
+              </button>
+            </div>
 
             <button
-              onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
+              onClick={() => setShowAddPropertyModal(true)}
+              className="bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-lg transition cursor-pointer flex items-center gap-1.5"
             >
-              🏠 Properties ({properties.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🧹 Staff Tasks ({tasks.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition cursor-pointer flex items-center gap-2 ${
-                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              💰 Financial Ledger ({bills.length})
+              ➕ Add New Property
             </button>
           </div>
 
@@ -449,37 +518,58 @@ export default function HostOperationsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
-                {properties.map((p) => (
-                  <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition">
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                          {p.category || 'Short-Stay'}
-                        </span>
-                        <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
-                        <p className="text-xs text-neutral-400 font-medium">📍 {p.location || 'Uganda'}</p>
+              {loading ? (
+                <p className="text-xs text-neutral-500 animate-pulse">Loading property portfolio...</p>
+              ) : properties.length === 0 ? (
+                <div className="py-12 text-center text-neutral-500 text-xs font-bold space-y-3">
+                  <p>No properties added yet.</p>
+                  <button
+                    onClick={() => setShowAddPropertyModal(true)}
+                    className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl cursor-pointer"
+                  >
+                    + Add Your First Property
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+                  {properties.map((p) => (
+                    <div key={p.id} className="p-5 bg-neutral-950 border border-neutral-800 rounded-2xl space-y-4 shadow-lg hover:border-neutral-700 transition relative">
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                            {p.category || 'Short-Stay'}
+                          </span>
+                          <h4 className="font-black text-white text-base mt-2">{p.title}</h4>
+                          <p className="text-xs text-neutral-400 font-medium">📍 {p.location}</p>
+                        </div>
+
+                        <button
+                          onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
+                          className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
+                            p.status === 'Occupied' ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                          }`}
+                        >
+                          ● {p.status || 'Active'}
+                        </button>
                       </div>
 
-                      <button
-                        onClick={() => togglePropertyStatus(p.id, p.status || 'Active')}
-                        className={`px-3 py-1 font-extrabold text-[10px] rounded-full uppercase border transition cursor-pointer ${
-                          p.status === 'Occupied' ? 'bg-rose-500/20 border-rose-500/50 text-rose-400' : 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                        }`}
-                      >
-                        ● {p.status || 'Active'}
-                      </button>
-                    </div>
+                      <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
+                        <div>
+                          <span className="text-neutral-500 font-medium">Nightly Rate: </span>
+                          <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night} / night</span>
+                        </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-neutral-900 text-xs">
-                      <div>
-                        <span className="text-neutral-500 font-medium">Nightly Rate: </span>
-                        <span className="font-black text-amber-400 text-sm">${p.price || p.price_per_night || 45} / night</span>
+                        <button
+                          onClick={() => deleteProperty(p.id)}
+                          className="text-xs text-rose-500 hover:text-rose-400 font-bold px-2 py-1 rounded bg-rose-950/30 border border-rose-900/40 cursor-pointer"
+                        >
+                          🗑️ Delete
+                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -585,6 +675,92 @@ export default function HostOperationsPage() {
 
         </section>
       </div>
+
+      {/* MODAL: ADD NEW PROPERTY */}
+      {showAddPropertyModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-lg font-black text-white">➕ Add New Property</h3>
+              <button
+                onClick={() => setShowAddPropertyModal(false)}
+                className="text-neutral-400 hover:text-white font-bold text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProperty} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">Property Name / Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Entebbe Lakeview Mansion"
+                  value={propTitle}
+                  onChange={(e) => setPropTitle(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">Category</label>
+                <select
+                  value={propCategory}
+                  onChange={(e) => setPropCategory(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500 font-bold"
+                >
+                  <option value="Apartment">1-Bedroom Apartment</option>
+                  <option value="House">Stand-Alone House</option>
+                  <option value="Mansion">Luxury Mansion</option>
+                  <option value="Villa">Villa / Resort</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">Location / City</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Entebbe, Uganda or London, UK"
+                  value={propLocation}
+                  onChange={(e) => setPropLocation(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-neutral-300 mb-1">Nightly Price ($ USD)</label>
+                <input
+                  type="number"
+                  required
+                  placeholder="e.g. 85"
+                  value={propPrice}
+                  onChange={(e) => setPropPrice(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white px-3.5 py-3 rounded-xl focus:outline-none focus:border-amber-500 font-bold text-amber-400"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPropertyModal(false)}
+                  className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={propSubmitting}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer"
+                >
+                  {propSubmitting ? 'Saving Property...' : 'Save & Publish Listing'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>
