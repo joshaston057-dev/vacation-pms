@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
-import HeaderNav from './components/HeaderNav'
-import Footer from './components/Footer'
+import HeaderNav from '../components/HeaderNav'
+import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 const STANDARD_AMENITIES = [
