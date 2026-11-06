@@ -26,8 +26,6 @@ export default function HostOperationsHub() {
   const [editCleaningFee, setEditCleaningFee] = useState(0)
   const [editPartyDeposit, setEditPartyDeposit] = useState(0)
   const [editImages, setEditImages] = useState<string[]>([])
-  const [airbnbUrl, setAirbnbUrl] = useState('')
-  const [bookingcomUrl, setBookingcomUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
   // UPSELL SERVICE FORM STATE
@@ -62,7 +60,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // HANDLE DEVICE FILE PICKER FOR IMAGES (Direct Gallery Upload)
   const handleDeviceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -90,12 +87,16 @@ export default function HostOperationsHub() {
     setEditPrice(p.price || 0)
     setEditLocation(p.location || '')
     setEditDescription(p.description || '')
-    setEditAmenities(p.amenities ? p.amenities.join(', ') : '')
+    setEditAmenities(Array.isArray(p.amenities) ? p.amenities.join(', ') : '')
     setEditCleaningFee(p.cleaning_fee || 0)
     setEditPartyDeposit(p.party_security_deposit || 0)
-    setEditImages(p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : []))
-    setAirbnbUrl(p.airbnb_ical_url || '')
-    setBookingcomUrl(p.bookingcom_ical_url || '')
+    setEditImages(
+      Array.isArray(p.images) && p.images.length > 0
+        ? p.images
+        : p.image_url
+        ? [p.image_url]
+        : []
+    )
   }
 
   const handleSaveProperty = async (e: React.FormEvent) => {
@@ -121,9 +122,7 @@ export default function HostOperationsHub() {
           images: editImages,
           image_url: editImages[0] || '',
           cleaning_fee: Number(editCleaningFee),
-          party_security_deposit: Number(editPartyDeposit),
-          airbnb_ical_url: airbnbUrl,
-          bookingcom_ical_url: bookingcomUrl
+          party_security_deposit: Number(editPartyDeposit)
         })
         .eq('id', editingProp.id)
 
@@ -159,7 +158,7 @@ export default function HostOperationsHub() {
       setNewUpsellPrice(0)
       setNewUpsellDesc('')
       fetchHostData()
-      alert('✅ New Upsell Service added to public catalog!')
+      alert('✅ New Upsell Service added!')
     } catch (err: any) {
       alert('Error creating upsell service: ' + err.message)
     }
@@ -184,7 +183,10 @@ export default function HostOperationsHub() {
     }
   }
 
-  const totalEarnings = bookings.reduce((sum, b) => sum + (Number(b.paid_amount) || Number(b.total_price) || 0), 0)
+  const totalEarnings = bookings.reduce(
+    (sum, b) => sum + (Number(b.paid_amount) || Number(b.total_price) || 0),
+    0
+  )
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
@@ -224,7 +226,7 @@ export default function HostOperationsHub() {
                 activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
-              ✨ Upsell Services ({upsells.length})
+              ✨ Upsells ({upsells.length})
             </button>
             <button
               onClick={() => setActiveTab('ledger')}
@@ -246,7 +248,7 @@ export default function HostOperationsHub() {
                   <h3 className="text-base font-black text-white">Managed Listings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {properties.map((p) => {
-                      const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
+                      const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
 
                       return (
                         <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
@@ -281,7 +283,7 @@ export default function HostOperationsHub() {
                               onClick={() => handleOpenEdit(p)}
                               className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-extrabold text-xs rounded-xl shadow cursor-pointer"
                             >
-                              ✏️ Edit Property & Gallery Photos
+                              ✏️ Edit Property & Photos
                             </button>
                           </div>
                         </div>
@@ -306,7 +308,7 @@ export default function HostOperationsHub() {
                         <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
                           <p>📱 {b.phone}</p>
                           <p>📅 {b.check_in} → {b.check_out}</p>
-                          <p>👥 {b.adults} Adults, {b.children} Children ({b.child_ages || 'N/A'})</p>
+                          <p>👥 {b.adults} Adults, {b.children} Children</p>
                           <p>📝 Note: <span className="text-amber-400">{b.guest_notes || 'None'}</span></p>
                           {b.door_code && <p className="text-emerald-400 font-bold">🔑 Door Code: {b.door_code}</p>}
                         </div>
@@ -329,8 +331,8 @@ export default function HostOperationsHub() {
                         </div>
                         <h4 className="font-extrabold text-white text-base">{t.title}</h4>
                         <div className="flex gap-2">
-                          <button onClick={() => handleVerifyTask(t.id, 'VERIFIED')} className="w-1/2 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl">✓ Verify Ready</button>
-                          <button onClick={() => handleVerifyTask(t.id, 'REOPEN')} className="w-1/2 py-2 bg-rose-950 text-rose-400 font-bold text-xs rounded-xl">✕ Re-Open</button>
+                          <button onClick={() => handleVerifyTask(t.id, 'VERIFIED')} className="w-1/2 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">✓ Verify Ready</button>
+                          <button onClick={() => handleVerifyTask(t.id, 'REOPEN')} className="w-1/2 py-2 bg-rose-950 text-rose-400 font-bold text-xs rounded-xl cursor-pointer">✕ Re-Open</button>
                         </div>
                       </div>
                     ))}
@@ -338,14 +340,14 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* UPSELL SERVICES MANAGER TAB */}
+              {/* UPSELLS TAB */}
               {activeTab === 'upsells' && (
                 <div className="space-y-6">
                   <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-3xl space-y-4">
-                    <h3 className="text-base font-black text-white">Add New Upsell / Extra Service</h3>
+                    <h3 className="text-base font-black text-white">Add New Upsell Service</h3>
                     <form onSubmit={handleCreateUpsell} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Service Title</label>
+                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Title</label>
                         <input type="text" required placeholder="e.g. Airport Pickup" value={newUpsellTitle} onChange={(e) => setNewUpsellTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
@@ -354,25 +356,12 @@ export default function HostOperationsHub() {
                           <input type="number" required value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold" />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Emoji Icon</label>
+                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Icon</label>
                           <input type="text" value={newUpsellIcon} onChange={(e) => setNewUpsellIcon(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl text-center" />
                         </div>
                       </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Category</label>
-                        <select value={newUpsellCategory} onChange={(e) => setNewUpsellCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold">
-                          <option value="Transport">Transport</option>
-                          <option value="Dining">Dining</option>
-                          <option value="Cleaning">Cleaning</option>
-                          <option value="Wellness">Wellness</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Description</label>
-                        <input type="text" required placeholder="Service description..." value={newUpsellDesc} onChange={(e) => setNewUpsellDesc(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                      </div>
                       <button type="submit" className="sm:col-span-2 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer">
-                        + Add Service to Public Catalog
+                        + Add Service
                       </button>
                     </form>
                   </div>
@@ -386,10 +375,9 @@ export default function HostOperationsHub() {
                             <span className="text-xs font-black text-amber-400">${u.price}</span>
                           </div>
                           <h4 className="font-extrabold text-white text-sm pt-1">{u.title}</h4>
-                          <p className="text-xs text-neutral-400">{u.description}</p>
                         </div>
                         <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 border border-rose-900 text-rose-400 font-extrabold text-xs rounded-xl mt-3 cursor-pointer">
-                          Delete Service
+                          Delete
                         </button>
                       </div>
                     ))}
@@ -412,41 +400,37 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT PROPERTY & GALLERY PICKER MODAL */}
+      {/* EDIT MODAL */}
       {editingProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <div>
-                <span className="text-[10px] font-black uppercase text-amber-400">Host Management</span>
-                <h3 className="text-lg font-black text-white">Edit Property & Photo Gallery</h3>
-              </div>
+              <h3 className="text-lg font-black text-white">Edit Property & Photos</h3>
               <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm">✕</button>
             </div>
 
             <form onSubmit={handleSaveProperty} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
               <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Property Title</label>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Title</label>
                 <input type="text" required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
               </div>
 
-              {/* DIRECT DEVICE GALLERY PHOTO PICKER */}
               <div className="border border-dashed border-amber-500/40 bg-amber-500/5 p-4 rounded-2xl space-y-3">
                 <label className="block text-xs font-black text-amber-400 uppercase tracking-wider">
-                  📷 Add Gallery Photos from Phone / Computer
+                  📷 Add Gallery Photos from Device
                 </label>
                 <input
                   type="file"
                   multiple
                   accept="image/*"
                   onChange={handleDeviceImageUpload}
-                  className="block w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
+                  className="block w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-amber-500 file:text-black cursor-pointer"
                 />
 
                 {editImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 pt-2">
                     {editImages.map((imgSrc, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-neutral-800 group">
+                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-neutral-800">
                         <img src={imgSrc} alt="thumb" className="w-full h-full object-cover" />
                         <button
                           type="button"
