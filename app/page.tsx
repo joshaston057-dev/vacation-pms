@@ -67,9 +67,9 @@ export default function GuestHomePage() {
   }
 
   const nights = calculateNights()
-  const baseRate = selectedProp ? (selectedProp.price || 50) : 50
-  const cleaningFee = selectedProp?.cleaning_fee || 15
-  const partyDeposit = purpose === 'Party' ? (selectedProp?.party_security_deposit || 50) : 0
+  const baseRate = selectedProp ? (selectedProp.price || 0) : 0
+  const cleaningFee = selectedProp?.cleaning_fee || 0
+  const partyDeposit = purpose === 'Party' ? (selectedProp?.party_security_deposit || 0) : 0
   const grandTotal = (nights * baseRate) + cleaningFee + partyDeposit
 
   const handleFinalPaymentExecution = async (paymentOption: '100%' | '30% Deposit') => {
@@ -228,6 +228,7 @@ export default function GuestHomePage() {
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
+                      {/* IMAGE preview */}
                       <div className="relative aspect-[16/10] bg-neutral-950 overflow-hidden">
                         {gallery.length > 0 ? (
                           <img 
@@ -254,11 +255,12 @@ export default function GuestHomePage() {
                         )}
                       </div>
 
-                      <div className="p-4 space-y-2">
+                      {/* CONTENT DETAILS */}
+                      <div className="p-4 space-y-2.5">
                         <div className="flex justify-between items-baseline gap-2">
                           <h3 className="font-black text-white text-base leading-tight truncate">{p.title}</h3>
                           <div className="text-right shrink-0">
-                            <span className="text-amber-400 font-black text-base">${p.price || 50}</span>
+                            <span className="text-amber-400 font-black text-base">${p.price || 0}</span>
                             <span className="text-[10px] text-neutral-400 font-medium"> /night</span>
                           </div>
                         </div>
@@ -266,6 +268,24 @@ export default function GuestHomePage() {
                         <p className="text-xs text-neutral-400 flex items-center gap-1">
                           <span>📍</span> {p.location}
                         </p>
+
+                        {/* DESCRIPTION */}
+                        {p.description && (
+                          <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
+                            {p.description}
+                          </p>
+                        )}
+
+                        {/* AMENITIES BADGES */}
+                        {p.amenities && p.amenities.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
+                            {p.amenities.map((item: string, idx: number) => (
+                              <span key={idx} className="bg-neutral-950 border border-neutral-800 text-[9px] font-bold text-neutral-300 px-2 py-0.5 rounded-md">
+                                ✓ {item}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -347,14 +367,14 @@ export default function GuestHomePage() {
               </div>
             )}
 
-            {/* STEP 2: DEMOGRAPHICS (GLOBAL NATIONALITIES) */}
+            {/* STEP 2: DEMOGRAPHICS */}
             {bookingStep === 2 && (
               <form onSubmit={(e) => { e.preventDefault(); setBookingStep(3); }} className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                 <h4 className="text-xs font-bold text-neutral-300">2. Guest Demographics & Purpose</h4>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <input type="text" required placeholder="Full Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                  <input type="tel" required placeholder="WhatsApp Number (with country code)" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+                  <input type="tel" required placeholder="WhatsApp Number" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
