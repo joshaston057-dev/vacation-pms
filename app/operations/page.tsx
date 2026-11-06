@@ -7,24 +7,6 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
-const STANDARD_AMENITIES = [
-  'Swimming Pool',
-  'Standby Generator / Inverter',
-  'Air Conditioning',
-  '24/7 Security / CCTV',
-  'Balcony / City View',
-  'Private Parking',
-  'Fully Equipped Kitchen',
-  'Perimeter Wall / Gate',
-  'Elevator Access',
-  'Dedicated Workspace',
-  'Daily Housekeeping',
-  'Smart TV / Netflix',
-  'Gym / Fitness Center',
-  'Washing Machine',
-  'High-Speed Wi-Fi'
-]
-
 export default function HostOperationsHub() {
   const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('bookings')
   const [properties, setProperties] = useState<any[]>([])
@@ -32,26 +14,6 @@ export default function HostOperationsHub() {
   const [tasks, setTasks] = useState<any[]>([])
   const [upsells, setUpsells] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  // EDIT PROPERTY MODAL STATE
-  const [editingProp, setEditingProp] = useState<any | null>(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editCategory, setEditCategory] = useState('Apartment')
-  const [editPrice, setEditPrice] = useState(0)
-  const [editLocation, setEditLocation] = useState('')
-  const [editDescription, setEditDescription] = useState('')
-  const [editSelectedAmenities, setEditSelectedAmenities] = useState<string[]>([])
-  const [editCleaningFee, setEditCleaningFee] = useState(0)
-  const [editPartyDeposit, setEditPartyDeposit] = useState(0)
-  const [editImages, setEditImages] = useState<string[]>([])
-  const [saving, setSaving] = useState(false)
-
-  // UPSELL FORM STATE
-  const [newUpsellTitle, setNewUpsellTitle] = useState('')
-  const [newUpsellPrice, setNewUpsellPrice] = useState(0)
-  const [newUpsellCategory, setNewUpsellCategory] = useState('Transport')
-  const [newUpsellDesc, setNewUpsellDesc] = useState('')
-  const [newUpsellIcon, setNewUpsellIcon] = useState('🚗')
 
   useEffect(() => {
     fetchHostData()
@@ -87,6 +49,7 @@ export default function HostOperationsHub() {
 
       if (error) throw error
       fetchHostData()
+      alert('✅ Booking approved and confirmed!')
     } catch (err: any) {
       alert('Error approving booking: ' + err.message)
     }
@@ -102,20 +65,22 @@ export default function HostOperationsHub() {
     }
   }
 
-  const parseCleanGuestName = (rawName: string) => {
-    if (!rawName) return 'Guest'
+  const cleanGuestName = (rawName: string) => {
+    if (!rawName) return 'Valued Guest'
     if (rawName.includes('|')) {
-      return rawName.split('|')[0].replace(/Prop:/i, '').replace(/\[/g, '').replace(/\]/g, '').trim()
+      const parts = rawName.split('|')
+      for (let part of parts) {
+        if (part.includes('Guest:')) {
+          return part.replace('Guest:', '').trim()
+        }
+      }
+      return parts[0].replace('Prop:', '').trim()
     }
     return rawName.trim()
   }
 
-  const parseCleanPhone = (b: any) => {
+  const cleanPhone = (b: any) => {
     if (b.phone && b.phone.trim()) return b.phone.trim()
-    if (b.guest_name && b.guest_name.includes('Ph:')) {
-      const match = b.guest_name.match(/Ph:\s*([^\s|]+)/)
-      if (match && match[1]) return match[1]
-    }
     return '+256757386946'
   }
 
@@ -186,8 +151,17 @@ export default function HostOperationsHub() {
                       const totalStay = b.total_price || 150
                       const depositDue = Math.round(totalStay * 0.3)
                       const isConfirmed = b.status === 'CONFIRMED'
-                      const cleanGuestName = parseCleanGuestName(b.guest_name)
-                      const targetPhone = parseCleanPhone(b)
+                      const guestName = cleanGuestName(b.guest_name)
+                      const phoneNum = cleanPhone(b)
+
+                      // AUTOMATED PAYMENT WHATSAPP MESSAGE
+                      const paymentWhatsAppText = encodeURIComponent(
+                        `Hello ${guestName}! 👋 Thank you for your inquiry for *${b.property_title || 'La Estancia Vacation Home'}*.\n\n` +
+                        `📅 *Stay Dates:* ${b.check_in || 'N/A'} → ${b.check_out || 'N/A'}\n` +
+                        `💰 *Total Stay:* $${totalStay}\n` +
+                        `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
+                        `Please complete your 30% deposit payment via Mobile Money (MoMo) or Card to secure your reservation. Once sent, kindly reply with your payment confirmation code here!`
+                      )
 
                       return (
                         <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
@@ -195,14 +169,14 @@ export default function HostOperationsHub() {
                           <div className="space-y-3">
                             <div className="flex justify-between items-start gap-3">
                               <h4 className="font-black text-white text-sm leading-snug">
-                                [{b.property_title || 'Vacation Stay'}]
+                                {b.property_title || 'Vacation Stay'}
                               </h4>
                               <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
                                 isConfirmed
                                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                                   : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                               }`}>
-                                {isConfirmed ? 'CONFIRMED' : 'PENDING'}
+                                {b.status || 'PENDING'}
                               </span>
                             </div>
 
@@ -210,19 +184,19 @@ export default function HostOperationsHub() {
                               <div className="flex items-center gap-2.5 text-neutral-300">
                                 <span className="text-neutral-400 text-sm">👤</span>
                                 <span className="text-neutral-400">Guest Name:</span>
-                                <span className="font-extrabold text-white">{cleanGuestName}</span>
+                                <span className="font-extrabold text-white">{guestName}</span>
                               </div>
 
                               <div className="flex items-center gap-2.5 text-neutral-300">
                                 <span className="text-neutral-400 text-sm">💬</span>
                                 <span className="text-neutral-400">WhatsApp:</span>
-                                <span className="font-extrabold text-emerald-400">{targetPhone}</span>
+                                <span className="font-extrabold text-emerald-400">{phoneNum}</span>
                               </div>
 
                               <div className="flex items-center gap-2.5 text-neutral-300">
                                 <span className="text-neutral-400 text-sm">👥</span>
                                 <span className="text-neutral-400">Demographic:</span>
-                                <span className="font-extrabold text-amber-400">{b.purpose || 'Solo Business Traveler'}</span>
+                                <span className="font-extrabold text-amber-400">{b.purpose || 'Leisure'}</span>
                               </div>
 
                               <div className="flex items-center gap-2.5 text-neutral-300">
@@ -234,7 +208,7 @@ export default function HostOperationsHub() {
                               <div className="flex items-center gap-2.5 text-neutral-300">
                                 <span className="text-neutral-400 text-sm">📅</span>
                                 <span className="text-neutral-400">Dates:</span>
-                                <span className="font-extrabold text-white">{b.check_in || '2026-11-06'} → {b.check_out || '2026-11-10'}</span>
+                                <span className="font-extrabold text-white">{b.check_in || 'N/A'} → {b.check_out || 'N/A'}</span>
                               </div>
 
                               <div className="grid grid-cols-2 gap-2 pt-1">
@@ -271,12 +245,12 @@ export default function HostOperationsHub() {
 
                             <div className="grid grid-cols-2 gap-2">
                               <a
-                                href={`https://api.whatsapp.com/send?phone=${targetPhone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent(`Hello ${cleanGuestName}, regarding your stay inquiry for ${b.property_title || 'our property'}:`)}`}
+                                href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${paymentWhatsAppText}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
                               >
-                                <span>💬</span> WhatsApp
+                                <span>💬</span> WhatsApp Payment
                               </a>
                               
                               <button
@@ -305,25 +279,23 @@ export default function HostOperationsHub() {
 
                       return (
                         <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
-                          <div>
-                            <div className="relative aspect-[16/10] bg-neutral-950">
-                              {gallery.length > 0 ? (
-                                <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
-                              )}
-                              <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                                {p.category || 'Apartment'}
-                              </span>
-                            </div>
+                          <div className="relative aspect-[16/10] bg-neutral-950">
+                            {gallery.length > 0 ? (
+                              <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
+                            )}
+                            <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                              {p.category || 'Apartment'}
+                            </span>
+                          </div>
 
-                            <div className="p-4 space-y-2">
-                              <div className="flex justify-between items-baseline">
-                                <h4 className="font-black text-white text-base truncate">{p.title}</h4>
-                                <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
-                              </div>
-                              <p className="text-xs text-neutral-400">📍 {p.location}</p>
+                          <div className="p-4 space-y-2">
+                            <div className="flex justify-between items-baseline">
+                              <h4 className="font-black text-white text-base truncate">{p.title}</h4>
+                              <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
                             </div>
+                            <p className="text-xs text-neutral-400">📍 {p.location}</p>
                           </div>
                         </div>
                       )
