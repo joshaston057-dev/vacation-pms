@@ -13,11 +13,13 @@ export default function GuestHomePage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
 
-  // MODAL & MULTI-STEP CHECKOUT STATE
+  // MODAL STATE
   const [selectedProp, setSelectedProp] = useState<any | null>(null)
-  const [bookingStep, setBookingStep] = useState(1)
 
-  // FORM INPUTS
+  // DESCRIPTION TOGGLE STATE PER PROPERTY ID
+  const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
+
+  // SINGLE-PAGE FORM INPUTS
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -52,7 +54,10 @@ export default function GuestHomePage() {
     }
   }
 
-  // FILTERED PROPERTIES BY CATEGORY
+  const toggleDescription = (id: string) => {
+    setExpandedDesc(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
   const filteredProperties = selectedCategory === 'All' 
     ? properties 
     : properties.filter(p => (p.category || 'Apartment').toLowerCase() === selectedCategory.toLowerCase())
@@ -73,6 +78,11 @@ export default function GuestHomePage() {
   const grandTotal = (nights * baseRate) + cleaningFee + partyDeposit
 
   const handleFinalPaymentExecution = async (paymentOption: '100%' | '30% Deposit') => {
+    if (!checkIn || !checkOut || !guestName || !guestPhone) {
+      alert('Please fill in all required booking fields.')
+      return
+    }
+
     setSubmitting(true)
 
     try {
@@ -155,8 +165,7 @@ export default function GuestHomePage() {
       window.open(`https://api.whatsapp.com/send?phone=${guestPhone.replace(/[^0-9]/g, '')}&text=${whatsappText}`, '_blank')
 
       setSelectedProp(null)
-      setBookingStep(1)
-      alert('🎉 Reservation Confirmed! Direct WhatsApp instructions have been dispatched.')
+      alert('🎉 Reservation Confirmed! WhatsApp instructions dispatched.')
 
     } catch (err: any) {
       alert('Error finalizing reservation: ' + err.message)
@@ -221,6 +230,7 @@ export default function GuestHomePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProperties.map((p) => {
                 const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
+                const isExpanded = expandedDesc[p.id] || false
 
                 return (
                   <div 
@@ -228,7 +238,7 @@ export default function GuestHomePage() {
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
-                      {/* IMAGE preview */}
+                      {/* IMAGE CAROUSEL / COVER */}
                       <div className="relative aspect-[16/10] bg-neutral-950 overflow-hidden">
                         {gallery.length > 0 ? (
                           <img 
@@ -256,7 +266,7 @@ export default function GuestHomePage() {
                       </div>
 
                       {/* CONTENT DETAILS */}
-                      <div className="p-4 space-y-2.5">
+                      <div className="p-4 space-y-3">
                         <div className="flex justify-between items-baseline gap-2">
                           <h3 className="font-black text-white text-base leading-tight truncate">{p.title}</h3>
                           <div className="text-right shrink-0">
@@ -269,29 +279,44 @@ export default function GuestHomePage() {
                           <span>📍</span> {p.location}
                         </p>
 
-                        {/* DESCRIPTION */}
+                        {/* DESCRIPTION TOGGLE */}
                         {p.description && (
-                          <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
-                            {p.description}
-                          </p>
+                          <div className="space-y-1">
+                            <button
+                              onClick={() => toggleDescription(p.id)}
+                              className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{isExpanded ? '▾ Hide Description' : '▸ Show Description'}</span>
+                            </button>
+                            {isExpanded && (
+                              <p className="text-[11px] text-neutral-300 bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 leading-relaxed">
+                                {p.description}
+                              </p>
+                            )}
+                          </div>
                         )}
 
-                        {/* AMENITIES BADGES */}
+                        {/* SEPARATED AMENITIES SECTION */}
                         {p.amenities && p.amenities.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {p.amenities.map((item: string, idx: number) => (
-                              <span key={idx} className="bg-neutral-950 border border-neutral-800 text-[9px] font-bold text-neutral-300 px-2 py-0.5 rounded-md">
-                                ✓ {item}
-                              </span>
-                            ))}
+                          <div className="border-t border-neutral-800 pt-2 space-y-1.5">
+                            <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">
+                              Amenities & Features
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                              {p.amenities.map((item: string, idx: number) => (
+                                <span key={idx} className="bg-neutral-950 border border-neutral-800 text-[10px] font-bold text-neutral-300 px-2.5 py-1 rounded-lg">
+                                  ✓ {item}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <div className="p-4 pt-0">
+                    <div className="p-4 pt-2">
                       <button
-                        onClick={() => { setSelectedProp(p); setBookingStep(1); }}
+                        onClick={() => setSelectedProp(p)}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition duration-200 cursor-pointer active:scale-[0.98]"
                       >
                         Book Now
@@ -315,33 +340,35 @@ export default function GuestHomePage() {
         </section>
       </div>
 
-      {/* 3-STEP AUTOMATED GUEST CHECKOUT MODAL */}
+      {/* SINGLE-PAGE COMPLETE BOOKING MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
             
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <div>
-                <span className="text-[10px] font-black uppercase text-amber-400">Step {bookingStep} of 3</span>
+                <span className="text-[10px] font-black uppercase text-amber-400">Complete Reservation</span>
                 <h3 className="text-lg font-black text-white">{selectedProp.title}</h3>
               </div>
               <button 
-                onClick={() => { setSelectedProp(null); setBookingStep(1); }} 
+                onClick={() => setSelectedProp(null)} 
                 className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm"
               >
                 ✕
               </button>
             </div>
 
-            {/* STEP 1: DATES */}
-            {bookingStep === 1 && (
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-neutral-300">1. Select Reservation Dates</h4>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              
+              {/* 1. DATES SECTION */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Dates</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-In</label>
                     <input 
                       type="date" 
+                      required
                       value={checkIn} 
                       onChange={(e) => setCheckIn(e.target.value)} 
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500" 
@@ -351,26 +378,18 @@ export default function GuestHomePage() {
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-Out</label>
                     <input 
                       type="date" 
+                      required
                       value={checkOut} 
                       onChange={(e) => setCheckOut(e.target.value)} 
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500" 
                     />
                   </div>
                 </div>
-                <button 
-                  onClick={() => setBookingStep(2)}
-                  disabled={!checkIn || !checkOut}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer disabled:opacity-50"
-                >
-                  Continue to Guest Details →
-                </button>
               </div>
-            )}
 
-            {/* STEP 2: DEMOGRAPHICS */}
-            {bookingStep === 2 && (
-              <form onSubmit={(e) => { e.preventDefault(); setBookingStep(3); }} className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-                <h4 className="text-xs font-bold text-neutral-300">2. Guest Demographics & Purpose</h4>
+              {/* 2. GUEST DETAILS & DEMOGRAPHICS */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">2. Guest Details & Demographics</h4>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <input type="text" required placeholder="Full Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
@@ -414,7 +433,7 @@ export default function GuestHomePage() {
                     <select value={purpose} onChange={(e) => setPurpose(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold">
                       <option value="Leisure">Leisure / Vacation</option>
                       <option value="Business">Business Trip</option>
-                      <option value="Party">Party / Event (Security Deposit Applies)</option>
+                      <option value="Party">Party / Event (Security Deposit)</option>
                       <option value="Relocation">Relocation Stay</option>
                     </select>
                   </div>
@@ -435,18 +454,11 @@ export default function GuestHomePage() {
                     <input type="text" placeholder="e.g. Early check-in requested" value={guestNotes} onChange={(e) => setGuestNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl" />
                   </div>
                 </div>
+              </div>
 
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={() => setBookingStep(1)} className="w-1/3 py-3 bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl">← Back</button>
-                  <button type="submit" className="w-2/3 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow">Proceed to Payment →</button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP 3: PAYMENT */}
-            {bookingStep === 3 && (
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-neutral-300">3. Price Summary & Instant Payment</h4>
+              {/* 3. PRICE SUMMARY & PAYMENT */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">3. Price Summary & Payment</h4>
                 
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
                   <div className="flex justify-between text-neutral-400">
@@ -468,25 +480,27 @@ export default function GuestHomePage() {
                     <span className="text-amber-400">${grandTotal}</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleFinalPaymentExecution('100%')}
-                    disabled={submitting}
-                    className="p-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
-                  >
-                    {submitting ? 'Processing...' : `Pay 100% ($${grandTotal})`}
-                  </button>
-                  <button
-                    onClick={() => handleFinalPaymentExecution('30% Deposit')}
-                    disabled={submitting}
-                    className="p-3 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-400 text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
-                  >
-                    {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.30)})`}
-                  </button>
-                </div>
               </div>
-            )}
+
+              {/* ACTION BUTTONS */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => handleFinalPaymentExecution('100%')}
+                  disabled={submitting}
+                  className="p-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
+                >
+                  {submitting ? 'Processing...' : `Pay 100% ($${grandTotal})`}
+                </button>
+                <button
+                  onClick={() => handleFinalPaymentExecution('30% Deposit')}
+                  disabled={submitting}
+                  className="p-3 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-400 text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
+                >
+                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.30)})`}
+                </button>
+              </div>
+
+            </div>
 
           </div>
         </div>
