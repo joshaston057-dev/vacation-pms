@@ -19,7 +19,7 @@ export default function GuestHomePage() {
   // DESCRIPTION TOGGLE STATE PER PROPERTY ID
   const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
 
-  // SINGLE-PAGE FORM INPUTS
+  // FORM INPUTS
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -55,14 +55,16 @@ export default function GuestHomePage() {
   }
 
   const toggleDescription = (id: string) => {
-    setExpandedDesc(prev => ({ ...prev, [id]: !prev[id] }))
+    setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const filteredProperties = selectedCategory === 'All' 
-    ? properties 
-    : properties.filter(p => (p.category || 'Apartment').toLowerCase() === selectedCategory.toLowerCase())
+  const filteredProperties =
+    selectedCategory === 'All'
+      ? properties
+      : properties.filter(
+          (p) => (p.category || 'Apartment').toLowerCase() === selectedCategory.toLowerCase()
+        )
 
-  // PRICING CALCULATIONS
   const calculateNights = () => {
     if (!checkIn || !checkOut) return 1
     const start = new Date(checkIn)
@@ -72,10 +74,10 @@ export default function GuestHomePage() {
   }
 
   const nights = calculateNights()
-  const baseRate = selectedProp ? (selectedProp.price || 0) : 0
+  const baseRate = selectedProp ? selectedProp.price || 0 : 0
   const cleaningFee = selectedProp?.cleaning_fee || 0
-  const partyDeposit = purpose === 'Party' ? (selectedProp?.party_security_deposit || 0) : 0
-  const grandTotal = (nights * baseRate) + cleaningFee + partyDeposit
+  const partyDeposit = purpose === 'Party' ? selectedProp?.party_security_deposit || 0 : 0
+  const grandTotal = nights * baseRate + cleaningFee + partyDeposit
 
   const handleFinalPaymentExecution = async (paymentOption: '100%' | '30% Deposit') => {
     if (!checkIn || !checkOut || !guestName || !guestPhone) {
@@ -87,33 +89,39 @@ export default function GuestHomePage() {
 
     try {
       const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
-      const paidNow = paymentOption === '100%' ? grandTotal : Math.round(grandTotal * 0.30)
+      const paidNow = paymentOption === '100%' ? grandTotal : Math.round(grandTotal * 0.3)
 
-      const { data: booking, error: bErr } = await supabase.from('bookings').insert([{
-        property_id: selectedProp.id,
-        host_id: selectedProp.host_id,
-        guest_name: guestName,
-        phone: guestPhone,
-        adults: adults,
-        children: childrenCount,
-        child_ages: childAges,
-        nationality: nationality,
-        purpose: purpose,
-        booking_source: source,
-        guest_notes: guestNotes,
-        check_in: checkIn,
-        check_out: checkOut,
-        total_price: grandTotal,
-        paid_amount: paidNow,
-        security_deposit_paid: partyDeposit,
-        payment_type: paymentOption,
-        door_code: doorCode,
-        status: 'PAID'
-      }]).select().single()
+      const { data: booking, error: bErr } = await supabase
+        .from('bookings')
+        .insert([
+          {
+            property_id: selectedProp.id,
+            host_id: selectedProp.host_id,
+            guest_name: guestName,
+            phone: guestPhone,
+            adults: adults,
+            children: childrenCount,
+            child_ages: childAges,
+            nationality: nationality,
+            purpose: purpose,
+            booking_source: source,
+            guest_notes: guestNotes,
+            check_in: checkIn,
+            check_out: checkOut,
+            total_price: grandTotal,
+            paid_amount: paidNow,
+            security_deposit_paid: partyDeposit,
+            payment_type: paymentOption,
+            door_code: doorCode,
+            status: 'PAID'
+          }
+        ])
+        .select()
+        .single()
 
       if (bErr) throw bErr
 
-      const tasksToInsert = [
+      const tasksToInsert: any[] = [
         {
           property_id: selectedProp.id,
           booking_id: booking.id,
@@ -153,20 +161,22 @@ export default function GuestHomePage() {
 
       const whatsappText = encodeURIComponent(
         `Confirmed ${guestName}!\n\n` +
-        `🏡 Stay: ${selectedProp.title}\n` +
-        `🌍 Nationality: ${nationality}\n` +
-        `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
-        `📅 Dates: ${checkIn} to ${checkOut}\n` +
-        `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
-        `🔑 Door Access Code: ${doorCode} (Active 2:00 PM on ${checkIn})\n\n` +
-        `Guidebook Link: https://vacation-pms.vercel.app/guidebook`
+          `🏡 Stay: ${selectedProp.title}\n` +
+          `🌍 Nationality: ${nationality}\n` +
+          `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
+          `📅 Dates: ${checkIn} to ${checkOut}\n` +
+          `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
+          `🔑 Door Access Code: ${doorCode} (Active 2:00 PM on ${checkIn})\n\n` +
+          `Guidebook Link: https://vacation-pms.vercel.app/guidebook`
       )
 
-      window.open(`https://api.whatsapp.com/send?phone=${guestPhone.replace(/[^0-9]/g, '')}&text=${whatsappText}`, '_blank')
+      window.open(
+        `https://api.whatsapp.com/send?phone=${guestPhone.replace(/[^0-9]/g, '')}&text=${whatsappText}`,
+        '_blank'
+      )
 
       setSelectedProp(null)
       alert('🎉 Reservation Confirmed! WhatsApp instructions dispatched.')
-
     } catch (err: any) {
       alert('Error finalizing reservation: ' + err.message)
     } finally {
@@ -193,7 +203,7 @@ export default function GuestHomePage() {
           </p>
         </section>
 
-        {/* PROPERTY CATEGORY FILTERS */}
+        {/* CATEGORY FILTERS */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
           <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
             {['All', 'Apartment', 'Villa', 'Mansion', 'House'].map((cat) => (
@@ -201,8 +211,8 @@ export default function GuestHomePage() {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                  selectedCategory === cat 
-                    ? 'bg-amber-500 text-black shadow-lg' 
+                  selectedCategory === cat
+                    ? 'bg-amber-500 text-black shadow-lg'
                     : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
                 }`}
               >
@@ -212,7 +222,7 @@ export default function GuestHomePage() {
           </div>
         </section>
 
-        {/* PROPERTY CATALOG */}
+        {/* CATALOG */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2 space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
             <h2 className="text-sm font-black text-white tracking-wider uppercase flex items-center gap-2">
@@ -229,21 +239,20 @@ export default function GuestHomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProperties.map((p) => {
-                const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
+                const gallery = p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
                 const isExpanded = expandedDesc[p.id] || false
 
                 return (
-                  <div 
-                    key={p.id} 
+                  <div
+                    key={p.id}
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
-                      {/* IMAGE CAROUSEL / COVER */}
                       <div className="relative aspect-[16/10] bg-neutral-950 overflow-hidden">
                         {gallery.length > 0 ? (
-                          <img 
-                            src={gallery[0]} 
-                            alt={p.title} 
+                          <img
+                            src={gallery[0]}
+                            alt={p.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                           />
                         ) : (
@@ -265,7 +274,6 @@ export default function GuestHomePage() {
                         )}
                       </div>
 
-                      {/* CONTENT DETAILS */}
                       <div className="p-4 space-y-3">
                         <div className="flex justify-between items-baseline gap-2">
                           <h3 className="font-black text-white text-base leading-tight truncate">{p.title}</h3>
@@ -296,7 +304,7 @@ export default function GuestHomePage() {
                           </div>
                         )}
 
-                        {/* SEPARATED AMENITIES SECTION */}
+                        {/* SEPARATED AMENITIES */}
                         {p.amenities && p.amenities.length > 0 && (
                           <div className="border-t border-neutral-800 pt-2 space-y-1.5">
                             <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">
@@ -304,7 +312,10 @@ export default function GuestHomePage() {
                             </span>
                             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
                               {p.amenities.map((item: string, idx: number) => (
-                                <span key={idx} className="bg-neutral-950 border border-neutral-800 text-[10px] font-bold text-neutral-300 px-2.5 py-1 rounded-lg">
+                                <span
+                                  key={idx}
+                                  className="bg-neutral-950 border border-neutral-800 text-[10px] font-bold text-neutral-300 px-2.5 py-1 rounded-lg"
+                                >
                                   ✓ {item}
                                 </span>
                               ))}
@@ -329,7 +340,6 @@ export default function GuestHomePage() {
           )}
         </section>
 
-        {/* HOST MARKETING & UPSELL SECTION */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-6 border-t border-neutral-900 mt-6">
           <div className="text-center pb-3">
             <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">
@@ -344,14 +354,13 @@ export default function GuestHomePage() {
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
-            
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <div>
                 <span className="text-[10px] font-black uppercase text-amber-400">Complete Reservation</span>
                 <h3 className="text-lg font-black text-white">{selectedProp.title}</h3>
               </div>
-              <button 
-                onClick={() => setSelectedProp(null)} 
+              <button
+                onClick={() => setSelectedProp(null)}
                 className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm"
               >
                 ✕
@@ -359,62 +368,97 @@ export default function GuestHomePage() {
             </div>
 
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
-              
-              {/* 1. DATES SECTION */}
               <div className="space-y-2">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Dates</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-In</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       required
-                      value={checkIn} 
-                      onChange={(e) => setCheckIn(e.target.value)} 
-                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500" 
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-Out</label>
-                    <input 
-                      type="date" 
+                    <input
+                      type="date"
                       required
-                      value={checkOut} 
-                      onChange={(e) => setCheckOut(e.target.value)} 
-                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500" 
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* 2. GUEST DETAILS & DEMOGRAPHICS */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">2. Guest Details & Demographics</h4>
-                
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  2. Guest Details & Demographics
+                </h4>
+
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="text" required placeholder="Full Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                  <input type="tel" required placeholder="WhatsApp Number" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Full Name"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                  />
+                  <input
+                    type="tel"
+                    required
+                    placeholder="WhatsApp Number"
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                  />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Adults</label>
-                    <input type="number" min="1" value={adults} onChange={(e) => setAdults(parseInt(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold" />
+                    <input
+                      type="number"
+                      min="1"
+                      value={adults}
+                      onChange={(e) => setAdults(parseInt(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    />
                   </div>
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Children</label>
-                    <input type="number" min="0" value={childrenCount} onChange={(e) => setChildrenCount(parseInt(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold" />
+                    <input
+                      type="number"
+                      min="0"
+                      value={childrenCount}
+                      onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    />
                   </div>
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Child Ages</label>
-                    <input type="text" placeholder="e.g. 3, 7" value={childAges} onChange={(e) => setChildAges(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl" />
+                    <input
+                      type="text"
+                      placeholder="e.g. 3, 7"
+                      value={childAges}
+                      onChange={(e) => setChildAges(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
+                    />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Nationality / Country</label>
-                    <select value={nationality} onChange={(e) => setNationality(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold">
+                    <select
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    >
                       <option value="United States">United States</option>
                       <option value="United Kingdom">United Kingdom</option>
                       <option value="Uganda">Uganda</option>
@@ -430,7 +474,11 @@ export default function GuestHomePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Purpose of Stay</label>
-                    <select value={purpose} onChange={(e) => setPurpose(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold">
+                    <select
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    >
                       <option value="Leisure">Leisure / Vacation</option>
                       <option value="Business">Business Trip</option>
                       <option value="Party">Party / Event (Security Deposit)</option>
@@ -442,7 +490,11 @@ export default function GuestHomePage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">How did you find us?</label>
-                    <select value={source} onChange={(e) => setSource(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold">
+                    <select
+                      value={source}
+                      onChange={(e) => setSource(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    >
                       <option value="TikTok">TikTok</option>
                       <option value="Instagram">Instagram</option>
                       <option value="Direct Referral">Direct Referral</option>
@@ -451,18 +503,27 @@ export default function GuestHomePage() {
                   </div>
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Special Note</label>
-                    <input type="text" placeholder="e.g. Early check-in requested" value={guestNotes} onChange={(e) => setGuestNotes(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Early check-in requested"
+                      value={guestNotes}
+                      onChange={(e) => setGuestNotes(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* 3. PRICE SUMMARY & PAYMENT */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">3. Price Summary & Payment</h4>
-                
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  3. Price Summary & Payment
+                </h4>
+
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
                   <div className="flex justify-between text-neutral-400">
-                    <span>Nights Stay ({nights} night(s) @ ${baseRate})</span>
+                    <span>
+                      Nights Stay ({nights} night(s) @ ${baseRate})
+                    </span>
                     <span>${nights * baseRate}</span>
                   </div>
                   <div className="flex justify-between text-neutral-400">
@@ -482,7 +543,6 @@ export default function GuestHomePage() {
                 </div>
               </div>
 
-              {/* ACTION BUTTONS */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   onClick={() => handleFinalPaymentExecution('100%')}
@@ -496,12 +556,10 @@ export default function GuestHomePage() {
                   disabled={submitting}
                   className="p-3 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-400 text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
                 >
-                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.30)})`}
+                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.3)})`}
                 </button>
               </div>
-
             </div>
-
           </div>
         </div>
       )}
