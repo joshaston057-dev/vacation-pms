@@ -5,18 +5,22 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import HeaderNav from './components/HeaderNav'
 import Footer from './components/Footer'
-import UpsellMotionSlider from './components/UpsellMotionSlider'
 import { supabase } from '@/lib/supabase'
 
 export default function GuestHomePage() {
   const [properties, setProperties] = useState<any[]>([])
+  const [upsells, setUpsells] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
 
-  // MODAL STATE
+  // INDIVIDUAL GALLERY MODAL STATE
+  const [activeGalleryImages, setActiveGalleryImages] = useState<string[] | null>(null)
+  const [currentGalleryIdx, setCurrentGalleryIdx] = useState(0)
+
+  // RESERVATION MODAL STATE
   const [selectedProp, setSelectedProp] = useState<any | null>(null)
 
-  // DESCRIPTION TOGGLE STATE PER PROPERTY ID
+  // DESCRIPTION TOGGLE STATE
   const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
 
   // FORM INPUTS
@@ -34,21 +38,21 @@ export default function GuestHomePage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    fetchProperties()
+    fetchPageData()
   }, [])
 
-  const fetchProperties = async () => {
+  const fetchPageData = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .order('id', { ascending: false })
+      const [propsRes, upsellRes] = await Promise.all([
+        supabase.from('properties').select('*').order('id', { ascending: false }),
+        supabase.from('upsell_services').select('*').eq('active', true).order('id', { ascending: true })
+      ])
 
-      if (error) throw error
-      if (data) setProperties(data)
+      if (propsRes.data) setProperties(propsRes.data)
+      if (upsellRes.data) setUpsells(upsellRes.data)
     } catch (err) {
-      console.error('Error fetching properties:', err)
+      console.error('Error fetching page data:', err)
     } finally {
       setLoading(false)
     }
@@ -137,23 +141,11 @@ export default function GuestHomePage() {
         tasksToInsert.push({
           property_id: selectedProp.id,
           booking_id: booking.id,
-          title: `Setup Extra Bedding / Crib (${childrenCount} Child)`,
+          title: `Setup Extra Bedding (${childrenCount} Child - Ages: ${childAges || 'N/A'})`,
           task_type: 'Extra Prep',
           assignedTo: 'Aisha (Head Cleaner)',
           status: 'OPEN',
           due_date: checkIn
-        })
-      }
-
-      if (purpose === 'Party') {
-        tasksToInsert.push({
-          property_id: selectedProp.id,
-          booking_id: booking.id,
-          title: `Pre & Post Party Damage Inspection`,
-          task_type: 'Security Check',
-          assignedTo: 'Host Duty Manager',
-          status: 'OPEN',
-          due_date: checkOut
         })
       }
 
@@ -163,11 +155,11 @@ export default function GuestHomePage() {
         `Confirmed ${guestName}!\n\n` +
           `🏡 Stay: ${selectedProp.title}\n` +
           `🌍 Nationality: ${nationality}\n` +
-          `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
+          `👥 Guests: ${adults} Adults, ${childrenCount} Children (${childAges ? 'Ages: ' + childAges : ''})\n` +
+          `📝 Note to Host: ${guestNotes || 'None'}\n` +
           `📅 Dates: ${checkIn} to ${checkOut}\n` +
           `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
-          `🔑 Door Access Code: ${doorCode} (Active 2:00 PM on ${checkIn})\n\n` +
-          `Guidebook Link: https://vacation-pms.vercel.app/guidebook`
+          `🔑 Door Access Code: ${doorCode}`
       )
 
       window.open(
@@ -176,7 +168,7 @@ export default function GuestHomePage() {
       )
 
       setSelectedProp(null)
-      alert('🎉 Reservation Confirmed! WhatsApp instructions dispatched.')
+      alert('🎉 Reservation Confirmed!')
     } catch (err: any) {
       alert('Error finalizing reservation: ' + err.message)
     } finally {
@@ -199,7 +191,7 @@ export default function GuestHomePage() {
             Global Short-Stay Vacation Homes
           </h1>
           <p className="text-xs text-neutral-400 max-w-lg mx-auto">
-            Curated apartments, villas, and stand-alone houses available for international travelers.
+            Curated apartments, villas, mansions, and stand-alone houses available for international travelers.
           </p>
         </section>
 
@@ -248,12 +240,21 @@ export default function GuestHomePage() {
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
-                      <div className="relative aspect-[16/10] bg-neutral-950 overflow-hidden">
+                      {/* IMAGE CONTAINER WITH INDIVIDUAL GALLERY CLICK */}
+                      <div
+                        onClick={() => {
+                          if (gallery.length > 0) {
+                            setActiveGalleryImages(gallery)
+                            setCurrentGalleryIdx(0)
+                          }
+                        }}
+                        className="relative aspect-[16/10] bg-neutral-950 overflow-hidden cursor-pointer group/img"
+                      >
                         {gallery.length > 0 ? (
                           <img
                             src={gallery[0]}
                             alt={p.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                            className="w-full h-full object-cover group-hover/img:scale-105 transition duration-500"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">
@@ -267,9 +268,9 @@ export default function GuestHomePage() {
                           </span>
                         </div>
 
-                        {gallery.length > 1 && (
-                          <span className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md border border-neutral-700">
-                            📷 {gallery.length} Photos
+                        {gallery.length > 0 && (
+                          <span className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md border border-neutral-700 flex items-center gap-1">
+                            📷 View {gallery.length} Photo{gallery.length > 1 ? 's' : ''}
                           </span>
                         )}
                       </div>
@@ -340,17 +341,103 @@ export default function GuestHomePage() {
           )}
         </section>
 
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-6 border-t border-neutral-900 mt-6">
-          <div className="text-center pb-3">
-            <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">
-              Hospitality & Property Owner Services
+        {/* PUBLIC UPSELL & ADD-ON SERVICES SECTION */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-t border-neutral-900 mt-6 space-y-4">
+          <div className="text-center space-y-1">
+            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
+              VIP Guest Experience
             </span>
+            <h2 className="text-xl font-black text-white">Add-On Hospitality Services</h2>
           </div>
-          <UpsellMotionSlider />
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {upsells.map((u) => (
+              <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl">{u.icon || '✨'}</span>
+                    <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                      +${u.price}
+                    </span>
+                  </div>
+                  <h3 className="font-extrabold text-white text-sm">{u.title}</h3>
+                  <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
+                </div>
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
+                  {u.category} • Selectable during reservation
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
       </div>
 
-      {/* SINGLE-PAGE COMPLETE BOOKING MODAL */}
+      {/* FULL SCREEN INDIVIDUAL PHOTO GALLERY MODAL */}
+      {activeGalleryImages && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-between p-4">
+          <div className="w-full max-w-4xl flex justify-between items-center">
+            <span className="text-xs font-bold text-neutral-400">
+              Photo {currentGalleryIdx + 1} of {activeGalleryImages.length}
+            </span>
+            <button
+              onClick={() => setActiveGalleryImages(null)}
+              className="text-neutral-400 hover:text-white font-black text-base cursor-pointer px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-xl"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          <div className="relative max-w-4xl w-full flex-1 flex items-center justify-center my-4">
+            <img
+              src={activeGalleryImages[currentGalleryIdx]}
+              alt={`Gallery photo ${currentGalleryIdx + 1}`}
+              className="max-h-[75vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl border border-neutral-800"
+            />
+
+            {activeGalleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setCurrentGalleryIdx((prev) =>
+                      prev === 0 ? activeGalleryImages.length - 1 : prev - 1
+                    )
+                  }
+                  className="absolute left-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentGalleryIdx((prev) =>
+                      prev === activeGalleryImages.length - 1 ? 0 : prev + 1
+                    )
+                  }
+                  className="absolute right-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* THUMBNAIL STRIP */}
+          <div className="flex gap-2 overflow-x-auto max-w-4xl w-full pb-2 scrollbar-none justify-center">
+            {activeGalleryImages.map((imgUrl, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentGalleryIdx(i)}
+                className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${
+                  currentGalleryIdx === i ? 'border-amber-500 scale-105' : 'border-neutral-800 opacity-60'
+                }`}
+              >
+                <img src={imgUrl} alt="thumb" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SINGLE-PAGE BOOKING MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
@@ -369,7 +456,7 @@ export default function GuestHomePage() {
 
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Dates</h4>
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Reservation Dates</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-In</label>
@@ -396,31 +483,37 @@ export default function GuestHomePage() {
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                  2. Guest Details & Demographics
+                  2. Guest Demographics & Details
                 </h4>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Full Name"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
-                  />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="WhatsApp Number"
-                    value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
-                  />
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Joshua Owembabazi"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">WhatsApp Phone</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+256700000000"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Adults</label>
+                    <label className="text-[10px] text-neutral-400 font-bold">Adults (18+)</label>
                     <input
                       type="number"
                       min="1"
@@ -443,7 +536,7 @@ export default function GuestHomePage() {
                     <label className="text-[10px] text-neutral-400 font-bold">Child Ages</label>
                     <input
                       type="text"
-                      placeholder="e.g. 3, 7"
+                      placeholder="e.g. 3, 7 yrs"
                       value={childAges}
                       onChange={(e) => setChildAges(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
@@ -502,10 +595,10 @@ export default function GuestHomePage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Special Note</label>
+                    <label className="text-[10px] text-neutral-400 font-bold">Note to Host</label>
                     <input
                       type="text"
-                      placeholder="e.g. Early check-in requested"
+                      placeholder="e.g. Early check-in, extra towels"
                       value={guestNotes}
                       onChange={(e) => setGuestNotes(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
@@ -516,7 +609,7 @@ export default function GuestHomePage() {
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                  3. Price Summary & Payment
+                  3. Price Summary & Instant Payment
                 </h4>
 
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
