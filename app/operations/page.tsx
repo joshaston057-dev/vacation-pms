@@ -8,11 +8,23 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger'>('bookings')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger'>('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+
+  // EDIT PROPERTY MODAL STATE
+  const [editingProp, setEditingProp] = useState<any | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editCategory, setEditCategory] = useState('Apartment')
+  const [editPrice, setEditPrice] = useState(0)
+  const [editLocation, setEditLocation] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editAmenities, setEditAmenities] = useState('')
+  const [editCleaningFee, setEditCleaningFee] = useState(0)
+  const [editPartyDeposit, setEditPartyDeposit] = useState(0)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetchHostData()
@@ -37,6 +49,57 @@ export default function HostOperationsHub() {
     }
   }
 
+  // OPEN EDIT MODAL WITH PROPERTY DATA
+  const handleOpenEdit = (p: any) => {
+    setEditingProp(p)
+    setEditTitle(p.title || '')
+    setEditCategory(p.category || 'Apartment')
+    setEditPrice(p.price || 0)
+    setEditLocation(p.location || '')
+    setEditDescription(p.description || '')
+    setEditAmenities(p.amenities ? p.amenities.join(', ') : '')
+    setEditCleaningFee(p.cleaning_fee || 0)
+    setEditPartyDeposit(p.party_security_deposit || 0)
+  }
+
+  // SAVE UPDATED PROPERTY TO SUPABASE
+  const handleSaveProperty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingProp) return
+
+    setSaving(true)
+    try {
+      const amenitiesArray = editAmenities
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+
+      const { error } = await supabase
+        .from('properties')
+        .update({
+          title: editTitle,
+          category: editCategory,
+          price: Number(editPrice),
+          location: editLocation,
+          description: editDescription,
+          amenities: amenitiesArray,
+          cleaning_fee: Number(editCleaningFee),
+          party_security_deposit: Number(editPartyDeposit)
+        })
+        .eq('id', editingProp.id)
+
+      if (error) throw error
+
+      setEditingProp(null)
+      fetchHostData()
+      alert('✅ Property details updated successfully!')
+    } catch (err: any) {
+      alert('Error updating property: ' + err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const handleVerifyTask = async (taskId: number, verifyStatus: 'VERIFIED' | 'REOPEN') => {
     try {
       const { error } = await supabase
@@ -51,7 +114,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // CALCULATE LEDGER METRICS
   const totalEarnings = bookings.reduce((sum, b) => sum + (Number(b.paid_amount) || Number(b.total_price) || 0), 0)
   const totalBookingsCount = bookings.length
 
@@ -134,7 +196,7 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* 1. PROPERTIES TAB */}
+              {/* 1. PROPERTIES TAB WITH IMAGE PREVIEWS & EDITING */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -148,18 +210,65 @@ export default function HostOperationsHub() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {properties.map((p) => (
-                        <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 text-amber-400">
-                              {p.category || 'Apartment'}
-                            </span>
-                            <span className="text-xs font-black text-amber-400">${p.price || 50} / night</span>
+                      {properties.map((p) => {
+                        const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
+
+                        return (
+                          <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
+                            <div>
+                              {/* IMAGE PREVIEW IN HOST HUB */}
+                              <div className="relative aspect-[16/10] bg-neutral-950">
+                                {gallery.length > 0 ? (
+                                  <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">
+                                    No Image Available
+                                  </div>
+                                )}
+                                <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md border border-amber-500/40 text-amber-400 text-[10px] font-black px-2 py-0.5 rounded-lg uppercase">
+                                  {p.category || 'Apartment'}
+                                </span>
+                                {gallery.length > 1 && (
+                                  <span className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md border border-neutral-700">
+                                    📸 {gallery.length} Photos
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="p-4 space-y-2">
+                                <div className="flex justify-between items-baseline gap-2">
+                                  <h4 className="font-black text-white text-base truncate">{p.title}</h4>
+                                  <span className="text-amber-400 font-black text-base shrink-0">${p.price || 0}/night</span>
+                                </div>
+                                <p className="text-xs text-neutral-400">📍 {p.location}</p>
+                                {p.description && (
+                                  <p className="text-[11px] text-neutral-400 line-clamp-2 leading-relaxed">
+                                    {p.description}
+                                  </p>
+                                )}
+                                {p.amenities && p.amenities.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 pt-1">
+                                    {p.amenities.map((item: string, idx: number) => (
+                                      <span key={idx} className="bg-neutral-950 border border-neutral-800 text-[9px] font-bold text-neutral-300 px-2 py-0.5 rounded-md">
+                                        ✓ {item}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="p-4 pt-0">
+                              <button
+                                onClick={() => handleOpenEdit(p)}
+                                className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-extrabold text-xs rounded-xl shadow transition cursor-pointer"
+                              >
+                                ✏️ Edit Property
+                              </button>
+                            </div>
                           </div>
-                          <h4 className="font-black text-white text-base">{p.title}</h4>
-                          <p className="text-xs text-neutral-400">📍 {p.location}</p>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -321,6 +430,135 @@ export default function HostOperationsHub() {
           )}
         </div>
       </div>
+
+      {/* EDIT PROPERTY MODAL */}
+      {editingProp && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase text-amber-400">Host Management</span>
+                <h3 className="text-lg font-black text-white">Edit Property Listing</h3>
+              </div>
+              <button
+                onClick={() => setEditingProp(null)}
+                className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProperty} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Property Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Category</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold focus:border-amber-500"
+                  >
+                    <option value="Apartment">Apartment</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Mansion">Mansion</option>
+                    <option value="House">House</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Nightly Rate ($)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editPrice}
+                    onChange={(e) => setEditPrice(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Location</label>
+                <input
+                  type="text"
+                  required
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Amenities (Comma Separated)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. WiFi, Air Conditioning, Pool, Kitchen"
+                  value={editAmenities}
+                  onChange={(e) => setEditAmenities(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Cleaning Fee ($)</label>
+                  <input
+                    type="number"
+                    value={editCleaningFee}
+                    onChange={(e) => setEditCleaningFee(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Party Deposit ($)</label>
+                  <input
+                    type="number"
+                    value={editPartyDeposit}
+                    onChange={(e) => setEditPartyDeposit(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingProp(null)}
+                  className="w-1/3 py-3 bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer"
+                >
+                  {saving ? 'Saving Changes...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </main>
