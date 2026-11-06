@@ -89,7 +89,7 @@ export default function GuestHomePage() {
       <div>
         <HeaderNav />
 
-        {/* HERO SECTION */}
+        {/* HERO SECTION FOR GUESTS & PROPERTY OWNERS */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-6 text-center space-y-4">
           <span className="text-xs font-black uppercase px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400">
             La Estancia Vacation Homes
@@ -98,10 +98,11 @@ export default function GuestHomePage() {
             Find & Book Your Next Stay
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl mx-auto">
-            Browse our curated portfolio of premium apartments, stand-alone houses, and luxury villas.
+            Browse luxury vacation rentals, furnished apartments, and mansions. Or manage your own hospitality business with our operational PMS.
           </p>
         </section>
 
+        {/* HOST MARKETING & UPSELL AD SLIDER (PUBLIC CONSUMERS) */}
         <UpsellMotionSlider />
 
         {/* PROPERTY CATALOG */}
@@ -109,21 +110,15 @@ export default function GuestHomePage() {
           <div className="border-b border-neutral-800 pb-4 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-black text-white">Available Stays</h2>
-              <p className="text-xs text-neutral-400">Explore rates and amenities available for instant booking.</p>
+              <p className="text-xs text-neutral-400">Explore rates and amenities available for instant booking request.</p>
             </div>
-            <a
-              href="/operations"
-              className="px-4 py-2 bg-neutral-900 border border-neutral-800 hover:border-amber-500 text-amber-400 text-xs font-bold rounded-xl transition"
-            >
-              Access Host Portal →
-            </a>
           </div>
 
           {loading ? (
             <p className="text-xs text-neutral-500 animate-pulse text-center py-10">Loading available properties...</p>
           ) : properties.length === 0 ? (
             <div className="py-16 text-center text-neutral-500 text-xs font-bold">
-              No properties currently listed.
+              No properties currently listed for booking.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
