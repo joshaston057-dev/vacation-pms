@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase'
 export default function GuestHomePage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState('All')
 
   // MODAL & MULTI-STEP CHECKOUT STATE
   const [selectedProp, setSelectedProp] = useState<any | null>(null)
@@ -24,7 +25,7 @@ export default function GuestHomePage() {
   const [adults, setAdults] = useState(1)
   const [childrenCount, setChildrenCount] = useState(0)
   const [childAges, setChildAges] = useState('')
-  const [nationality, setNationality] = useState('')
+  const [nationality, setNationality] = useState('United States')
   const [purpose, setPurpose] = useState('Leisure')
   const [source, setSource] = useState('TikTok')
   const [guestNotes, setGuestNotes] = useState('')
@@ -45,11 +46,16 @@ export default function GuestHomePage() {
       if (error) throw error
       if (data) setProperties(data)
     } catch (err) {
-      console.error('Error fetching public properties:', err)
+      console.error('Error fetching properties:', err)
     } finally {
       setLoading(false)
     }
   }
+
+  // FILTERED PROPERTIES BY CATEGORY
+  const filteredProperties = selectedCategory === 'All' 
+    ? properties 
+    : properties.filter(p => (p.category || 'Apartment').toLowerCase() === selectedCategory.toLowerCase())
 
   // PRICING CALCULATIONS
   const calculateNights = () => {
@@ -66,7 +72,6 @@ export default function GuestHomePage() {
   const partyDeposit = purpose === 'Party' ? (selectedProp?.party_security_deposit || 50) : 0
   const grandTotal = (nights * baseRate) + cleaningFee + partyDeposit
 
-  // AUTOMATED PAYMENT & WORKFLOW DISPATCH
   const handleFinalPaymentExecution = async (paymentOption: '100%' | '30% Deposit') => {
     setSubmitting(true)
 
@@ -74,7 +79,6 @@ export default function GuestHomePage() {
       const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
       const paidNow = paymentOption === '100%' ? grandTotal : Math.round(grandTotal * 0.30)
 
-      // 1. Save Booking with Demographic Insights
       const { data: booking, error: bErr } = await supabase.from('bookings').insert([{
         property_id: selectedProp.id,
         host_id: selectedProp.host_id,
@@ -99,7 +103,6 @@ export default function GuestHomePage() {
 
       if (bErr) throw bErr
 
-      // 2. Auto-Generate Work Orders for Staff
       const tasksToInsert = [
         {
           property_id: selectedProp.id,
@@ -138,23 +141,22 @@ export default function GuestHomePage() {
 
       await supabase.from('tasks').insert(tasksToInsert)
 
-      // 3. Dispatch Automated Guest WhatsApp Confirmation
       const whatsappText = encodeURIComponent(
         `Confirmed ${guestName}!\n\n` +
         `🏡 Stay: ${selectedProp.title}\n` +
+        `🌍 Nationality: ${nationality}\n` +
         `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
         `📅 Dates: ${checkIn} to ${checkOut}\n` +
         `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
         `🔑 Door Access Code: ${doorCode} (Active 2:00 PM on ${checkIn})\n\n` +
-        `Guest Guidebook Link: https://vacation-pms.vercel.app/guidebook`
+        `Guidebook Link: https://vacation-pms.vercel.app/guidebook`
       )
 
       window.open(`https://api.whatsapp.com/send?phone=${guestPhone.replace(/[^0-9]/g, '')}&text=${whatsappText}`, '_blank')
 
-      // Reset Modal
       setSelectedProp(null)
       setBookingStep(1)
-      alert('🎉 Reservation Confirmed! Direct WhatsApp instructions have been sent.')
+      alert('🎉 Reservation Confirmed! Direct WhatsApp instructions have been dispatched.')
 
     } catch (err: any) {
       alert('Error finalizing reservation: ' + err.message)
@@ -175,30 +177,49 @@ export default function GuestHomePage() {
             La Estancia Vacation Homes
           </div>
           <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-            Book Short-Stay Vacation Homes
+            Global Short-Stay Vacation Homes
           </h1>
           <p className="text-xs text-neutral-400 max-w-lg mx-auto">
-            Explore curated apartments, villas, and stand-alone houses available for daily booking.
+            Curated apartments, villas, and stand-alone houses available for international travelers.
           </p>
         </section>
 
+        {/* PROPERTY CATEGORY FILTERS */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {['All', 'Apartment', 'Villa', 'Mansion', 'House'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                  selectedCategory === cat 
+                    ? 'bg-amber-500 text-black shadow-lg' 
+                    : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {cat === 'All' ? '✨ All Properties' : cat}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/* PROPERTY CATALOG */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-4 space-y-4">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2 space-y-4">
           <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
             <h2 className="text-sm font-black text-white tracking-wider uppercase flex items-center gap-2">
-              <span className="text-amber-400">🏡</span> Featured Properties ({properties.length})
+              <span className="text-amber-400">🏡</span> {selectedCategory} Stays ({filteredProperties.length})
             </h2>
           </div>
 
           {loading ? (
-            <p className="text-xs text-neutral-500 animate-pulse text-center py-12">Loading properties...</p>
-          ) : properties.length === 0 ? (
+            <p className="text-xs text-neutral-500 animate-pulse text-center py-12">Loading listings...</p>
+          ) : filteredProperties.length === 0 ? (
             <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-              No properties listed right now.
+              No properties found in this category.
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {properties.map((p) => {
+              {filteredProperties.map((p) => {
                 const gallery = p.images && p.images.length > 0 ? p.images : (p.image_url ? [p.image_url] : [])
 
                 return (
@@ -326,14 +347,14 @@ export default function GuestHomePage() {
               </div>
             )}
 
-            {/* STEP 2: DEMOGRAPHICS */}
+            {/* STEP 2: DEMOGRAPHICS (GLOBAL NATIONALITIES) */}
             {bookingStep === 2 && (
               <form onSubmit={(e) => { e.preventDefault(); setBookingStep(3); }} className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
                 <h4 className="text-xs font-bold text-neutral-300">2. Guest Demographics & Purpose</h4>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <input type="text" required placeholder="Full Name" value={guestName} onChange={(e) => setGuestName(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                  <input type="tel" required placeholder="WhatsApp Number (+256...)" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+                  <input type="tel" required placeholder="WhatsApp Number (with country code)" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)} className="bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
@@ -353,8 +374,20 @@ export default function GuestHomePage() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Nationality</label>
-                    <input type="text" placeholder="e.g. Ugandan / Expat" value={nationality} onChange={(e) => setNationality(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl" />
+                    <label className="text-[10px] text-neutral-400 font-bold">Nationality / Country</label>
+                    <select value={nationality} onChange={(e) => setNationality(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold">
+                      <option value="United States">United States</option>
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="Uganda">Uganda</option>
+                      <option value="Kenya">Kenya</option>
+                      <option value="Tanzania">Tanzania</option>
+                      <option value="South Africa">South Africa</option>
+                      <option value="Canada">Canada</option>
+                      <option value="Germany">Germany</option>
+                      <option value="France">France</option>
+                      <option value="UAE">UAE</option>
+                      <option value="Other International">Other International</option>
+                    </select>
                   </div>
                   <div>
                     <label className="text-[10px] text-neutral-400 font-bold">Purpose of Stay</label>
