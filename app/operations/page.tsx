@@ -245,7 +245,7 @@ export default function HostOperationsHub() {
                 activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
-              ✨ Upsell Services ({upsells.length})
+              ✨ Upsells ({upsells.length})
             </button>
             <button
               onClick={() => setActiveTab('ledger')}
@@ -312,25 +312,83 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* BOOKINGS TAB */}
+              {/* BOOKINGS TAB (CLEAN CARD DESIGN MATCHING REFERENCE) */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Guest Reservations</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-base font-black text-white">Guest Reservations</h3>
+                    <span className="text-xs text-neutral-400 font-bold">{bookings.length} Total Bookings</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {bookings.map((b) => (
-                      <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-3 shadow-xl">
-                        <div className="flex justify-between items-center border-b border-neutral-800 pb-2">
-                          <span className="text-xs font-black text-amber-400">ID #{b.id}</span>
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">PAID</span>
+                      <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                        
+                        <div className="space-y-3">
+                          {/* PROPERTY TITLE & STATUS HEADER */}
+                          <div className="flex justify-between items-start gap-2 border-b border-neutral-800 pb-3">
+                            <h4 className="font-black text-white text-sm leading-snug">{b.property_title || b.prop_title || 'Vacation Stay'}</h4>
+                            <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
+                              {b.status || 'CONFIRMED'}
+                            </span>
+                          </div>
+
+                          {/* DETAILS LIST WITH ICONS */}
+                          <div className="space-y-2 text-xs">
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <span className="text-neutral-400">👤</span>
+                              <span className="text-neutral-400">Guest Name:</span>
+                              <span className="font-extrabold text-white">{b.guest_name}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <span className="text-neutral-400">💬</span>
+                              <span className="text-neutral-400">WhatsApp:</span>
+                              <span className="font-extrabold text-emerald-400">{b.phone}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <span className="text-neutral-400">👥</span>
+                              <span className="text-neutral-400">Demographic:</span>
+                              <span className="font-extrabold text-amber-400">{b.purpose || 'Leisure'}</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <span className="text-neutral-400">👥</span>
+                              <span className="text-neutral-400">Guests:</span>
+                              <span className="font-extrabold text-white">{(b.adults || 1) + (b.children || 0)} Total ({b.adults || 1} Adults, {b.children || 0} Kids)</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-neutral-300">
+                              <span className="text-neutral-400">📅</span>
+                              <span className="text-neutral-400">Dates:</span>
+                              <span className="font-extrabold text-white">{b.check_in} → {b.check_out}</span>
+                            </div>
+                          </div>
                         </div>
-                        <h4 className="font-black text-white text-base">{b.guest_name}</h4>
-                        <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
-                          <p>📱 {b.phone}</p>
-                          <p>📅 {b.check_in} → {b.check_out}</p>
-                          <p>👥 {b.adults} Adults, {b.children} Children</p>
-                          <p>📝 Note: <span className="text-amber-400">{b.guest_notes || 'None'}</span></p>
-                          {b.door_code && <p className="text-emerald-400 font-bold">🔑 Door Code: {b.door_code}</p>}
+
+                        {/* GUEST NOTES BOX */}
+                        <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1">
+                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                            📝 GUEST NOTES:
+                          </span>
+                          <p className="text-xs text-neutral-300 font-medium">
+                            {b.guest_notes || 'No special requests'}
+                          </p>
                         </div>
+
+                        {/* WHATSAPP ACTION BUTTON */}
+                        {b.phone && (
+                          <a
+                            href={`https://api.whatsapp.com/send?phone=${b.phone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent(`Hello ${b.guest_name}, this is La Estancia Vacation Homes regarding your stay.`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-center cursor-pointer"
+                          >
+                            <span>💬</span> Message Guest on WhatsApp
+                          </a>
+                        )}
+
                       </div>
                     ))}
                   </div>
@@ -363,11 +421,11 @@ export default function HostOperationsHub() {
               {activeTab === 'upsells' && (
                 <div className="space-y-6">
                   <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-3xl space-y-4">
-                    <h3 className="text-base font-black text-white">Add New Upsell Service (Displayed Publicly)</h3>
+                    <h3 className="text-base font-black text-white">Add New Upsell Service (Publicly Displayed)</h3>
                     <form onSubmit={handleCreateUpsell} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] font-bold text-neutral-400 block mb-1">Title</label>
-                        <input type="text" required placeholder="e.g. Airport Pickup" value={newUpsellTitle} onChange={(e) => setNewUpsellTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+                        <input type="text" required placeholder="e.g. Entebbe Airport Pickup" value={newUpsellTitle} onChange={(e) => setNewUpsellTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>

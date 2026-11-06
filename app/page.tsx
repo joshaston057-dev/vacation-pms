@@ -13,17 +13,17 @@ export default function GuestHomePage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('All')
 
-  // INDIVIDUAL GALLERY MODAL STATE
+  // INDIVIDUAL GALLERY MODAL
   const [activeGalleryImages, setActiveGalleryImages] = useState<string[] | null>(null)
   const [currentGalleryIdx, setCurrentGalleryIdx] = useState(0)
 
-  // RESERVATION MODAL STATE
+  // RESERVATION MODAL
   const [selectedProp, setSelectedProp] = useState<any | null>(null)
 
-  // DESCRIPTION TOGGLE STATE
+  // DESCRIPTION TOGGLE
   const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
 
-  // FORM INPUTS
+  // SINGLE-PAGE FORM INPUTS
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -35,6 +35,7 @@ export default function GuestHomePage() {
   const [purpose, setPurpose] = useState('Leisure')
   const [source, setSource] = useState('TikTok')
   const [guestNotes, setGuestNotes] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'MoMo' | 'Card / Flutterwave' | 'Cash / Bank Transfer'>('MoMo')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function GuestHomePage() {
     try {
       const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
       const paidNow = paymentOption === '100%' ? grandTotal : Math.round(grandTotal * 0.3)
+      const txnRef = `LE-${Math.floor(100000 + Math.random() * 900000)}`
 
       const { data: booking, error: bErr } = await supabase
         .from('bookings')
@@ -116,6 +118,8 @@ export default function GuestHomePage() {
             paid_amount: paidNow,
             security_deposit_paid: partyDeposit,
             payment_type: paymentOption,
+            payment_method: paymentMethod,
+            transaction_ref: txnRef,
             door_code: doorCode,
             status: 'PAID'
           }
@@ -125,50 +129,30 @@ export default function GuestHomePage() {
 
       if (bErr) throw bErr
 
-      const tasksToInsert: any[] = [
-        {
-          property_id: selectedProp.id,
-          booking_id: booking.id,
-          title: `Cleaning & Turnover (${selectedProp.title})`,
-          task_type: 'Cleaning',
-          assignedTo: 'Aisha (Head Cleaner)',
-          status: 'OPEN',
-          due_date: checkOut
-        }
-      ]
-
-      if (childrenCount > 0) {
-        tasksToInsert.push({
-          property_id: selectedProp.id,
-          booking_id: booking.id,
-          title: `Setup Extra Bedding (${childrenCount} Child - Ages: ${childAges || 'N/A'})`,
-          task_type: 'Extra Prep',
-          assignedTo: 'Aisha (Head Cleaner)',
-          status: 'OPEN',
-          due_date: checkIn
-        })
-      }
-
-      await supabase.from('tasks').insert(tasksToInsert)
-
+      // AUTOMATED WHATSAPP DISPATCH PAYLOAD WITH FULL PAYMENT DETAILS
       const whatsappText = encodeURIComponent(
-        `Confirmed ${guestName}!\n\n` +
-          `🏡 Stay: ${selectedProp.title}\n` +
+        `🎉 RESERVATION CONFIRMED - LA ESTANCIA VACATION HOMES\n\n` +
+          `👤 Guest Name: ${guestName}\n` +
+          `🏡 Property: ${selectedProp.title}\n` +
+          `📍 Location: ${selectedProp.location}\n` +
           `🌍 Nationality: ${nationality}\n` +
-          `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
-          `📝 Note to Host: ${guestNotes || 'None'}\n` +
-          `📅 Dates: ${checkIn} to ${checkOut}\n` +
-          `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
-          `🔑 Door Access Code: ${doorCode}`
+          `👥 Occupancy: ${adults} Adults, ${childrenCount} Children (${childAges ? 'Ages: ' + childAges : 'None'})\n\n` +
+          `📅 Check-In: ${checkIn} (From 2:00 PM)\n` +
+          `📅 Check-Out: ${checkOut} (By 11:00 AM)\n\n` +
+          `💳 Payment Method: ${paymentMethod}\n` +
+          `💰 Amount Paid: $${paidNow} (${paymentOption} split)\n` +
+          `🔖 Transaction Ref: ${txnRef}\n` +
+          `🔑 Access Code: ${doorCode}\n\n` +
+          `📝 Guest Notes: ${guestNotes || 'None'}\n\n` +
+          `📱 Host Direct Contact: +256757386946 / +256780564778\n` +
+          `🌐 Guest Guidebook: https://vacation-pms.vercel.app/guidebook`
       )
 
-      window.open(
-        `https://api.whatsapp.com/send?phone=${guestPhone.replace(/[^0-9]/g, '')}&text=${whatsappText}`,
-        '_blank'
-      )
+      const formattedPhone = guestPhone.replace(/[^0-9]/g, '')
+      window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${whatsappText}`, '_blank')
 
       setSelectedProp(null)
-      alert('🎉 Reservation Confirmed!')
+      alert(`🎉 Reservation Confirmed via ${paymentMethod}! WhatsApp payment receipt delivered.`)
     } catch (err: any) {
       alert('Error finalizing reservation: ' + err.message)
     } finally {
@@ -231,7 +215,7 @@ export default function GuestHomePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredProperties.map((p) => {
-                const gallery = p.images && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
+                const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
                 const isExpanded = expandedDesc[p.id] || false
 
                 return (
@@ -240,7 +224,6 @@ export default function GuestHomePage() {
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
-                      {/* IMAGE CONTAINER */}
                       <div
                         onClick={() => {
                           if (gallery.length > 0) {
@@ -288,7 +271,6 @@ export default function GuestHomePage() {
                           <span>📍</span> {p.location}
                         </p>
 
-                        {/* DESCRIPTION TOGGLE */}
                         {p.description && (
                           <div className="space-y-1">
                             <button
@@ -305,7 +287,6 @@ export default function GuestHomePage() {
                           </div>
                         )}
 
-                        {/* AMENITIES */}
                         {p.amenities && p.amenities.length > 0 && (
                           <div className="border-t border-neutral-800 pt-2 space-y-1.5">
                             <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">
@@ -341,7 +322,7 @@ export default function GuestHomePage() {
           )}
         </section>
 
-        {/* PUBLIC UPSELL & ADD-ON SERVICES SECTION (VISIBLE TO CLIENTS) */}
+        {/* PUBLIC UPSELL SERVICES */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-t border-neutral-900 mt-6 space-y-4">
           <div className="text-center space-y-1">
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
@@ -437,7 +418,7 @@ export default function GuestHomePage() {
         </div>
       )}
 
-      {/* BOOKING MODAL */}
+      {/* SINGLE-PAGE CHECKOUT MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
@@ -483,7 +464,7 @@ export default function GuestHomePage() {
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                  2. Guest Demographics & Details
+                  2. Guest Demographics & Contact
                 </h4>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -582,7 +563,7 @@ export default function GuestHomePage() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">How did you find us?</label>
+                    <label className="text-[10px] text-neutral-400 font-bold">Channel Source</label>
                     <select
                       value={source}
                       onChange={(e) => setSource(e.target.value)}
@@ -609,14 +590,48 @@ export default function GuestHomePage() {
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                  3. Price Summary & Instant Payment
+                  3. Select Payment Gateway & Split
                 </h4>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('MoMo')}
+                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                      paymentMethod === 'MoMo'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                    }`}
+                  >
+                    📱 MoMo (MTN/Airtel)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Card / Flutterwave')}
+                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                      paymentMethod === 'Card / Flutterwave'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                    }`}
+                  >
+                    💳 Card / Flutterwave
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Cash / Bank Transfer')}
+                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
+                      paymentMethod === 'Cash / Bank Transfer'
+                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
+                    }`}
+                  >
+                    🏦 Cash / Bank
+                  </button>
+                </div>
 
                 <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
                   <div className="flex justify-between text-neutral-400">
-                    <span>
-                      Nights Stay ({nights} night(s) @ ${baseRate})
-                    </span>
+                    <span>Nights Stay ({nights} night(s) @ ${baseRate})</span>
                     <span>${nights * baseRate}</span>
                   </div>
                   <div className="flex justify-between text-neutral-400">
@@ -642,14 +657,14 @@ export default function GuestHomePage() {
                   disabled={submitting}
                   className="p-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
                 >
-                  {submitting ? 'Processing...' : `Pay 100% ($${grandTotal})`}
+                  {submitting ? 'Processing...' : `Pay 100% ($${grandTotal}) & Dispatch WhatsApp`}
                 </button>
                 <button
                   onClick={() => handleFinalPaymentExecution('30% Deposit')}
                   disabled={submitting}
                   className="p-3 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-400 text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
                 >
-                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.3)})`}
+                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.3)}) & Dispatch WhatsApp`}
                 </button>
               </div>
             </div>
