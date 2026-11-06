@@ -155,7 +155,7 @@ export default function GuestHomePage() {
         `Confirmed ${guestName}!\n\n` +
           `🏡 Stay: ${selectedProp.title}\n` +
           `🌍 Nationality: ${nationality}\n` +
-          `👥 Guests: ${adults} Adults, ${childrenCount} Children (${childAges ? 'Ages: ' + childAges : ''})\n` +
+          `👥 Guests: ${adults} Adults, ${childrenCount} Children\n` +
           `📝 Note to Host: ${guestNotes || 'None'}\n` +
           `📅 Dates: ${checkIn} to ${checkOut}\n` +
           `💰 Amount Paid: $${paidNow} (${paymentOption})\n` +
@@ -240,7 +240,7 @@ export default function GuestHomePage() {
                     className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
                   >
                     <div>
-                      {/* IMAGE CONTAINER WITH INDIVIDUAL GALLERY CLICK */}
+                      {/* IMAGE CONTAINER */}
                       <div
                         onClick={() => {
                           if (gallery.length > 0) {
@@ -305,7 +305,7 @@ export default function GuestHomePage() {
                           </div>
                         )}
 
-                        {/* SEPARATED AMENITIES */}
+                        {/* AMENITIES */}
                         {p.amenities && p.amenities.length > 0 && (
                           <div className="border-t border-neutral-800 pt-2 space-y-1.5">
                             <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">
@@ -341,13 +341,14 @@ export default function GuestHomePage() {
           )}
         </section>
 
-        {/* PUBLIC UPSELL & ADD-ON SERVICES SECTION */}
+        {/* PUBLIC UPSELL & ADD-ON SERVICES SECTION (VISIBLE TO CLIENTS) */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-t border-neutral-900 mt-6 space-y-4">
           <div className="text-center space-y-1">
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
               VIP Guest Experience
             </span>
             <h2 className="text-xl font-black text-white">Add-On Hospitality Services</h2>
+            <p className="text-xs text-neutral-400">Enhance your stay with our exclusive in-house services.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -364,7 +365,7 @@ export default function GuestHomePage() {
                   <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
                 </div>
                 <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
-                  {u.category} • Selectable during reservation
+                  {u.category} • Available for your stay
                 </span>
               </div>
             ))}
@@ -372,7 +373,7 @@ export default function GuestHomePage() {
         </section>
       </div>
 
-      {/* FULL SCREEN INDIVIDUAL PHOTO GALLERY MODAL */}
+      {/* FULL SCREEN PHOTO GALLERY MODAL */}
       {activeGalleryImages && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-between p-4">
           <div className="w-full max-w-4xl flex justify-between items-center">
@@ -420,7 +421,6 @@ export default function GuestHomePage() {
             )}
           </div>
 
-          {/* THUMBNAIL STRIP */}
           <div className="flex gap-2 overflow-x-auto max-w-4xl w-full pb-2 scrollbar-none justify-center">
             {activeGalleryImages.map((imgUrl, i) => (
               <button
@@ -437,7 +437,7 @@ export default function GuestHomePage() {
         </div>
       )}
 
-      {/* SINGLE-PAGE BOOKING MODAL */}
+      {/* BOOKING MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">

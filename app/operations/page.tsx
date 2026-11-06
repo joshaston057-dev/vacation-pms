@@ -7,6 +7,24 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
+const STANDARD_AMENITIES = [
+  'Swimming Pool',
+  'Standby Generator / Inverter',
+  'Air Conditioning',
+  '24/7 Security / CCTV',
+  'Balcony / City View',
+  'Private Parking',
+  'Fully Equipped Kitchen',
+  'Perimeter Wall / Gate',
+  'Elevator Access',
+  'Dedicated Workspace',
+  'Daily Housekeeping',
+  'Smart TV / Netflix',
+  'Gym / Fitness Center',
+  'Washing Machine',
+  'High-Speed Wi-Fi'
+]
+
 export default function HostOperationsHub() {
   const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('properties')
   const [properties, setProperties] = useState<any[]>([])
@@ -22,7 +40,7 @@ export default function HostOperationsHub() {
   const [editPrice, setEditPrice] = useState(0)
   const [editLocation, setEditLocation] = useState('')
   const [editDescription, setEditDescription] = useState('')
-  const [editAmenities, setEditAmenities] = useState('')
+  const [editSelectedAmenities, setEditSelectedAmenities] = useState<string[]>([])
   const [editCleaningFee, setEditCleaningFee] = useState(0)
   const [editPartyDeposit, setEditPartyDeposit] = useState(0)
   const [editImages, setEditImages] = useState<string[]>([])
@@ -80,6 +98,12 @@ export default function HostOperationsHub() {
     setEditImages((prev) => prev.filter((_, idx) => idx !== indexToRemove))
   }
 
+  const handleAmenityToggle = (amenity: string) => {
+    setEditSelectedAmenities((prev) =>
+      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity]
+    )
+  }
+
   const handleOpenEdit = (p: any) => {
     setEditingProp(p)
     setEditTitle(p.title || '')
@@ -87,7 +111,7 @@ export default function HostOperationsHub() {
     setEditPrice(p.price || 0)
     setEditLocation(p.location || '')
     setEditDescription(p.description || '')
-    setEditAmenities(Array.isArray(p.amenities) ? p.amenities.join(', ') : '')
+    setEditSelectedAmenities(Array.isArray(p.amenities) ? p.amenities : [])
     setEditCleaningFee(p.cleaning_fee || 0)
     setEditPartyDeposit(p.party_security_deposit || 0)
     setEditImages(
@@ -105,11 +129,6 @@ export default function HostOperationsHub() {
 
     setSaving(true)
     try {
-      const amenitiesArray = editAmenities
-        .split(',')
-        .map((item) => item.trim())
-        .filter((item) => item.length > 0)
-
       const { error } = await supabase
         .from('properties')
         .update({
@@ -118,7 +137,7 @@ export default function HostOperationsHub() {
           price: Number(editPrice),
           location: editLocation,
           description: editDescription,
-          amenities: amenitiesArray,
+          amenities: editSelectedAmenities,
           images: editImages,
           image_url: editImages[0] || '',
           cleaning_fee: Number(editCleaningFee),
@@ -130,7 +149,7 @@ export default function HostOperationsHub() {
 
       setEditingProp(null)
       fetchHostData()
-      alert('✅ Property and images updated successfully!')
+      alert('✅ Property updated successfully!')
     } catch (err: any) {
       alert('Error updating property: ' + err.message)
     } finally {
@@ -158,7 +177,7 @@ export default function HostOperationsHub() {
       setNewUpsellPrice(0)
       setNewUpsellDesc('')
       fetchHostData()
-      alert('✅ New Upsell Service added!')
+      alert('✅ New Upsell Service added to public catalog!')
     } catch (err: any) {
       alert('Error creating upsell service: ' + err.message)
     }
@@ -226,7 +245,7 @@ export default function HostOperationsHub() {
                 activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
-              ✨ Upsells ({upsells.length})
+              ✨ Upsell Services ({upsells.length})
             </button>
             <button
               onClick={() => setActiveTab('ledger')}
@@ -344,7 +363,7 @@ export default function HostOperationsHub() {
               {activeTab === 'upsells' && (
                 <div className="space-y-6">
                   <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-3xl space-y-4">
-                    <h3 className="text-base font-black text-white">Add New Upsell Service</h3>
+                    <h3 className="text-base font-black text-white">Add New Upsell Service (Displayed Publicly)</h3>
                     <form onSubmit={handleCreateUpsell} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="text-[11px] font-bold text-neutral-400 block mb-1">Title</label>
@@ -356,12 +375,25 @@ export default function HostOperationsHub() {
                           <input type="number" required value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold" />
                         </div>
                         <div>
-                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Icon</label>
+                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Icon Emoji</label>
                           <input type="text" value={newUpsellIcon} onChange={(e) => setNewUpsellIcon(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl text-center" />
                         </div>
                       </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Category</label>
+                        <select value={newUpsellCategory} onChange={(e) => setNewUpsellCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold">
+                          <option value="Transport">Transport</option>
+                          <option value="Dining">Dining</option>
+                          <option value="Cleaning">Cleaning</option>
+                          <option value="Wellness">Wellness</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Description</label>
+                        <input type="text" required placeholder="Service description..." value={newUpsellDesc} onChange={(e) => setNewUpsellDesc(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+                      </div>
                       <button type="submit" className="sm:col-span-2 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer">
-                        + Add Service
+                        + Add Service to Public Catalog
                       </button>
                     </form>
                   </div>
@@ -375,9 +407,10 @@ export default function HostOperationsHub() {
                             <span className="text-xs font-black text-amber-400">${u.price}</span>
                           </div>
                           <h4 className="font-extrabold text-white text-sm pt-1">{u.title}</h4>
+                          <p className="text-xs text-neutral-400">{u.description}</p>
                         </div>
                         <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 border border-rose-900 text-rose-400 font-extrabold text-xs rounded-xl mt-3 cursor-pointer">
-                          Delete
+                          Delete Service
                         </button>
                       </div>
                     ))}
@@ -400,12 +433,12 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT MODAL */}
+      {/* EDIT MODAL WITH AMENITIES CHECKLIST */}
       {editingProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-lg font-black text-white">Edit Property & Photos</h3>
+              <h3 className="text-lg font-black text-white">Edit Property & Amenities</h3>
               <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm">✕</button>
             </div>
 
@@ -415,6 +448,7 @@ export default function HostOperationsHub() {
                 <input type="text" required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
               </div>
 
+              {/* DEVICE GALLERY UPLOAD */}
               <div className="border border-dashed border-amber-500/40 bg-amber-500/5 p-4 rounded-2xl space-y-3">
                 <label className="block text-xs font-black text-amber-400 uppercase tracking-wider">
                   📷 Add Gallery Photos from Device
@@ -471,12 +505,34 @@ export default function HostOperationsHub() {
                 <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Amenities (Comma Separated)</label>
-                <input type="text" value={editAmenities} onChange={(e) => setEditAmenities(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
+              {/* AMENITIES CHECKLIST SELECTOR */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="block text-xs font-black text-amber-400 uppercase tracking-wider">
+                  ✓ Select Property Amenities
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800 max-h-48 overflow-y-auto">
+                  {STANDARD_AMENITIES.map((amenity) => {
+                    const isSelected = editSelectedAmenities.includes(amenity)
+                    return (
+                      <button
+                        key={amenity}
+                        type="button"
+                        onClick={() => handleAmenityToggle(amenity)}
+                        className={`text-left text-[11px] font-bold p-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-300'
+                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <span>{isSelected ? '☑' : '☐'}</span>
+                        <span className="truncate">{amenity}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-3">
                 <button type="button" onClick={() => setEditingProp(null)} className="w-1/3 py-3 bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
                 <button type="submit" disabled={saving} className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer">
                   {saving ? 'Saving...' : 'Save Changes'}
