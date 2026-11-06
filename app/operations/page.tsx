@@ -14,7 +14,7 @@ export default function HostOperationsHub() {
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // EDIT PROPERTY MODAL STATE
+  // EDIT PROPERTY MODAL STATE (WITH ICAL CHANNEL MANAGER)
   const [editingProp, setEditingProp] = useState<any | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editCategory, setEditCategory] = useState('Apartment')
@@ -24,6 +24,9 @@ export default function HostOperationsHub() {
   const [editAmenities, setEditAmenities] = useState('')
   const [editCleaningFee, setEditCleaningFee] = useState(0)
   const [editPartyDeposit, setEditPartyDeposit] = useState(0)
+  const [airbnbUrl, setAirbnbUrl] = useState('')
+  const [bookingcomUrl, setBookingcomUrl] = useState('')
+  const [vrboUrl, setVrboUrl] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -60,6 +63,9 @@ export default function HostOperationsHub() {
     setEditAmenities(p.amenities ? p.amenities.join(', ') : '')
     setEditCleaningFee(p.cleaning_fee || 0)
     setEditPartyDeposit(p.party_security_deposit || 0)
+    setAirbnbUrl(p.airbnb_ical_url || '')
+    setBookingcomUrl(p.bookingcom_ical_url || '')
+    setVrboUrl(p.vrbo_ical_url || '')
   }
 
   // SAVE UPDATED PROPERTY TO SUPABASE
@@ -84,7 +90,10 @@ export default function HostOperationsHub() {
           description: editDescription,
           amenities: amenitiesArray,
           cleaning_fee: Number(editCleaningFee),
-          party_security_deposit: Number(editPartyDeposit)
+          party_security_deposit: Number(editPartyDeposit),
+          airbnb_ical_url: airbnbUrl,
+          bookingcom_ical_url: bookingcomUrl,
+          vrbo_ical_url: vrboUrl
         })
         .eq('id', editingProp.id)
 
@@ -92,7 +101,7 @@ export default function HostOperationsHub() {
 
       setEditingProp(null)
       fetchHostData()
-      alert('✅ Property details updated successfully!')
+      alert('✅ Property and iCal Channel settings updated successfully!')
     } catch (err: any) {
       alert('Error updating property: ' + err.message)
     } finally {
@@ -216,7 +225,6 @@ export default function HostOperationsHub() {
                         return (
                           <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
                             <div>
-                              {/* IMAGE PREVIEW IN HOST HUB */}
                               <div className="relative aspect-[16/10] bg-neutral-950">
                                 {gallery.length > 0 ? (
                                   <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
@@ -263,7 +271,7 @@ export default function HostOperationsHub() {
                                 onClick={() => handleOpenEdit(p)}
                                 className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-extrabold text-xs rounded-xl shadow transition cursor-pointer"
                               >
-                                ✏️ Edit Property
+                                ✏️ Edit Property & iCal Sync
                               </button>
                             </div>
                           </div>
@@ -431,14 +439,14 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT PROPERTY MODAL */}
+      {/* EDIT PROPERTY & ICAL SYNC MODAL */}
       {editingProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <div>
                 <span className="text-[10px] font-black uppercase text-amber-400">Host Management</span>
-                <h3 className="text-lg font-black text-white">Edit Property Listing</h3>
+                <h3 className="text-lg font-black text-white">Edit Property & Channel Sync</h3>
               </div>
               <button
                 onClick={() => setEditingProp(null)}
@@ -536,6 +544,61 @@ export default function HostOperationsHub() {
                     onChange={(e) => setEditPartyDeposit(Number(e.target.value))}
                     className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
                   />
+                </div>
+              </div>
+
+              {/* CHANNEL MANAGER / ICAL SETTINGS */}
+              <div className="border-t border-neutral-800 pt-3 space-y-3">
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  🔗 Channel Manager (iCal Sync)
+                </h4>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-neutral-400 mb-1">
+                    Your Export Calendar Link (Paste into Airbnb / Booking.com)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={`https://vacation-pms.vercel.app/api/ical/${editingProp.ical_export_token}`}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-[11px] text-amber-400 p-2.5 rounded-xl font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`https://vacation-pms.vercel.app/api/ical/${editingProp.ical_export_token}`)
+                        alert('Copied iCal link to clipboard!')
+                      }}
+                      className="px-3 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold rounded-xl shrink-0 cursor-pointer"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 mb-1">Airbnb iCal Import URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://www.airbnb.com/calendar/ical/..."
+                      value={airbnbUrl}
+                      onChange={(e) => setAirbnbUrl(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-neutral-400 mb-1">Booking.com iCal Import URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://ical.booking.com/v1/export?..."
+                      value={bookingcomUrl}
+                      onChange={(e) => setBookingcomUrl(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
+                    />
+                  </div>
                 </div>
               </div>
 
