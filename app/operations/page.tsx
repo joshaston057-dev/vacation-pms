@@ -3,599 +3,581 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
-import HeaderNav from '../components/HeaderNav'
-import Footer from '../components/Footer'
+import HeaderNav from './components/HeaderNav'
+import Footer from './components/Footer'
 import { supabase } from '@/lib/supabase'
 
-const STANDARD_AMENITIES = [
-  'Swimming Pool',
-  'Standby Generator / Inverter',
-  'Air Conditioning',
-  '24/7 Security / CCTV',
-  'Balcony / City View',
-  'Private Parking',
-  'Fully Equipped Kitchen',
-  'Perimeter Wall / Gate',
-  'Elevator Access',
-  'Dedicated Workspace',
-  'Daily Housekeeping',
-  'Smart TV / Netflix',
-  'Gym / Fitness Center',
-  'Washing Machine',
-  'High-Speed Wi-Fi'
-]
-
-export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('properties')
+export default function GuestHomePage() {
   const [properties, setProperties] = useState<any[]>([])
-  const [bookings, setBookings] = useState<any[]>([])
-  const [tasks, setTasks] = useState<any[]>([])
   const [upsells, setUpsells] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState('All')
 
-  // EDIT PROPERTY MODAL STATE
-  const [editingProp, setEditingProp] = useState<any | null>(null)
-  const [editTitle, setEditTitle] = useState('')
-  const [editCategory, setEditCategory] = useState('Apartment')
-  const [editPrice, setEditPrice] = useState(0)
-  const [editLocation, setEditLocation] = useState('')
-  const [editDescription, setEditDescription] = useState('')
-  const [editSelectedAmenities, setEditSelectedAmenities] = useState<string[]>([])
-  const [editCleaningFee, setEditCleaningFee] = useState(0)
-  const [editPartyDeposit, setEditPartyDeposit] = useState(0)
-  const [editImages, setEditImages] = useState<string[]>([])
-  const [saving, setSaving] = useState(false)
+  // INDIVIDUAL GALLERY MODAL
+  const [activeGalleryImages, setActiveGalleryImages] = useState<string[] | null>(null)
+  const [currentGalleryIdx, setCurrentGalleryIdx] = useState(0)
 
-  // UPSELL SERVICE FORM STATE
-  const [newUpsellTitle, setNewUpsellTitle] = useState('')
-  const [newUpsellPrice, setNewUpsellPrice] = useState(0)
-  const [newUpsellCategory, setNewUpsellCategory] = useState('Transport')
-  const [newUpsellDesc, setNewUpsellDesc] = useState('')
-  const [newUpsellIcon, setNewUpsellIcon] = useState('🚗')
+  // RESERVATION MODAL
+  const [selectedProp, setSelectedProp] = useState<any | null>(null)
+
+  // DESCRIPTION TOGGLE
+  const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
+
+  // FORM INPUTS
+  const [checkIn, setCheckIn] = useState('')
+  const [checkOut, setCheckOut] = useState('')
+  const [guestName, setGuestName] = useState('')
+  const [guestPhone, setGuestPhone] = useState('')
+  const [adults, setAdults] = useState(1)
+  const [childrenCount, setChildrenCount] = useState(0)
+  const [childAges, setChildAges] = useState('')
+  const [nationality, setNationality] = useState('United States')
+  const [purpose, setPurpose] = useState('Leisure')
+  const [source, setSource] = useState('TikTok')
+  const [guestNotes, setGuestNotes] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    fetchHostData()
+    fetchPageData()
   }, [])
 
-  const fetchHostData = async () => {
+  const fetchPageData = async () => {
     setLoading(true)
     try {
-      const [propsRes, bookRes, taskRes, upsellRes] = await Promise.all([
+      const [propsRes, upsellRes] = await Promise.all([
         supabase.from('properties').select('*').order('id', { ascending: false }),
-        supabase.from('bookings').select('*').order('id', { ascending: false }),
-        supabase.from('tasks').select('*').order('id', { ascending: false }),
-        supabase.from('upsell_services').select('*').order('id', { ascending: false })
+        supabase.from('upsell_services').select('*').eq('active', true).order('id', { ascending: true })
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
-      if (bookRes.data) setBookings(bookRes.data)
-      if (taskRes.data) setTasks(taskRes.data)
       if (upsellRes.data) setUpsells(upsellRes.data)
     } catch (err) {
-      console.error('Error loading operations data:', err)
+      console.error('Error fetching page data:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleDeviceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = (uploadEvent) => {
-        const base64Url = uploadEvent.target?.result as string
-        if (base64Url) {
-          setEditImages((prev) => [...prev, base64Url])
-        }
-      }
-      reader.readAsDataURL(file)
-    })
+  const toggleDescription = (id: string) => {
+    setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
-  const handleRemoveImage = (indexToRemove: number) => {
-    setEditImages((prev) => prev.filter((_, idx) => idx !== indexToRemove))
+  const filteredProperties =
+    selectedCategory === 'All'
+      ? properties
+      : properties.filter(
+          (p) => (p.category || 'Apartment').toLowerCase() === selectedCategory.toLowerCase()
+        )
+
+  const calculateNights = () => {
+    if (!checkIn || !checkOut) return 1
+    const start = new Date(checkIn)
+    const end = new Date(checkOut)
+    const diff = (end.getTime() - start.getTime()) / (1000 * 3600 * 24)
+    return diff > 0 ? diff : 1
   }
 
-  const handleAmenityToggle = (amenity: string) => {
-    setEditSelectedAmenities((prev) =>
-      prev.includes(amenity) ? prev.filter((item) => item !== amenity) : [...prev, amenity]
-    )
-  }
+  const nights = calculateNights()
+  const baseRate = selectedProp ? selectedProp.price || 0 : 0
+  const cleaningFee = selectedProp?.cleaning_fee || 0
+  const partyDeposit = purpose === 'Party' ? selectedProp?.party_security_deposit || 0 : 0
+  const grandTotal = nights * baseRate + cleaningFee + partyDeposit
 
-  const handleOpenEdit = (p: any) => {
-    setEditingProp(p)
-    setEditTitle(p.title || '')
-    setEditCategory(p.category || 'Apartment')
-    setEditPrice(p.price || 0)
-    setEditLocation(p.location || '')
-    setEditDescription(p.description || '')
-    setEditSelectedAmenities(Array.isArray(p.amenities) ? p.amenities : [])
-    setEditCleaningFee(p.cleaning_fee || 0)
-    setEditPartyDeposit(p.party_security_deposit || 0)
-    setEditImages(
-      Array.isArray(p.images) && p.images.length > 0
-        ? p.images
-        : p.image_url
-        ? [p.image_url]
-        : []
-    )
-  }
-
-  const handleSaveProperty = async (e: React.FormEvent) => {
+  const handleSendInquiryRequest = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingProp) return
+    if (!checkIn || !checkOut || !guestName || !guestPhone) {
+      alert('Please fill in all required stay fields.')
+      return
+    }
 
-    setSaving(true)
+    setSubmitting(true)
+
     try {
-      const { error } = await supabase
-        .from('properties')
-        .update({
-          title: editTitle,
-          category: editCategory,
-          price: Number(editPrice),
-          location: editLocation,
-          description: editDescription,
-          amenities: editSelectedAmenities,
-          images: editImages,
-          image_url: editImages[0] || '',
-          cleaning_fee: Number(editCleaningFee),
-          party_security_deposit: Number(editPartyDeposit)
-        })
-        .eq('id', editingProp.id)
+      const txnRef = `LE-INQ-${Math.floor(100000 + Math.random() * 900000)}`
 
-      if (error) throw error
+      // 1. SAVE AS PENDING INQUIRY IN DATABASE
+      const { data: booking, error: bErr } = await supabase
+        .from('bookings')
+        .insert([
+          {
+            property_id: selectedProp.id,
+            host_id: selectedProp.host_id,
+            property_title: selectedProp.title,
+            guest_name: guestName,
+            phone: guestPhone,
+            adults: adults,
+            children: childrenCount,
+            child_ages: childAges,
+            nationality: nationality,
+            purpose: purpose,
+            booking_source: source,
+            guest_notes: guestNotes,
+            check_in: checkIn,
+            check_out: checkOut,
+            total_price: grandTotal,
+            paid_amount: 0,
+            security_deposit_paid: partyDeposit,
+            transaction_ref: txnRef,
+            status: 'PENDING'
+          }
+        ])
+        .select()
+        .single()
 
-      setEditingProp(null)
-      fetchHostData()
-      alert('✅ Property updated successfully!')
+      if (bErr) throw bErr
+
+      // 2. DISPATCH INQUIRY TO HOST WHATSAPP
+      const hostWhatsApp = '+256757386946' // Your Host WhatsApp Number
+      const whatsappText = encodeURIComponent(
+        `🛎️ NEW BOOKING INQUIRY - LA ESTANCIA\n\n` +
+        `👤 Guest Name: ${guestName}\n` +
+        `📞 Phone: ${guestPhone}\n` +
+        `🏡 Property: ${selectedProp.title}\n` +
+        `🌍 Nationality: ${nationality}\n` +
+        `👥 Demographic: ${purpose} (${adults} Adults, ${childrenCount} Kids)\n` +
+        `📅 Dates: ${checkIn} → ${checkOut} (${nights} nights)\n` +
+        `💰 Total Stay: $${grandTotal} (30% Deposit Due: $${Math.round(grandTotal * 0.3)})\n` +
+        `📝 Notes: ${guestNotes || 'None'}\n` +
+        `🔖 Ref: ${txnRef}\n\n` +
+        `👉 Please chat with guest to verify terms before approving payment.`
+      )
+
+      window.open(`https://api.whatsapp.com/send?phone=${hostWhatsApp.replace(/[^0-9]/g, '')}&text=${whatsappText}`, '_blank')
+
+      setSelectedProp(null)
+      alert('🎉 Inquiry submitted successfully! Our host has received your details and will connect with you shortly.')
     } catch (err: any) {
-      alert('Error updating property: ' + err.message)
+      alert('Error submitting inquiry: ' + err.message)
     } finally {
-      setSaving(false)
+      setSubmitting(false)
     }
   }
-
-  const handleCreateUpsell = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      const { error } = await supabase.from('upsell_services').insert([
-        {
-          title: newUpsellTitle,
-          price: Number(newUpsellPrice),
-          category: newUpsellCategory,
-          description: newUpsellDesc,
-          icon: newUpsellIcon,
-          active: true
-        }
-      ])
-
-      if (error) throw error
-
-      setNewUpsellTitle('')
-      setNewUpsellPrice(0)
-      setNewUpsellDesc('')
-      fetchHostData()
-      alert('✅ New Upsell Service added to public catalog!')
-    } catch (err: any) {
-      alert('Error creating upsell service: ' + err.message)
-    }
-  }
-
-  const handleDeleteUpsell = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this upsell service?')) return
-    try {
-      await supabase.from('upsell_services').delete().eq('id', id)
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error deleting upsell: ' + err.message)
-    }
-  }
-
-  const handleVerifyTask = async (taskId: number, verifyStatus: 'VERIFIED' | 'REOPEN') => {
-    try {
-      await supabase.from('tasks').update({ status: verifyStatus }).eq('id', taskId)
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error updating task: ' + err.message)
-    }
-  }
-
-  const totalEarnings = bookings.reduce(
-    (sum, b) => sum + (Number(b.paid_amount) || Number(b.total_price) || 0),
-    0
-  )
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
         <HeaderNav />
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* TAB BAR */}
-          <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2">
-            <button
-              onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🏠 Properties ({properties.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              📅 Bookings ({bookings.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🧹 Tasks ({tasks.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('upsells')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              ✨ Upsells ({upsells.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              💰 Ledger
-            </button>
+        {/* HERO */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-3 text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[11px] font-bold">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            La Estancia Vacation Homes
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
+            Global Short-Stay Vacation Homes
+          </h1>
+          <p className="text-xs text-neutral-400 max-w-lg mx-auto">
+            Curated apartments, villas, mansions, and stand-alone houses available for international travelers.
+          </p>
+        </section>
+
+        {/* CATEGORY FILTERS */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {['All', 'Apartment', 'Villa', 'Mansion', 'House'].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                  selectedCategory === cat
+                    ? 'bg-amber-500 text-black shadow-lg'
+                    : 'bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white'
+                }`}
+              >
+                {cat === 'All' ? '✨ All Properties' : cat}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* CATALOG */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2 space-y-4">
+          <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+            <h2 className="text-sm font-black text-white tracking-wider uppercase flex items-center gap-2">
+              <span className="text-amber-400">🏡</span> {selectedCategory} Stays ({filteredProperties.length})
+            </h2>
           </div>
 
           {loading ? (
-            <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">Loading operations data...</div>
+            <p className="text-xs text-neutral-500 animate-pulse text-center py-12">Loading listings...</p>
+          ) : filteredProperties.length === 0 ? (
+            <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+              No properties found in this category.
+            </div>
           ) : (
-            <>
-              {/* PROPERTIES TAB */}
-              {activeTab === 'properties' && (
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Managed Listings</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {properties.map((p) => {
-                      const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredProperties.map((p) => {
+                const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
+                const isExpanded = expandedDesc[p.id] || false
 
-                      return (
-                        <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
-                          <div>
-                            <div className="relative aspect-[16/10] bg-neutral-950">
-                              {gallery.length > 0 ? (
-                                <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
-                              )}
-                              <span className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                                {p.category || 'Apartment'}
-                              </span>
-                              {gallery.length > 0 && (
-                                <span className="absolute bottom-3 right-3 bg-black/80 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-neutral-700">
-                                  📸 {gallery.length} Photos
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="p-4 space-y-2">
-                              <div className="flex justify-between items-baseline">
-                                <h4 className="font-black text-white text-base truncate">{p.title}</h4>
-                                <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
-                              </div>
-                              <p className="text-xs text-neutral-400">📍 {p.location}</p>
-                            </div>
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 rounded-2xl overflow-hidden shadow-2xl transition flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div
+                        onClick={() => {
+                          if (gallery.length > 0) {
+                            setActiveGalleryImages(gallery)
+                            setCurrentGalleryIdx(0)
+                          }
+                        }}
+                        className="relative aspect-[16/10] bg-neutral-950 overflow-hidden cursor-pointer group/img"
+                      >
+                        {gallery.length > 0 ? (
+                          <img
+                            src={gallery[0]}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover/img:scale-105 transition duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">
+                            No Photo Available
                           </div>
-
-                          <div className="p-4 pt-0">
-                            <button
-                              onClick={() => handleOpenEdit(p)}
-                              className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-amber-400 font-extrabold text-xs rounded-xl shadow cursor-pointer"
-                            >
-                              ✏️ Edit Property & Photos
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* BOOKINGS TAB (CLEAN CARD DESIGN MATCHING REFERENCE) */}
-              {activeTab === 'bookings' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-base font-black text-white">Guest Reservations</h3>
-                    <span className="text-xs text-neutral-400 font-bold">{bookings.length} Total Bookings</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {bookings.map((b) => (
-                      <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
-                        
-                        <div className="space-y-3">
-                          {/* PROPERTY TITLE & STATUS HEADER */}
-                          <div className="flex justify-between items-start gap-2 border-b border-neutral-800 pb-3">
-                            <h4 className="font-black text-white text-sm leading-snug">{b.property_title || b.prop_title || 'Vacation Stay'}</h4>
-                            <span className="text-[10px] font-black px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                              {b.status || 'CONFIRMED'}
-                            </span>
-                          </div>
-
-                          {/* DETAILS LIST WITH ICONS */}
-                          <div className="space-y-2 text-xs">
-                            <div className="flex items-center gap-2 text-neutral-300">
-                              <span className="text-neutral-400">👤</span>
-                              <span className="text-neutral-400">Guest Name:</span>
-                              <span className="font-extrabold text-white">{b.guest_name}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-neutral-300">
-                              <span className="text-neutral-400">💬</span>
-                              <span className="text-neutral-400">WhatsApp:</span>
-                              <span className="font-extrabold text-emerald-400">{b.phone}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-neutral-300">
-                              <span className="text-neutral-400">👥</span>
-                              <span className="text-neutral-400">Demographic:</span>
-                              <span className="font-extrabold text-amber-400">{b.purpose || 'Leisure'}</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-neutral-300">
-                              <span className="text-neutral-400">👥</span>
-                              <span className="text-neutral-400">Guests:</span>
-                              <span className="font-extrabold text-white">{(b.adults || 1) + (b.children || 0)} Total ({b.adults || 1} Adults, {b.children || 0} Kids)</span>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-neutral-300">
-                              <span className="text-neutral-400">📅</span>
-                              <span className="text-neutral-400">Dates:</span>
-                              <span className="font-extrabold text-white">{b.check_in} → {b.check_out}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* GUEST NOTES BOX */}
-                        <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1">
-                          <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
-                            📝 GUEST NOTES:
-                          </span>
-                          <p className="text-xs text-neutral-300 font-medium">
-                            {b.guest_notes || 'No special requests'}
-                          </p>
-                        </div>
-
-                        {/* WHATSAPP ACTION BUTTON */}
-                        {b.phone && (
-                          <a
-                            href={`https://api.whatsapp.com/send?phone=${b.phone.replace(/[^0-9]/g, '')}&text=${encodeURIComponent(`Hello ${b.guest_name}, this is La Estancia Vacation Homes regarding your stay.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-center cursor-pointer"
-                          >
-                            <span>💬</span> Message Guest on WhatsApp
-                          </a>
                         )}
 
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                        <div className="absolute top-3 left-3 flex items-center gap-2">
+                          <span className="bg-black/80 backdrop-blur-md border border-amber-500/40 text-amber-400 text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                            {p.category || 'Apartment'}
+                          </span>
+                        </div>
 
-              {/* TASKS TAB */}
-              {activeTab === 'tasks' && (
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Housekeeping Tasks</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {tasks.map((t) => (
-                      <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3">
-                        <div className="flex justify-between border-b border-neutral-800 pb-2">
-                          <span className="text-xs font-black text-amber-400">{t.task_type}</span>
-                          <span className="text-xs font-bold text-neutral-400">{t.status}</span>
-                        </div>
-                        <h4 className="font-extrabold text-white text-base">{t.title}</h4>
-                        <div className="flex gap-2">
-                          <button onClick={() => handleVerifyTask(t.id, 'VERIFIED')} className="w-1/2 py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl cursor-pointer">✓ Verify Ready</button>
-                          <button onClick={() => handleVerifyTask(t.id, 'REOPEN')} className="w-1/2 py-2 bg-rose-950 text-rose-400 font-bold text-xs rounded-xl cursor-pointer">✕ Re-Open</button>
-                        </div>
+                        {gallery.length > 0 && (
+                          <span className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded-md border border-neutral-700 flex items-center gap-1">
+                            📷 View {gallery.length} Photo{gallery.length > 1 ? 's' : ''}
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* UPSELLS TAB */}
-              {activeTab === 'upsells' && (
-                <div className="space-y-6">
-                  <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-3xl space-y-4">
-                    <h3 className="text-base font-black text-white">Add New Upsell Service (Publicly Displayed)</h3>
-                    <form onSubmit={handleCreateUpsell} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Title</label>
-                        <input type="text" required placeholder="e.g. Entebbe Airport Pickup" value={newUpsellTitle} onChange={(e) => setNewUpsellTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Price ($)</label>
-                          <input type="number" required value={newUpsellPrice} onChange={(e) => setNewUpsellPrice(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold" />
-                        </div>
-                        <div>
-                          <label className="text-[11px] font-bold text-neutral-400 block mb-1">Icon Emoji</label>
-                          <input type="text" value={newUpsellIcon} onChange={(e) => setNewUpsellIcon(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl text-center" />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Category</label>
-                        <select value={newUpsellCategory} onChange={(e) => setNewUpsellCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold">
-                          <option value="Transport">Transport</option>
-                          <option value="Dining">Dining</option>
-                          <option value="Cleaning">Cleaning</option>
-                          <option value="Wellness">Wellness</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[11px] font-bold text-neutral-400 block mb-1">Description</label>
-                        <input type="text" required placeholder="Service description..." value={newUpsellDesc} onChange={(e) => setNewUpsellDesc(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-                      </div>
-                      <button type="submit" className="sm:col-span-2 py-3 bg-amber-500 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer">
-                        + Add Service to Public Catalog
-                      </button>
-                    </form>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {upsells.map((u) => (
-                      <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-2xl">{u.icon}</span>
-                            <span className="text-xs font-black text-amber-400">${u.price}</span>
+                      <div className="p-4 space-y-3">
+                        <div className="flex justify-between items-baseline gap-2">
+                          <h3 className="font-black text-white text-base leading-tight truncate">{p.title}</h3>
+                          <div className="text-right shrink-0">
+                            <span className="text-amber-400 font-black text-base">${p.price || 0}</span>
+                            <span className="text-[10px] text-neutral-400 font-medium"> /night</span>
                           </div>
-                          <h4 className="font-extrabold text-white text-sm pt-1">{u.title}</h4>
-                          <p className="text-xs text-neutral-400">{u.description}</p>
                         </div>
-                        <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 border border-rose-900 text-rose-400 font-extrabold text-xs rounded-xl mt-3 cursor-pointer">
-                          Delete Service
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {/* LEDGER TAB */}
-              {activeTab === 'ledger' && (
-                <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Financial Revenue</h3>
-                  <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl">
-                    <span className="text-xs text-neutral-400 font-bold uppercase">Total Revenue Collected</span>
-                    <p className="text-3xl font-black text-amber-400">${totalEarnings}</p>
+                        <p className="text-xs text-neutral-400 flex items-center gap-1">
+                          <span>📍</span> {p.location}
+                        </p>
+
+                        {p.description && (
+                          <div className="space-y-1">
+                            <button
+                              onClick={() => toggleDescription(p.id)}
+                              className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              <span>{isExpanded ? '▾ Hide Description' : '▸ Show Description'}</span>
+                            </button>
+                            {isExpanded && (
+                              <p className="text-[11px] text-neutral-300 bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 leading-relaxed">
+                                {p.description}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {p.amenities && p.amenities.length > 0 && (
+                          <div className="border-t border-neutral-800 pt-2 space-y-1.5">
+                            <span className="text-[10px] font-black text-neutral-400 uppercase tracking-wider block">
+                              Amenities & Features
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                              {p.amenities.map((item: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="bg-neutral-950 border border-neutral-800 text-[10px] font-bold text-neutral-300 px-2.5 py-1 rounded-lg"
+                                >
+                                  ✓ {item}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-4 pt-2">
+                      <button
+                        onClick={() => setSelectedProp(p)}
+                        className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition duration-200 cursor-pointer active:scale-[0.98]"
+                      >
+                        Book Now / Inquire
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </>
+                )
+              })}
+            </div>
           )}
-        </div>
+        </section>
+
+        {/* PUBLIC UPSELL SERVICES */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-t border-neutral-900 mt-6 space-y-4">
+          <div className="text-center space-y-1">
+            <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
+              VIP Guest Experience
+            </span>
+            <h2 className="text-xl font-black text-white">Add-On Hospitality Services</h2>
+            <p className="text-xs text-neutral-400">Enhance your stay with our exclusive in-house services.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {upsells.map((u) => (
+              <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl">{u.icon || '✨'}</span>
+                    <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                      +${u.price}
+                    </span>
+                  </div>
+                  <h3 className="font-extrabold text-white text-sm">{u.title}</h3>
+                  <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
+                </div>
+                <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
+                  {u.category} • Available for your stay
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {/* EDIT MODAL WITH AMENITIES CHECKLIST */}
-      {editingProp && (
+      {/* FULL SCREEN PHOTO GALLERY MODAL */}
+      {activeGalleryImages && (
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-between p-4">
+          <div className="w-full max-w-4xl flex justify-between items-center">
+            <span className="text-xs font-bold text-neutral-400">
+              Photo {currentGalleryIdx + 1} of {activeGalleryImages.length}
+            </span>
+            <button
+              onClick={() => setActiveGalleryImages(null)}
+              className="text-neutral-400 hover:text-white font-black text-base cursor-pointer px-3 py-1 bg-neutral-900 border border-neutral-800 rounded-xl"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          <div className="relative max-w-4xl w-full flex-1 flex items-center justify-center my-4">
+            <img
+              src={activeGalleryImages[currentGalleryIdx]}
+              alt={`Gallery photo ${currentGalleryIdx + 1}`}
+              className="max-h-[75vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl border border-neutral-800"
+            />
+
+            {activeGalleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={() =>
+                    setCurrentGalleryIdx((prev) =>
+                      prev === 0 ? activeGalleryImages.length - 1 : prev - 1
+                    )
+                  }
+                  className="absolute left-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() =>
+                    setCurrentGalleryIdx((prev) =>
+                      prev === activeGalleryImages.length - 1 ? 0 : prev + 1
+                    )
+                  }
+                  className="absolute right-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto max-w-4xl w-full pb-2 scrollbar-none justify-center">
+            {activeGalleryImages.map((imgUrl, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentGalleryIdx(i)}
+                className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${
+                  currentGalleryIdx === i ? 'border-amber-500 scale-105' : 'border-neutral-800 opacity-60'
+                }`}
+              >
+                <img src={imgUrl} alt="thumb" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* INQUIRY SUBMISSION MODAL (NO INSTANT PAYMENT) */}
+      {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl my-8">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-lg font-black text-white">Edit Property & Amenities</h3>
-              <button onClick={() => setEditingProp(null)} className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm">✕</button>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+              <div>
+                <span className="text-[10px] font-black uppercase text-amber-400">Direct Host Inquiry</span>
+                <h3 className="text-lg font-black text-white">{selectedProp.title}</h3>
+              </div>
+              <button
+                onClick={() => setSelectedProp(null)}
+                className="text-neutral-400 hover:text-white font-bold cursor-pointer text-sm"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSaveProperty} className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Title</label>
-                <input type="text" required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-              </div>
-
-              {/* DEVICE GALLERY UPLOAD */}
-              <div className="border border-dashed border-amber-500/40 bg-amber-500/5 p-4 rounded-2xl space-y-3">
-                <label className="block text-xs font-black text-amber-400 uppercase tracking-wider">
-                  📷 Add Gallery Photos from Device
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleDeviceImageUpload}
-                  className="block w-full text-xs text-neutral-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-amber-500 file:text-black cursor-pointer"
-                />
-
-                {editImages.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2 pt-2">
-                    {editImages.map((imgSrc, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-neutral-800">
-                        <img src={imgSrc} alt="thumb" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(idx)}
-                          className="absolute top-1 right-1 bg-black/80 text-rose-400 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+            <form onSubmit={handleSendInquiryRequest} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Stay Dates</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-In</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                    />
                   </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Category</label>
-                  <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold">
-                    <option value="Apartment">Apartment</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Mansion">Mansion</option>
-                    <option value="House">House</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-neutral-400 mb-1">Nightly Rate ($)</label>
-                  <input type="number" required value={editPrice} onChange={(e) => setEditPrice(Number(e.target.value))} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl font-bold" />
+                  <div>
+                    <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-Out</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl focus:border-amber-500"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Location</label>
-                <input type="text" required value={editLocation} onChange={(e) => setEditLocation(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-neutral-400 mb-1">Description</label>
-                <textarea rows={3} value={editDescription} onChange={(e) => setEditDescription(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl" />
-              </div>
-
-              {/* AMENITIES CHECKLIST SELECTOR */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <label className="block text-xs font-black text-amber-400 uppercase tracking-wider">
-                  ✓ Select Property Amenities
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800 max-h-48 overflow-y-auto">
-                  {STANDARD_AMENITIES.map((amenity) => {
-                    const isSelected = editSelectedAmenities.includes(amenity)
-                    return (
-                      <button
-                        key={amenity}
-                        type="button"
-                        onClick={() => handleAmenityToggle(amenity)}
-                        className={`text-left text-[11px] font-bold p-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
-                          isSelected
-                            ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                            : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
-                        }`}
-                      >
-                        <span>{isSelected ? '☑' : '☐'}</span>
-                        <span className="truncate">{amenity}</span>
-                      </button>
-                    )
-                  })}
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
+                  2. Guest Demographics & Contact
+                </h4>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Linton"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">WhatsApp Phone</label>
+                    <input
+                      type="tel"
+                      required
+                      placeholder="+256700000000"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Adults (18+)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={adults}
+                      onChange={(e) => setAdults(parseInt(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Children</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={childrenCount}
+                      onChange={(e) => setChildrenCount(parseInt(e.target.value))}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Child Ages</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 3 yrs"
+                      value={childAges}
+                      onChange={(e) => setChildAges(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Demographic / Stay Type</label>
+                    <select
+                      value={purpose}
+                      onChange={(e) => setPurpose(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    >
+                      <option value="Solo Business Traveler">Solo Business Traveler</option>
+                      <option value="Couple with Kids">Couple with Kids</option>
+                      <option value="Leisure Vacation">Leisure Vacation</option>
+                      <option value="Party / Event">Party / Event</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-neutral-400 font-bold">Nationality</label>
+                    <select
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
+                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
+                    >
+                      <option value="Uganda">Uganda</option>
+                      <option value="United States">United States</option>
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="Kenya">Kenya</option>
+                      <option value="Other">Other International</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-neutral-400 font-bold">Note to Host</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. I have a playing board or special requests"
+                    value={guestNotes}
+                    onChange={(e) => setGuestNotes(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                  />
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-3">
-                <button type="button" onClick={() => setEditingProp(null)} className="w-1/3 py-3 bg-neutral-800 text-neutral-300 text-xs font-bold rounded-xl cursor-pointer">Cancel</button>
-                <button type="submit" disabled={saving} className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer">
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
+                <div className="flex justify-between font-black text-sm text-white">
+                  <span>Total Stay Estimate:</span>
+                  <span className="text-amber-400">${grandTotal}</span>
+                </div>
+                <div className="flex justify-between font-bold text-neutral-400">
+                  <span>30% Deposit Due After Talking:</span>
+                  <span className="text-emerald-400">${Math.round(grandTotal * 0.3)}</span>
+                </div>
               </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer text-center"
+              >
+                {submitting ? 'Sending Inquiry...' : '💬 Send Inquiry via WhatsApp to Host'}
+              </button>
             </form>
           </div>
         </div>
