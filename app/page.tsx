@@ -23,7 +23,7 @@ export default function GuestHomePage() {
   // DESCRIPTION TOGGLE
   const [expandedDesc, setExpandedDesc] = useState<{ [key: string]: boolean }>({})
 
-  // SINGLE-PAGE FORM INPUTS
+  // FORM INPUTS
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guestName, setGuestName] = useState('')
@@ -31,11 +31,10 @@ export default function GuestHomePage() {
   const [adults, setAdults] = useState(1)
   const [childrenCount, setChildrenCount] = useState(0)
   const [childAges, setChildAges] = useState('')
-  const [nationality, setNationality] = useState('United States')
-  const [purpose, setPurpose] = useState('Leisure')
+  const [nationality, setNationality] = useState('Uganda')
+  const [purpose, setPurpose] = useState('Solo Business Traveler')
   const [source, setSource] = useState('TikTok')
   const [guestNotes, setGuestNotes] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'MoMo' | 'Card / Flutterwave' | 'Cash / Bank Transfer'>('MoMo')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -81,21 +80,20 @@ export default function GuestHomePage() {
   const nights = calculateNights()
   const baseRate = selectedProp ? selectedProp.price || 0 : 0
   const cleaningFee = selectedProp?.cleaning_fee || 0
-  const partyDeposit = purpose === 'Party' ? selectedProp?.party_security_deposit || 0 : 0
+  const partyDeposit = purpose === 'Party / Event' ? selectedProp?.party_security_deposit || 0 : 0
   const grandTotal = nights * baseRate + cleaningFee + partyDeposit
 
-  const handleFinalPaymentExecution = async (paymentOption: '100%' | '30% Deposit') => {
+  const handleSendInquiryRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!checkIn || !checkOut || !guestName || !guestPhone) {
-      alert('Please fill in all required booking fields.')
+      alert('Please fill in all required stay fields.')
       return
     }
 
     setSubmitting(true)
 
     try {
-      const doorCode = Math.floor(1000 + Math.random() * 9000).toString()
-      const paidNow = paymentOption === '100%' ? grandTotal : Math.round(grandTotal * 0.3)
-      const txnRef = `LE-${Math.floor(100000 + Math.random() * 900000)}`
+      const txnRef = `LE-INQ-${Math.floor(100000 + Math.random() * 900000)}`
 
       const { data: booking, error: bErr } = await supabase
         .from('bookings')
@@ -103,6 +101,7 @@ export default function GuestHomePage() {
           {
             property_id: selectedProp.id,
             host_id: selectedProp.host_id,
+            property_title: selectedProp.title,
             guest_name: guestName,
             phone: guestPhone,
             adults: adults,
@@ -115,13 +114,10 @@ export default function GuestHomePage() {
             check_in: checkIn,
             check_out: checkOut,
             total_price: grandTotal,
-            paid_amount: paidNow,
+            paid_amount: 0,
             security_deposit_paid: partyDeposit,
-            payment_type: paymentOption,
-            payment_method: paymentMethod,
             transaction_ref: txnRef,
-            door_code: doorCode,
-            status: 'PAID'
+            status: 'PENDING'
           }
         ])
         .select()
@@ -129,32 +125,27 @@ export default function GuestHomePage() {
 
       if (bErr) throw bErr
 
-      // AUTOMATED WHATSAPP DISPATCH PAYLOAD WITH FULL PAYMENT DETAILS
+      const hostWhatsApp = '+256757386946'
       const whatsappText = encodeURIComponent(
-        `🎉 RESERVATION CONFIRMED - LA ESTANCIA VACATION HOMES\n\n` +
-          `👤 Guest Name: ${guestName}\n` +
-          `🏡 Property: ${selectedProp.title}\n` +
-          `📍 Location: ${selectedProp.location}\n` +
-          `🌍 Nationality: ${nationality}\n` +
-          `👥 Occupancy: ${adults} Adults, ${childrenCount} Children (${childAges ? 'Ages: ' + childAges : 'None'})\n\n` +
-          `📅 Check-In: ${checkIn} (From 2:00 PM)\n` +
-          `📅 Check-Out: ${checkOut} (By 11:00 AM)\n\n` +
-          `💳 Payment Method: ${paymentMethod}\n` +
-          `💰 Amount Paid: $${paidNow} (${paymentOption} split)\n` +
-          `🔖 Transaction Ref: ${txnRef}\n` +
-          `🔑 Access Code: ${doorCode}\n\n` +
-          `📝 Guest Notes: ${guestNotes || 'None'}\n\n` +
-          `📱 Host Direct Contact: +256757386946 / +256780564778\n` +
-          `🌐 Guest Guidebook: https://vacation-pms.vercel.app/guidebook`
+        `🛎️ NEW BOOKING INQUIRY - LA ESTANCIA\n\n` +
+        `👤 Guest Name: ${guestName}\n` +
+        `📞 Phone: ${guestPhone}\n` +
+        `🏡 Property: ${selectedProp.title}\n` +
+        `🌍 Nationality: ${nationality}\n` +
+        `👥 Demographic: ${purpose} (${adults} Adults, ${childrenCount} Kids)\n` +
+        `📅 Dates: ${checkIn} → ${checkOut} (${nights} nights)\n` +
+        `💰 Total Stay: $${grandTotal} (30% Deposit Due: $${Math.round(grandTotal * 0.3)})\n` +
+        `📝 Notes: ${guestNotes || 'None'}\n` +
+        `🔖 Ref: ${txnRef}\n\n` +
+        `👉 Please chat with guest to verify terms before approving payment.`
       )
 
-      const formattedPhone = guestPhone.replace(/[^0-9]/g, '')
-      window.open(`https://api.whatsapp.com/send?phone=${formattedPhone}&text=${whatsappText}`, '_blank')
+      window.open(`https://api.whatsapp.com/send?phone=${hostWhatsApp.replace(/[^0-9]/g, '')}&text=${whatsappText}`, '_blank')
 
       setSelectedProp(null)
-      alert(`🎉 Reservation Confirmed via ${paymentMethod}! WhatsApp payment receipt delivered.`)
+      alert('🎉 Inquiry submitted successfully! Our host has received your details and will connect with you shortly.')
     } catch (err: any) {
-      alert('Error finalizing reservation: ' + err.message)
+      alert('Error submitting inquiry: ' + err.message)
     } finally {
       setSubmitting(false)
     }
@@ -312,7 +303,7 @@ export default function GuestHomePage() {
                         onClick={() => setSelectedProp(p)}
                         className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition duration-200 cursor-pointer active:scale-[0.98]"
                       >
-                        Book Now
+                        Book Now / Inquire
                       </button>
                     </div>
                   </div>
@@ -322,7 +313,7 @@ export default function GuestHomePage() {
           )}
         </section>
 
-        {/* PUBLIC UPSELL SERVICES */}
+        {/* UPSELL SERVICES */}
         <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6 border-t border-neutral-900 mt-6 space-y-4">
           <div className="text-center space-y-1">
             <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">
@@ -354,7 +345,7 @@ export default function GuestHomePage() {
         </section>
       </div>
 
-      {/* FULL SCREEN PHOTO GALLERY MODAL */}
+      {/* GALLERY MODAL */}
       {activeGalleryImages && (
         <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-between p-4">
           <div className="w-full max-w-4xl flex justify-between items-center">
@@ -372,28 +363,20 @@ export default function GuestHomePage() {
           <div className="relative max-w-4xl w-full flex-1 flex items-center justify-center my-4">
             <img
               src={activeGalleryImages[currentGalleryIdx]}
-              alt={`Gallery photo ${currentGalleryIdx + 1}`}
+              alt="Gallery"
               className="max-h-[75vh] w-auto max-w-full object-contain rounded-2xl shadow-2xl border border-neutral-800"
             />
 
             {activeGalleryImages.length > 1 && (
               <>
                 <button
-                  onClick={() =>
-                    setCurrentGalleryIdx((prev) =>
-                      prev === 0 ? activeGalleryImages.length - 1 : prev - 1
-                    )
-                  }
+                  onClick={() => setCurrentGalleryIdx((prev) => (prev === 0 ? activeGalleryImages.length - 1 : prev - 1))}
                   className="absolute left-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
                 >
                   ‹
                 </button>
                 <button
-                  onClick={() =>
-                    setCurrentGalleryIdx((prev) =>
-                      prev === activeGalleryImages.length - 1 ? 0 : prev + 1
-                    )
-                  }
+                  onClick={() => setCurrentGalleryIdx((prev) => (prev === activeGalleryImages.length - 1 ? 0 : prev + 1))}
                   className="absolute right-2 bg-black/80 hover:bg-neutral-800 border border-neutral-700 text-white font-black p-3 rounded-2xl cursor-pointer text-lg"
                 >
                   ›
@@ -401,30 +384,16 @@ export default function GuestHomePage() {
               </>
             )}
           </div>
-
-          <div className="flex gap-2 overflow-x-auto max-w-4xl w-full pb-2 scrollbar-none justify-center">
-            {activeGalleryImages.map((imgUrl, i) => (
-              <button
-                key={i}
-                onClick={() => setCurrentGalleryIdx(i)}
-                className={`relative w-16 h-12 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 ${
-                  currentGalleryIdx === i ? 'border-amber-500 scale-105' : 'border-neutral-800 opacity-60'
-                }`}
-              >
-                <img src={imgUrl} alt="thumb" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
-      {/* SINGLE-PAGE CHECKOUT MODAL */}
+      {/* INQUIRY MODAL */}
       {selectedProp && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
               <div>
-                <span className="text-[10px] font-black uppercase text-amber-400">Complete Reservation</span>
+                <span className="text-[10px] font-black uppercase text-amber-400">Direct Host Inquiry</span>
                 <h3 className="text-lg font-black text-white">{selectedProp.title}</h3>
               </div>
               <button
@@ -435,9 +404,9 @@ export default function GuestHomePage() {
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <form onSubmit={handleSendInquiryRequest} className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
               <div className="space-y-2">
-                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Reservation Dates</h4>
+                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">1. Select Stay Dates</h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-neutral-400 mb-1">Check-In</label>
@@ -473,7 +442,7 @@ export default function GuestHomePage() {
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Joshua Owembabazi"
+                      placeholder="e.g. Linton"
                       value={guestName}
                       onChange={(e) => setGuestName(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
@@ -517,7 +486,7 @@ export default function GuestHomePage() {
                     <label className="text-[10px] text-neutral-400 font-bold">Child Ages</label>
                     <input
                       type="text"
-                      placeholder="e.g. 3, 7 yrs"
+                      placeholder="e.g. 3 yrs"
                       value={childAges}
                       onChange={(e) => setChildAges(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
@@ -527,147 +496,65 @@ export default function GuestHomePage() {
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Nationality / Country</label>
-                    <select
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
-                    >
-                      <option value="United States">United States</option>
-                      <option value="United Kingdom">United Kingdom</option>
-                      <option value="Uganda">Uganda</option>
-                      <option value="Kenya">Kenya</option>
-                      <option value="Tanzania">Tanzania</option>
-                      <option value="South Africa">South Africa</option>
-                      <option value="Canada">Canada</option>
-                      <option value="Germany">Germany</option>
-                      <option value="France">France</option>
-                      <option value="UAE">UAE</option>
-                      <option value="Other International">Other International</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Purpose of Stay</label>
+                    <label className="text-[10px] text-neutral-400 font-bold">Demographic / Stay Type</label>
                     <select
                       value={purpose}
                       onChange={(e) => setPurpose(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
                     >
-                      <option value="Leisure">Leisure / Vacation</option>
-                      <option value="Business">Business Trip</option>
-                      <option value="Party">Party / Event (Security Deposit)</option>
-                      <option value="Relocation">Relocation Stay</option>
+                      <option value="Solo Business Traveler">Solo Business Traveler</option>
+                      <option value="Couple with Kids">Couple with Kids</option>
+                      <option value="Leisure Vacation">Leisure Vacation</option>
+                      <option value="Party / Event">Party / Event</option>
                     </select>
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Channel Source</label>
+                    <label className="text-[10px] text-neutral-400 font-bold">Nationality</label>
                     <select
-                      value={source}
-                      onChange={(e) => setSource(e.target.value)}
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
                       className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl font-bold"
                     >
-                      <option value="TikTok">TikTok</option>
-                      <option value="Instagram">Instagram</option>
-                      <option value="Direct Referral">Direct Referral</option>
-                      <option value="Google Search">Google Search</option>
+                      <option value="Uganda">Uganda</option>
+                      <option value="United States">United States</option>
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="Kenya">Kenya</option>
+                      <option value="Other">Other International</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-neutral-400 font-bold">Note to Host</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Early check-in, extra towels"
-                      value={guestNotes}
-                      onChange={(e) => setGuestNotes(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-2.5 rounded-xl"
-                    />
-                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-neutral-400 font-bold">Note to Host</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. I have a playing board or special requests"
+                    value={guestNotes}
+                    onChange={(e) => setGuestNotes(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"
+                  />
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <h4 className="text-xs font-black text-amber-400 uppercase tracking-wider">
-                  3. Select Payment Gateway & Split
-                </h4>
-
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('MoMo')}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
-                      paymentMethod === 'MoMo'
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                    }`}
-                  >
-                    📱 MoMo (MTN/Airtel)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('Card / Flutterwave')}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
-                      paymentMethod === 'Card / Flutterwave'
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                    }`}
-                  >
-                    💳 Card / Flutterwave
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('Cash / Bank Transfer')}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition text-center cursor-pointer ${
-                      paymentMethod === 'Cash / Bank Transfer'
-                        ? 'bg-amber-500/20 border-amber-500 text-amber-400'
-                        : 'bg-neutral-950 border-neutral-800 text-neutral-400'
-                    }`}
-                  >
-                    🏦 Cash / Bank
-                  </button>
+              <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
+                <div className="flex justify-between font-black text-sm text-white">
+                  <span>Total Stay Estimate:</span>
+                  <span className="text-amber-400">${grandTotal}</span>
                 </div>
-
-                <div className="bg-neutral-950 p-4 rounded-2xl border border-neutral-800 space-y-2 text-xs">
-                  <div className="flex justify-between text-neutral-400">
-                    <span>Nights Stay ({nights} night(s) @ ${baseRate})</span>
-                    <span>${nights * baseRate}</span>
-                  </div>
-                  <div className="flex justify-between text-neutral-400">
-                    <span>Cleaning Fee</span>
-                    <span>${cleaningFee}</span>
-                  </div>
-                  {purpose === 'Party' && (
-                    <div className="flex justify-between text-rose-400 font-bold">
-                      <span>Party Security Deposit</span>
-                      <span>+${partyDeposit}</span>
-                    </div>
-                  )}
-                  <div className="border-t border-neutral-800 pt-2 flex justify-between font-black text-sm text-white">
-                    <span>Grand Total</span>
-                    <span className="text-amber-400">${grandTotal}</span>
-                  </div>
+                <div className="flex justify-between font-bold text-neutral-400">
+                  <span>30% Deposit Due After Talking:</span>
+                  <span className="text-emerald-400">${Math.round(grandTotal * 0.3)}</span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={() => handleFinalPaymentExecution('100%')}
-                  disabled={submitting}
-                  className="p-3 bg-amber-500 hover:bg-amber-400 text-black text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
-                >
-                  {submitting ? 'Processing...' : `Pay 100% ($${grandTotal}) & Dispatch WhatsApp`}
-                </button>
-                <button
-                  onClick={() => handleFinalPaymentExecution('30% Deposit')}
-                  disabled={submitting}
-                  className="p-3 bg-neutral-800 hover:bg-neutral-700 border border-amber-500/40 text-amber-400 text-xs font-extrabold rounded-xl shadow cursor-pointer text-center"
-                >
-                  {submitting ? 'Processing...' : `Pay 30% ($${Math.round(grandTotal * 0.3)}) & Dispatch WhatsApp`}
-                </button>
-              </div>
-            </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow cursor-pointer text-center"
+              >
+                {submitting ? 'Sending Inquiry...' : '💬 Send Inquiry via WhatsApp to Host'}
+              </button>
+            </form>
           </div>
         </div>
       )}
