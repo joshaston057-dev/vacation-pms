@@ -97,7 +97,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // SAVE CUSTOM PROPERTY NAME
+  // SAVE CUSTOM PROPERTY NAME (e.g. 2 Bedroom Executive Apartment)
   const handleSaveCustomName = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPropForName) return
@@ -110,13 +110,13 @@ export default function HostOperationsHub() {
 
       if (error) throw error
 
-      alert('✅ Property custom name updated successfully!')
+      alert('✅ Property layout/name updated successfully!')
       setShowNameModal(false)
       setSelectedPropForName(null)
       setCustomPropNameInput('')
       fetchHostData()
     } catch (err: any) {
-      alert('Error saving custom name: ' + err.message)
+      alert('Error saving property name: ' + err.message)
     }
   }
 
@@ -198,7 +198,7 @@ export default function HostOperationsHub() {
       }
 
       const matchingProp = properties.find(p => String(p.id) === String(booking.property_id))
-      const propTitle = booking.property_title || matchingProp?.custom_name || matchingProp?.title || 'Vacation Stay'
+      const propTitle = booking.property_title || matchingProp?.custom_name || matchingProp?.title || '2 Bedroom Executive Apartment'
       const guestName = cleanGuestName(booking.guest_name)
       const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
       const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
@@ -499,7 +499,7 @@ export default function HostOperationsHub() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-base font-black text-white">Managed Listings & Custom Property Names</h3>
+                      <h3 className="text-base font-black text-white">Managed Listings & Property Layouts</h3>
                       <span className="text-xs text-neutral-400 font-bold">{properties.length} Properties Registered</span>
                     </div>
                   </div>
@@ -509,7 +509,7 @@ export default function HostOperationsHub() {
                       const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
                       const isOccupied = p.status === 'OCCUPIED'
                       const hasICal = Boolean(p.ical_url)
-                      const displayTitle = p.custom_name || p.title || 'Untitled Property'
+                      const displayTitle = p.custom_name || p.title || 'Executive Apartment'
 
                       return (
                         <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
@@ -558,7 +558,7 @@ export default function HostOperationsHub() {
                                   onClick={() => openNameModal(p)}
                                   className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
                                 >
-                                  ✏️ Custom Name
+                                  ✏️ Edit Layout Name
                                 </button>
                                 <button
                                   onClick={() => openICalModal(p)}
@@ -608,14 +608,19 @@ export default function HostOperationsHub() {
                         const isConfirmed = b.status === 'CONFIRMED'
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
-                        const propTitle = b.property_title || 'Vacation Stay'
+
+                        // Format string so guest sees La Estancia + Specific Property Layout (e.g. 2 Bedroom Apartment)
+                        const rawTitle = b.property_title || '2 Bedroom Executive Apartment'
+                        const propertyBrandTitle = rawTitle.toLowerCase().includes('la estancia')
+                          ? rawTitle
+                          : `La Estancia | ${rawTitle}`
 
                         const checkInDate = b.check_in || b.checkIn || b.check_in_date || b.start_date || 'N/A'
                         const checkOutDate = b.check_out || b.checkOut || b.check_out_date || b.end_date || 'N/A'
                         const specialNotes = b.guest_notes || b.notes || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
-                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${propTitle}*.\n\n` +
+                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${propertyBrandTitle}*.\n\n` +
                           `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
                           `💰 *Total Stay:* $${totalStay}\n` +
                           `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
@@ -626,7 +631,7 @@ export default function HostOperationsHub() {
                           <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
                             <div className="space-y-3">
                               <div className="flex justify-between items-start gap-3">
-                                <h4 className="font-black text-white text-sm leading-snug">{propTitle}</h4>
+                                <h4 className="font-black text-white text-sm leading-snug">{propertyBrandTitle}</h4>
                                 <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
                                   isConfirmed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                 }`}>
@@ -743,7 +748,7 @@ export default function HostOperationsHub() {
                         const priorityClass = getPriorityBadge(t.priority)
 
                         const taskWhatsAppText = encodeURIComponent(
-                          `🚨 *${t.property_title || 'PROPERTY'} - TASK DISPATCH*\n\n` +
+                          `🚨 *${t.property_title || 'LA ESTANCIA'} - TASK DISPATCH*\n\n` +
                           `📌 *Task:* ${t.title}\n` +
                           `🏠 *Listing:* ${t.property_title || 'Vacation Stay'}\n` +
                           `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
@@ -953,25 +958,25 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* CUSTOM PROPERTY NAME MODAL */}
+      {/* PROPERTY LAYOUT / NAME MODAL */}
       {showNameModal && selectedPropForName && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <div>
-                <h3 className="text-base font-black text-white">Set Custom Property Name</h3>
-                <p className="text-xs text-neutral-400">Give this listing its own unique brand name.</p>
+                <h3 className="text-base font-black text-white">Set Property Layout Name</h3>
+                <p className="text-xs text-neutral-400">Specify property type (e.g. 2 Bedroom Executive Apartment)</p>
               </div>
               <button onClick={() => setShowNameModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
             </div>
 
             <form onSubmit={handleSaveCustomName} className="space-y-4 text-xs">
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">Property Custom Name</label>
+                <label className="block text-neutral-400 font-bold mb-1">Property Layout Title</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Sunset Villa Entebbe, Kisaasi Haven"
+                  placeholder="e.g. 2 Bedroom Executive Apartment - Kisaasi"
                   value={customPropNameInput}
                   onChange={(e) => setCustomPropNameInput(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold"
@@ -990,7 +995,7 @@ export default function HostOperationsHub() {
                   type="submit"
                   className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
                 >
-                  ⚡ Save Custom Name
+                  ⚡ Save Layout Name
                 </button>
               </div>
             </form>
