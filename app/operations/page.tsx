@@ -8,7 +8,7 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('ledger')
+  const [activeTab, setActiveTab] = useState<'ledger' | 'bookings' | 'properties' | 'tasks' | 'upsells'>('ledger')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -56,15 +56,13 @@ export default function HostOperationsHub() {
   const fetchHostData = async () => {
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      // Resilient fetch across all operational tables including expenses/ledger
+      // Unconditional direct fetch across all operational tables so nothing is hidden
       const [propsRes, bookRes, taskRes, upsellRes, expenseRes] = await Promise.all([
-        supabase.from('properties').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
-        supabase.from('bookings').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
-        supabase.from('tasks').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
+        supabase.from('properties').select('*').order('id', { ascending: false }),
+        supabase.from('bookings').select('*').order('id', { ascending: false }),
+        supabase.from('tasks').select('*').order('id', { ascending: false }),
         supabase.from('upsell_services').select('*').order('id', { ascending: true }),
-        supabase.from('expenses').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false })
+        supabase.from('expenses').select('*').order('id', { ascending: false })
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
@@ -79,7 +77,55 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 1. CREATE DIRECT BOOKING + TAG OCCUPIED + LOCK ICAL + AUTO DISPATCH TASKS
+  // 1. APPROVE BOOKING & AUTO-DISPATCH TASKS & TAG OCCUPIED
+  const handleApproveBooking = async (booking: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      // Confirm Booking
+      const { error: bookingErr } = await supabase
+        .from('bookings')
+        .update({ status: 'CONFIRMED' })
+        .eq('id', booking.id)
+
+      if (bookingErr) throw bookingErr
+
+      // Mark property as OCCUPIED
+      if (booking.property_id) {
+        await supabase
+          .from('properties')
+          .update({ status: 'OCCUPIED' })
+          .eq('id', booking.property_id)
+      }
+
+      // Auto-dispatch housekeeping prep & turnover tasks
+      const guestName = cleanGuestName(booking.guest_name)
+      const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
+      const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
+
+      await supabase.from('tasks').insert([
+        {
+          host_id: user?.id || null,
+          title: `Pre-Arrival Prep: ${booking.property_title || 'Property'}`,
+          description: `Prepare apartment for guest ${guestName}. Check-in: ${checkInDate}`,
+          status: 'PENDING'
+        },
+        {
+          host_id: user?.id || null,
+          title: `Turnover Checkout: ${booking.property_title || 'Property'}`,
+          description: `Housekeeping turnover after departure on ${checkOutDate}`,
+          status: 'PENDING'
+        }
+      ])
+
+      fetchHostData()
+      alert('✅ Booking approved! Revenue accounted, property tagged OCCUPIED, and cleaning tasks auto-dispatched.')
+    } catch (err: any) {
+      alert('Error approving booking: ' + err.message)
+    }
+  }
+
+  // 2. CREATE DIRECT MANUAL BOOKING
   const handleCreateManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -135,7 +181,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 2. CREATE EXPENSE IN LEDGER
+  // 3. LOG EXPENSE IN LEDGER
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -165,7 +211,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 3. CREATE UPSELL SERVICE
+  // 4. CREATE UPSELL SERVICE
   const handleCreateUpsell = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -190,6 +236,7 @@ export default function HostOperationsHub() {
     }
   }
 
+  // 5. TASK DISPATCH CONTROLS
   const handleUpdateTaskStatus = async (taskId: string | number, newStatus: string) => {
     try {
       const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
@@ -221,6 +268,16 @@ export default function HostOperationsHub() {
     }
   }
 
+  const handleDeleteBooking = async (bookingId: string | number) => {
+    if (!confirm('Are you sure you want to delete this booking?')) return
+    try {
+      await supabase.from('bookings').delete().eq('id', bookingId)
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error deleting booking: ' + err.message)
+    }
+  }
+
   const openBookingModalForProperty = (propertyId: string | number) => {
     setManualBooking({
       property_id: String(propertyId),
@@ -233,32 +290,6 @@ export default function HostOperationsHub() {
       guest_notes: ''
     })
     setShowAddModal(true)
-  }
-
-  const handleApproveBooking = async (booking: any) => {
-    try {
-      const { error } = await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
-      if (error) throw error
-
-      if (booking.property_id) {
-        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
-      }
-
-      fetchHostData()
-      alert('✅ Booking approved, property tagged OCCUPIED, and calendars synced!')
-    } catch (err: any) {
-      alert('Error approving booking: ' + err.message)
-    }
-  }
-
-  const handleDeleteBooking = async (bookingId: string | number) => {
-    if (!confirm('Are you sure you want to delete this booking?')) return
-    try {
-      await supabase.from('bookings').delete().eq('id', bookingId)
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error deleting booking: ' + err.message)
-    }
   }
 
   const cleanGuestName = (rawName: string) => {
@@ -282,7 +313,7 @@ export default function HostOperationsHub() {
     return '+256757386946'
   }
 
-  // Calculate Ledger Totals
+  // Financial Calculations
   const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
   const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
   const totalExpenses = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
@@ -294,7 +325,7 @@ export default function HostOperationsHub() {
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* TAB BAR */}
+          {/* NAVIGATION TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
             <button
               onClick={() => setActiveTab('ledger')}
@@ -340,14 +371,13 @@ export default function HostOperationsHub() {
 
           {loading ? (
             <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">
-              Loading financial ledger...
+              Loading operations hub...
             </div>
           ) : (
             <>
-              {/* TAB 0: LEDGER & FINANCIALS */}
+              {/* TAB 0: LEDGER */}
               {activeTab === 'ledger' && (
                 <div className="space-y-6">
-                  {/* FINANCIAL METRICS SUMMARY CARDS */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
                       <span className="text-xs text-neutral-400 font-bold block">CONFIRMED REVENUE</span>
@@ -370,7 +400,6 @@ export default function HostOperationsHub() {
                     </div>
                   </div>
 
-                  {/* EXPENSES ACTION BAR */}
                   <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
                     <div>
                       <h3 className="text-base font-black text-white">Expense Allocation & Operational Bills</h3>
@@ -385,7 +414,6 @@ export default function HostOperationsHub() {
                     </button>
                   </div>
 
-                  {/* EXPENSES TABLE / LIST */}
                   {expenses.length === 0 ? (
                     <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
                       No expenses logged yet. Click "Log New Expense / Bill" to add rent, utilities, or maintenance costs.
@@ -466,8 +494,10 @@ export default function HostOperationsHub() {
                         const isConfirmed = b.status === 'CONFIRMED'
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
-                        const checkInDate = b.check_in || b.checkIn || 'N/A'
-                        const checkOutDate = b.check_out || b.checkOut || 'N/A'
+
+                        // Resilient date extraction to prevent N/A -> N/A
+                        const checkInDate = b.check_in || b.checkIn || b.check_in_date || b.start_date || 'N/A'
+                        const checkOutDate = b.check_out || b.checkOut || b.check_out_date || b.end_date || 'N/A'
                         const specialNotes = b.guest_notes || b.notes || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
@@ -496,7 +526,7 @@ export default function HostOperationsHub() {
                                   <span className="font-extrabold text-white">{guestName}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-neutral-300">
-                                  <span className="text-neutral-400">💬 WhatsApp:</span>
+                                  <span className="text-neutral-400">💬 Phone:</span>
                                   <span className="font-extrabold text-emerald-400">{phoneNum}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5 text-neutral-300">
