@@ -19,6 +19,11 @@ export default function HostOperationsHub() {
   // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
 
+  // Custom Property Name Modal State
+  const [showNameModal, setShowNameModal] = useState(false)
+  const [selectedPropForName, setSelectedPropForName] = useState<any>(null)
+  const [customPropNameInput, setCustomPropNameInput] = useState('')
+
   // iCal OTA Sync Modal State
   const [showICalModal, setShowICalModal] = useState(false)
   const [selectedPropertyForICal, setSelectedPropertyForICal] = useState<any>(null)
@@ -92,7 +97,36 @@ export default function HostOperationsHub() {
     }
   }
 
-  // SAVE OTA ICAL LINK (AIRBNB, BOOKING.COM, VRBO, EXPEDIA)
+  // SAVE CUSTOM PROPERTY NAME
+  const handleSaveCustomName = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPropForName) return
+
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ custom_name: customPropNameInput, title: customPropNameInput })
+        .eq('id', selectedPropForName.id)
+
+      if (error) throw error
+
+      alert('✅ Property custom name updated successfully!')
+      setShowNameModal(false)
+      setSelectedPropForName(null)
+      setCustomPropNameInput('')
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error saving custom name: ' + err.message)
+    }
+  }
+
+  const openNameModal = (property: any) => {
+    setSelectedPropForName(property)
+    setCustomPropNameInput(property.custom_name || property.title || '')
+    setShowNameModal(true)
+  }
+
+  // SAVE OTA ICAL LINK
   const handleSaveICalUrl = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPropertyForICal) return
@@ -105,7 +139,7 @@ export default function HostOperationsHub() {
 
       if (error) throw error
 
-      alert('✅ OTA Channel iCal link connected! PMS is now synced to block dates.')
+      alert('✅ OTA Channel iCal link connected!')
       setShowICalModal(false)
       setSelectedPropertyForICal(null)
       setIcalInputUrl('')
@@ -127,11 +161,12 @@ export default function HostOperationsHub() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const selectedProp = properties.find((p) => String(p.id) === String(newTask.property_id))
+      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'General Operation'
 
       const { error } = await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
-          property_title: selectedProp?.title || 'General Operation',
+          property_title: propTitle,
           title: newTask.title,
           description: newTask.description,
           priority: newTask.priority,
@@ -162,7 +197,8 @@ export default function HostOperationsHub() {
         await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
       }
 
-      const propTitle = booking.property_title || (properties.find(p => String(p.id) === String(booking.property_id))?.title) || 'Vacation Stay'
+      const matchingProp = properties.find(p => String(p.id) === String(booking.property_id))
+      const propTitle = booking.property_title || matchingProp?.custom_name || matchingProp?.title || 'Vacation Stay'
       const guestName = cleanGuestName(booking.guest_name)
       const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
       const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
@@ -200,12 +236,13 @@ export default function HostOperationsHub() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const selectedProp = properties.find((p) => String(p.id) === String(manualBooking.property_id))
+      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'Direct Host Booking'
 
       const { error: bookingErr } = await supabase.from('bookings').insert([
         {
           host_id: user?.id || null,
           property_id: manualBooking.property_id,
-          property_title: selectedProp?.title || 'Direct Host Booking',
+          property_title: propTitle,
           guest_name: manualBooking.guest_name,
           phone: manualBooking.phone,
           purpose: manualBooking.purpose,
@@ -224,8 +261,8 @@ export default function HostOperationsHub() {
       await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
-          property_title: selectedProp?.title || 'Direct Booking',
-          title: `🔥 URGENT Pre-Arrival Prep: ${selectedProp?.title || 'Property'}`,
+          property_title: propTitle,
+          title: `🔥 URGENT Pre-Arrival Prep: ${propTitle}`,
           description: `Prepare listing for guest ${manualBooking.guest_name}. Check-in: ${manualBooking.check_in}`,
           priority: 'URGENT',
           assignee: 'Housekeeping Team',
@@ -233,8 +270,8 @@ export default function HostOperationsHub() {
         },
         {
           host_id: user?.id || null,
-          property_title: selectedProp?.title || 'Direct Booking',
-          title: `🧹 Turnover Checkout: ${selectedProp?.title || 'Property'}`,
+          property_title: propTitle,
+          title: `🧹 Turnover Checkout: ${propTitle}`,
           description: `Housekeeping required after departure on ${manualBooking.check_out}`,
           priority: 'HIGH',
           assignee: 'Housekeeping Team',
@@ -256,12 +293,13 @@ export default function HostOperationsHub() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const selectedProp = properties.find((p) => String(p.id) === String(newExpense.property_id))
+      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'General Operational Expense'
 
       const { error } = await supabase.from('expenses').insert([
         {
           host_id: user?.id || null,
           property_id: newExpense.property_id || null,
-          property_title: selectedProp?.title || 'General Operational Expense',
+          property_title: propTitle,
           title: newExpense.title,
           amount: parseFloat(newExpense.amount) || 0,
           category: newExpense.category,
@@ -394,7 +432,7 @@ export default function HostOperationsHub() {
     return (t.priority || 'MEDIUM').toUpperCase() === priorityFilter
   })
 
-  // Financial Ledger Calculations
+  // Financial Calculations
   const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
   const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
   const totalExpenses = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
@@ -456,12 +494,12 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* TAB 1: PROPERTIES WITH OTA SYNC BUTTONS */}
+              {/* TAB: PROPERTIES */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-base font-black text-white">Managed Listings & Multi-Channel Sync</h3>
+                      <h3 className="text-base font-black text-white">Managed Listings & Custom Property Names</h3>
                       <span className="text-xs text-neutral-400 font-bold">{properties.length} Properties Registered</span>
                     </div>
                   </div>
@@ -471,12 +509,13 @@ export default function HostOperationsHub() {
                       const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
                       const isOccupied = p.status === 'OCCUPIED'
                       const hasICal = Boolean(p.ical_url)
+                      const displayTitle = p.custom_name || p.title || 'Untitled Property'
 
                       return (
                         <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
                           <div className="relative aspect-[16/10] bg-neutral-950">
                             {gallery.length > 0 ? (
-                              <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
+                              <img src={gallery[0]} alt={displayTitle} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
                             )}
@@ -494,7 +533,7 @@ export default function HostOperationsHub() {
 
                           <div className="p-4 space-y-3">
                             <div className="flex justify-between items-baseline">
-                              <h4 className="font-black text-white text-base truncate">{p.title}</h4>
+                              <h4 className="font-black text-white text-base truncate">{displayTitle}</h4>
                               <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
                             </div>
                             <p className="text-xs text-neutral-400">📍 {p.location}</p>
@@ -514,12 +553,20 @@ export default function HostOperationsHub() {
                                 ⚡ Book Property & Account Revenue
                               </button>
 
-                              <button
-                                onClick={() => openICalModal(p)}
-                                className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-xs rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1.5"
-                              >
-                                🔗 {hasICal ? 'Edit OTA iCal Link' : 'Import Channel Link (Airbnb/Booking)'}
-                              </button>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  onClick={() => openNameModal(p)}
+                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
+                                >
+                                  ✏️ Custom Name
+                                </button>
+                                <button
+                                  onClick={() => openICalModal(p)}
+                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
+                                >
+                                  🔗 iCal Sync
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -529,7 +576,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 2: BOOKINGS */}
+              {/* TAB: BOOKINGS */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -561,13 +608,14 @@ export default function HostOperationsHub() {
                         const isConfirmed = b.status === 'CONFIRMED'
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
+                        const propTitle = b.property_title || 'Vacation Stay'
 
                         const checkInDate = b.check_in || b.checkIn || b.check_in_date || b.start_date || 'N/A'
                         const checkOutDate = b.check_out || b.checkOut || b.check_out_date || b.end_date || 'N/A'
                         const specialNotes = b.guest_notes || b.notes || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
-                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${b.property_title || 'La Estancia Vacation Home'}*.\n\n` +
+                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${propTitle}*.\n\n` +
                           `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
                           `💰 *Total Stay:* $${totalStay}\n` +
                           `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
@@ -578,7 +626,7 @@ export default function HostOperationsHub() {
                           <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
                             <div className="space-y-3">
                               <div className="flex justify-between items-start gap-3">
-                                <h4 className="font-black text-white text-sm leading-snug">{b.property_title || 'Vacation Stay'}</h4>
+                                <h4 className="font-black text-white text-sm leading-snug">{propTitle}</h4>
                                 <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
                                   isConfirmed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                 }`}>
@@ -651,7 +699,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 3: TASKS WITH WHATSAPP DISPATCH */}
+              {/* TAB: TASKS */}
               {activeTab === 'tasks' && (
                 <div className="space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -695,9 +743,9 @@ export default function HostOperationsHub() {
                         const priorityClass = getPriorityBadge(t.priority)
 
                         const taskWhatsAppText = encodeURIComponent(
-                          `🚨 *LA ESTANCIA TASK DISPATCH*\n\n` +
+                          `🚨 *${t.property_title || 'PROPERTY'} - TASK DISPATCH*\n\n` +
                           `📌 *Task:* ${t.title}\n` +
-                          `🏠 *Property:* ${t.property_title || 'La Estancia Property'}\n` +
+                          `🏠 *Listing:* ${t.property_title || 'Vacation Stay'}\n` +
                           `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
                           `👤 *Assigned Crew:* ${t.assignee || 'Housekeeping Team'}\n\n` +
                           `📝 *Instructions:* ${t.description || 'Standard turnover clean'}\n\n` +
@@ -769,7 +817,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 4: LEDGER & FINANCIALS */}
+              {/* TAB: LEDGER */}
               {activeTab === 'ledger' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -856,7 +904,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 5: UPSELLS */}
+              {/* TAB: UPSELLS */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -905,6 +953,51 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
+      {/* CUSTOM PROPERTY NAME MODAL */}
+      {showNameModal && selectedPropForName && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white">Set Custom Property Name</h3>
+                <p className="text-xs text-neutral-400">Give this listing its own unique brand name.</p>
+              </div>
+              <button onClick={() => setShowNameModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveCustomName} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Custom Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Sunset Villa Entebbe, Kisaasi Haven"
+                  value={customPropNameInput}
+                  onChange={(e) => setCustomPropNameInput(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNameModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Save Custom Name
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MULTI-CHANNEL OTA ICAL LINK MODAL */}
       {showICalModal && selectedPropertyForICal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -912,7 +1005,7 @@ export default function HostOperationsHub() {
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <div>
                 <h3 className="text-base font-black text-white">Import OTA Calendar (Airbnb, Booking.com, Vrbo)</h3>
-                <p className="text-xs text-neutral-400">{selectedPropertyForICal.title}</p>
+                <p className="text-xs text-neutral-400">{selectedPropertyForICal.custom_name || selectedPropertyForICal.title}</p>
               </div>
               <button onClick={() => setShowICalModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
             </div>
@@ -936,7 +1029,6 @@ export default function HostOperationsHub() {
                   <li><strong>Airbnb:</strong> Listing $\rightarrow$ Pricing & availability $\rightarrow$ Export Calendar.</li>
                   <li><strong>Booking.com:</strong> Extranet $\rightarrow$ Rates & Availability $\rightarrow$ Sync calendars $\rightarrow$ Export.</li>
                   <li><strong>Vrbo / Expedia:</strong> Calendar Settings $\rightarrow$ Export Calendar.</li>
-                  <li><strong>Google Calendar:</strong> Calendar Settings $\rightarrow$ Secret iCal URL.</li>
                 </ul>
               </div>
 
@@ -979,7 +1071,7 @@ export default function HostOperationsHub() {
                 >
                   <option value="">-- General Operation --</option>
                   {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
+                    <option key={p.id} value={p.id}>{p.custom_name || p.title}</option>
                   ))}
                 </select>
               </div>
@@ -1077,7 +1169,7 @@ export default function HostOperationsHub() {
                 >
                   <option value="">-- Choose Listing --</option>
                   {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.title} (${p.price}/night)</option>
+                    <option key={p.id} value={p.id}>{p.custom_name || p.title} (${p.price}/night)</option>
                   ))}
                 </select>
               </div>
@@ -1188,7 +1280,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* EXPENSE LOG MODAL */}
+      {/* EXPENSE MODAL */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -1207,7 +1299,7 @@ export default function HostOperationsHub() {
                 >
                   <option value="">-- General Platform Expense --</option>
                   {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
+                    <option key={p.id} value={p.id}>{p.custom_name || p.title}</option>
                   ))}
                 </select>
               </div>
