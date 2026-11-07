@@ -8,11 +8,12 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('bookings')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('ledger')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [upsells, setUpsells] = useState<any[]>([])
+  const [expenses, setExpenses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Manual Booking Modal State
@@ -28,6 +29,26 @@ export default function HostOperationsHub() {
     guest_notes: ''
   })
 
+  // Upsell Creation Modal State
+  const [showUpsellModal, setShowUpsellModal] = useState(false)
+  const [newUpsell, setNewUpsell] = useState({
+    title: '',
+    description: '',
+    price: '',
+    category: 'Service',
+    icon: '✨'
+  })
+
+  // Expense Modal State
+  const [showExpenseModal, setShowExpenseModal] = useState(false)
+  const [newExpense, setNewExpense] = useState({
+    property_id: '',
+    title: '',
+    amount: '',
+    category: 'Utilities',
+    date: new Date().toISOString().split('T')[0]
+  })
+
   useEffect(() => {
     fetchHostData()
   }, [])
@@ -37,33 +58,34 @@ export default function HostOperationsHub() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      // Fetch host-scoped records with fallback for legacy entries + global upsell catalog
-      const [propsRes, bookRes, taskRes, upsellRes] = await Promise.all([
+      // Resilient fetch across all operational tables including expenses/ledger
+      const [propsRes, bookRes, taskRes, upsellRes, expenseRes] = await Promise.all([
         supabase.from('properties').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
         supabase.from('bookings').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
         supabase.from('tasks').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false }),
-        supabase.from('upsell_services').select('*').order('id', { ascending: true })
+        supabase.from('upsell_services').select('*').order('id', { ascending: true }),
+        supabase.from('expenses').select('*').or(user ? `host_id.eq.${user.id},host_id.is.null` : 'host_id.is.null').order('id', { ascending: false })
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
       if (bookRes.data) setBookings(bookRes.data)
       if (taskRes.data) setTasks(taskRes.data)
       if (upsellRes.data) setUpsells(upsellRes.data)
+      if (expenseRes.data) setExpenses(expenseRes.data)
     } catch (err) {
-      console.error('Error fetching operations data:', err)
+      console.error('Error loading operations data:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // Handle Manual Reservation & Automated Actions
+  // 1. CREATE DIRECT BOOKING + TAG OCCUPIED + LOCK ICAL + AUTO DISPATCH TASKS
   const handleCreateManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const selectedProp = properties.find((p) => String(p.id) === String(manualBooking.property_id))
 
-      // 1. Create Confirmed Booking (Locks iCal Export Feed)
       const { error: bookingErr } = await supabase
         .from('bookings')
         .insert([
@@ -84,13 +106,11 @@ export default function HostOperationsHub() {
 
       if (bookingErr) throw bookingErr
 
-      // 2. Mark Property Status as OCCUPIED
       await supabase
         .from('properties')
         .update({ status: 'OCCUPIED' })
         .eq('id', manualBooking.property_id)
 
-      // 3. Automated Housekeeping Tasks Creation
       await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
@@ -106,21 +126,98 @@ export default function HostOperationsHub() {
         }
       ])
 
-      alert('✅ Booking confirmed! Property tagged OCCUPIED, calendar locked, and housekeeping scheduled.')
+      alert('✅ Reservation confirmed! Property tagged OCCUPIED, calendar locked, and housekeeping tasks auto-dispatched.')
       setShowAddModal(false)
-      setManualBooking({
-        property_id: '',
-        guest_name: '',
-        phone: '',
-        purpose: 'Direct Walk-in',
-        check_in: '',
-        check_out: '',
-        total_price: '',
-        guest_notes: ''
-      })
+      setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
       fetchHostData()
     } catch (err: any) {
       alert('Error creating booking: ' + err.message)
+    }
+  }
+
+  // 2. CREATE EXPENSE IN LEDGER
+  const handleCreateExpense = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const selectedProp = properties.find((p) => String(p.id) === String(newExpense.property_id))
+
+      const { error } = await supabase.from('expenses').insert([
+        {
+          host_id: user?.id || null,
+          property_id: newExpense.property_id || null,
+          property_title: selectedProp?.title || 'General Operational Expense',
+          title: newExpense.title,
+          amount: parseFloat(newExpense.amount) || 0,
+          category: newExpense.category,
+          date: newExpense.date
+        }
+      ])
+
+      if (error) throw error
+
+      alert('✅ Operational expense recorded successfully!')
+      setShowExpenseModal(false)
+      setNewExpense({ property_id: '', title: '', amount: '', category: 'Utilities', date: new Date().toISOString().split('T')[0] })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error recording expense: ' + err.message)
+    }
+  }
+
+  // 3. CREATE UPSELL SERVICE
+  const handleCreateUpsell = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { error } = await supabase.from('upsell_services').insert([
+        {
+          title: newUpsell.title,
+          description: newUpsell.description,
+          price: parseFloat(newUpsell.price) || 0,
+          category: newUpsell.category,
+          icon: newUpsell.icon || '✨'
+        }
+      ])
+
+      if (error) throw error
+
+      alert('✅ New add-on service created!')
+      setShowUpsellModal(false)
+      setNewUpsell({ title: '', description: '', price: '', category: 'Service', icon: '✨' })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error creating upsell: ' + err.message)
+    }
+  }
+
+  const handleUpdateTaskStatus = async (taskId: string | number, newStatus: string) => {
+    try {
+      const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
+      if (error) throw error
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error updating task: ' + err.message)
+    }
+  }
+
+  const handleDeleteTask = async (taskId: string | number) => {
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      if (error) throw error
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error deleting task: ' + err.message)
+    }
+  }
+
+  const handleDeleteExpense = async (expenseId: string | number) => {
+    if (!confirm('Are you sure you want to delete this expense record?')) return
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', expenseId)
+      if (error) throw error
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error deleting expense: ' + err.message)
     }
   }
 
@@ -140,29 +237,22 @@ export default function HostOperationsHub() {
 
   const handleApproveBooking = async (booking: any) => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'CONFIRMED' })
-        .eq('id', booking.id)
-
+      const { error } = await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
       if (error) throw error
 
       if (booking.property_id) {
-        await supabase
-          .from('properties')
-          .update({ status: 'OCCUPIED' })
-          .eq('id', booking.property_id)
+        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
       }
 
       fetchHostData()
-      alert('✅ Booking approved, property tagged Occupied, and OTA calendars synced!')
+      alert('✅ Booking approved, property tagged OCCUPIED, and calendars synced!')
     } catch (err: any) {
       alert('Error approving booking: ' + err.message)
     }
   }
 
   const handleDeleteBooking = async (bookingId: string | number) => {
-    if (!confirm('Are you sure you want to delete this booking record?')) return
+    if (!confirm('Are you sure you want to delete this booking?')) return
     try {
       await supabase.from('bookings').delete().eq('id', bookingId)
       fetchHostData()
@@ -192,14 +282,28 @@ export default function HostOperationsHub() {
     return '+256757386946'
   }
 
+  // Calculate Ledger Totals
+  const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
+  const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
+  const totalExpenses = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
+  const netProfit = totalRevenue - totalExpenses
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* TAB NAVIGATION */}
+          {/* TAB BAR */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              💰 Ledger & Financials
+            </button>
             <button
               onClick={() => setActiveTab('bookings')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
@@ -232,22 +336,104 @@ export default function HostOperationsHub() {
             >
               ✨ Upsells ({upsells.length})
             </button>
-            <button
-              onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              💰 Ledger
-            </button>
           </div>
 
           {loading ? (
             <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">
-              Loading operations hub...
+              Loading financial ledger...
             </div>
           ) : (
             <>
+              {/* TAB 0: LEDGER & FINANCIALS */}
+              {activeTab === 'ledger' && (
+                <div className="space-y-6">
+                  {/* FINANCIAL METRICS SUMMARY CARDS */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">CONFIRMED REVENUE</span>
+                      <div className="text-2xl font-black text-emerald-400">${totalRevenue.toLocaleString()}</div>
+                      <span className="text-[10px] text-neutral-500 block">From {confirmedBookings.length} confirmed stays</span>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">TOTAL OPERATIONAL EXPENSES</span>
+                      <div className="text-2xl font-black text-rose-400">${totalExpenses.toLocaleString()}</div>
+                      <span className="text-[10px] text-neutral-500 block">Rent, utilities, gas, maintenance</span>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">NET PROFIT</span>
+                      <div className={`text-2xl font-black ${netProfit >= 0 ? 'text-amber-400' : 'text-rose-500'}`}>
+                        ${netProfit.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-neutral-500 block">Revenue minus operational bills</span>
+                    </div>
+                  </div>
+
+                  {/* EXPENSES ACTION BAR */}
+                  <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
+                    <div>
+                      <h3 className="text-base font-black text-white">Expense Allocation & Operational Bills</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{expenses.length} Expense Records</span>
+                    </div>
+
+                    <button
+                      onClick={() => setShowExpenseModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
+                    >
+                      <span>➕</span> Log New Expense / Bill
+                    </button>
+                  </div>
+
+                  {/* EXPENSES TABLE / LIST */}
+                  {expenses.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No expenses logged yet. Click "Log New Expense / Bill" to add rent, utilities, or maintenance costs.
+                    </div>
+                  ) : (
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
+                            <tr>
+                              <th className="p-4">Date</th>
+                              <th className="p-4">Expense Title</th>
+                              <th className="p-4">Property</th>
+                              <th className="p-4">Category</th>
+                              <th className="p-4">Amount</th>
+                              <th className="p-4 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-800">
+                            {expenses.map((e) => (
+                              <tr key={e.id} className="hover:bg-neutral-800/50 transition">
+                                <td className="p-4 text-neutral-400 font-medium">{e.date || 'N/A'}</td>
+                                <td className="p-4 font-extrabold text-white">{e.title}</td>
+                                <td className="p-4 text-neutral-300">{e.property_title || 'General Operation'}</td>
+                                <td className="p-4">
+                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-md text-[10px] font-black">
+                                    {e.category || 'Utilities'}
+                                  </span>
+                                </td>
+                                <td className="p-4 font-black text-rose-400">-${e.amount}</td>
+                                <td className="p-4 text-right">
+                                  <button
+                                    onClick={() => handleDeleteExpense(e.id)}
+                                    className="text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                                  >
+                                    🗑️ Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* TAB 1: BOOKINGS */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
@@ -341,7 +527,7 @@ export default function HostOperationsHub() {
                                   onClick={() => handleApproveBooking(b)}
                                   className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition text-center"
                                 >
-                                  ⚡ Approve Cash/MoMo & Sync iCal
+                                  ⚡ Approve Cash/MoMo & Account Revenue
                                 </button>
                               )}
                               <div className="grid grid-cols-2 gap-2">
@@ -413,7 +599,7 @@ export default function HostOperationsHub() {
                               onClick={() => openBookingModalForProperty(p.id)}
                               className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer text-center"
                             >
-                              ⚡ Book Property & Lock Calendars
+                              ⚡ Book Property & Account Revenue
                             </button>
                           </div>
                         </div>
@@ -426,24 +612,56 @@ export default function HostOperationsHub() {
               {/* TAB 3: TASKS */}
               {activeTab === 'tasks' && (
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Housekeeping & Operations Tasks</h3>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Housekeeping & Operations Dispatch</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{tasks.length} Active Tasks</span>
+                    </div>
+                  </div>
+
                   {tasks.length === 0 ? (
                     <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No housekeeping tasks pending.
+                      No tasks active. Tasks are automatically dispatched when bookings are created or approved.
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {tasks.map((t) => (
-                        <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
-                          <div className="flex justify-between items-center">
-                            <h4 className="font-bold text-white text-sm">{t.title}</h4>
-                            <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
-                              {t.status || 'PENDING'}
-                            </span>
+                      {tasks.map((t) => {
+                        const isDone = t.status === 'COMPLETED'
+
+                        return (
+                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center gap-2">
+                                <h4 className="font-extrabold text-white text-sm leading-snug">{t.title}</h4>
+                                <span className={`text-[10px] font-black px-2.5 py-1 rounded border shrink-0 ${
+                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  {t.status || 'PENDING'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No instructions provided.'}</p>
+                            </div>
+
+                            <div className="pt-2 border-t border-neutral-800 flex justify-between items-center">
+                              <button
+                                onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                                  isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                }`}
+                              >
+                                {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteTask(t.id)}
+                                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                              >
+                                🗑️ Remove
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-xs text-neutral-400">{t.description}</p>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </div>
@@ -452,19 +670,45 @@ export default function HostOperationsHub() {
               {/* TAB 4: UPSELLS */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
-                  <h3 className="text-base font-black text-white">Platform Add-On Services Catalog</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {upsells.map((u) => (
-                      <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                        <div className="flex justify-between items-center">
-                          <span className="text-2xl">{u.icon || '✨'}</span>
-                          <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">+${u.price}</span>
-                        </div>
-                        <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
-                        <p className="text-xs text-neutral-400">{u.description}</p>
-                      </div>
-                    ))}
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Platform Add-On Services Catalog</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{upsells.length} Active Offerings</span>
+                    </div>
+
+                    <button
+                      onClick={() => setShowUpsellModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
+                    >
+                      <span>➕</span> Add New Service
+                    </button>
                   </div>
+
+                  {upsells.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No upsell services created yet. Click "+ Add New Service" to create your first offering.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {upsells.map((u) => (
+                        <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-2xl">{u.icon || '✨'}</span>
+                              <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                                +${u.price}
+                              </span>
+                            </div>
+                            <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
+                            <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
+                          </div>
+                          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
+                            {u.category || 'Service'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -472,12 +716,12 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* MANUAL BOOKING & CALENDAR LOCK MODAL */}
+      {/* MANUAL BOOKING MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-base font-black text-white">Direct Booking & OTA Calendar Lock</h3>
+              <h3 className="text-base font-black text-white">Direct Booking & Revenue Accounting</h3>
               <button onClick={() => setShowAddModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
             </div>
 
@@ -595,7 +839,195 @@ export default function HostOperationsHub() {
                   type="submit"
                   className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
                 >
-                  ⚡ Confirm & Lock Calendars
+                  ⚡ Confirm & Account Revenue
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LOG EXPENSE MODAL */}
+      {showExpenseModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-base font-black text-white">Log Operational Expense / Bill</h3>
+              <button onClick={() => setShowExpenseModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleCreateExpense} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Select Property (Optional)</label>
+                <select
+                  value={newExpense.property_id}
+                  onChange={(e) => setNewExpense({ ...newExpense, property_id: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">-- General Platform Expense --</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Expense Description</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Monthly Rent, Gas Refill, Wifi Bill"
+                  value={newExpense.title}
+                  onChange={(e) => setNewExpense({ ...newExpense, title: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Amount ($ USD)</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="120"
+                    value={newExpense.amount}
+                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
+                  <select
+                    value={newExpense.category}
+                    onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Utilities">Utilities (Water/Power)</option>
+                    <option value="Rent">Property Rent / Lease</option>
+                    <option value="Maintenance">Maintenance & Repairs</option>
+                    <option value="Consumables">Supplies & Gas</option>
+                    <option value="Marketing">Marketing / Ads</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Date</label>
+                <input
+                  type="date"
+                  required
+                  value={newExpense.date}
+                  onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Record Expense
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE UPSELL MODAL */}
+      {showUpsellModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-base font-black text-white">Create Add-On / Upsell Service</h3>
+              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleCreateUpsell} className="space-y-4 text-xs">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-1">
+                  <label className="block text-neutral-400 font-bold mb-1">Emoji Icon</label>
+                  <input
+                    type="text"
+                    placeholder="🚗"
+                    value={newUpsell.icon}
+                    onChange={(e) => setNewUpsell({ ...newUpsell, icon: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 text-center"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-neutral-400 font-bold mb-1">Service Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Airport Transfer"
+                    value={newUpsell.title}
+                    onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Price ($ USD)</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="45"
+                    value={newUpsell.price}
+                    onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
+                  <select
+                    value={newUpsell.category}
+                    onChange={(e) => setNewUpsell({ ...newUpsell, category: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Transport">Transport</option>
+                    <option value="Dining">Dining</option>
+                    <option value="Flexibility">Flexibility</option>
+                    <option value="Cleaning">Cleaning</option>
+                    <option value="Experience">Experience</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Service Description</label>
+                <textarea
+                  rows={2}
+                  placeholder="Describe what is included in this add-on package..."
+                  value={newUpsell.description}
+                  onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowUpsellModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Save Service
                 </button>
               </div>
             </form>
