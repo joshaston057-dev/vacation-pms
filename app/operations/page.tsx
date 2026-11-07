@@ -8,7 +8,7 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'ledger' | 'bookings' | 'properties' | 'tasks' | 'upsells'>('tasks')
+  const [activeTab, setActiveTab] = useState<'tasks' | 'ledger' | 'bookings' | 'properties' | 'upsells'>('tasks')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -19,7 +19,7 @@ export default function HostOperationsHub() {
   // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
 
-  // Manual Task Dispatch Modal State
+  // Task Modal State
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [newTask, setNewTask] = useState({
     property_id: '',
@@ -29,7 +29,7 @@ export default function HostOperationsHub() {
     assignee: 'Housekeeping Team'
   })
 
-  // Manual Booking & Expense Modal States
+  // Other Modal States
   const [showAddModal, setShowAddModal] = useState(false)
   const [manualBooking, setManualBooking] = useState({
     property_id: '',
@@ -87,7 +87,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // MANUAL DISPATCH NEW TASK
+  // 1. DISPATCH MANUAL TASK
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -108,7 +108,7 @@ export default function HostOperationsHub() {
 
       if (error) throw error
 
-      alert(`⚡ Task dispatched successfully with ${newTask.priority} priority!`)
+      alert(`⚡ Task dispatched with ${newTask.priority} priority!`)
       setShowTaskModal(false)
       setNewTask({ property_id: '', title: '', description: '', priority: 'HIGH', assignee: 'Housekeeping Team' })
       fetchHostData()
@@ -117,7 +117,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // BOOKING APPROVAL & AUTO-DISPATCH WITH PRIORITY
+  // 2. APPROVE BOOKING & DISPATCH URGENT TASKS
   const handleApproveBooking = async (booking: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -133,13 +133,12 @@ export default function HostOperationsHub() {
       const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
       const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
 
-      // Auto-dispatch urgent prep and turnover tasks
       await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
           property_title: propTitle,
           title: `🔥 URGENT Pre-Arrival Prep: ${propTitle}`,
-          description: `Prepare apartment for guest ${guestName}. Check-in: ${checkInDate}`,
+          description: `Prepare listing for guest ${guestName}. Check-in: ${checkInDate}`,
           priority: 'URGENT',
           assignee: 'Cleaning Supervisor',
           status: 'PENDING'
@@ -148,7 +147,7 @@ export default function HostOperationsHub() {
           host_id: user?.id || null,
           property_title: propTitle,
           title: `🧹 Turnover Checkout: ${propTitle}`,
-          description: `Full turnover clean required after departure on ${checkOutDate}`,
+          description: `Housekeeping turnover after departure on ${checkOutDate}`,
           priority: 'HIGH',
           assignee: 'Housekeeping Team',
           status: 'PENDING'
@@ -156,7 +155,7 @@ export default function HostOperationsHub() {
       ])
 
       fetchHostData()
-      alert('✅ Booking approved! Revenue accounted, property tagged OCCUPIED, and Urgent tasks queued!')
+      alert('✅ Booking approved! Property tagged OCCUPIED and tasks queued!')
     } catch (err: any) {
       alert('Error approving booking: ' + err.message)
     }
@@ -209,7 +208,7 @@ export default function HostOperationsHub() {
         }
       ])
 
-      alert('✅ Reservation confirmed! Calendar locked and tasks auto-queued.')
+      alert('✅ Reservation confirmed! Tasks auto-queued.')
       setShowAddModal(false)
       setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
       fetchHostData()
@@ -343,7 +342,6 @@ export default function HostOperationsHub() {
     return '+256757386946'
   }
 
-  // Priority queueing helpers
   const getPriorityBadge = (priority: string) => {
     switch (priority?.toUpperCase()) {
       case 'URGENT':
@@ -424,16 +422,16 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* TAB 0: DISPATCH & TASKS WITH URGENCY QUEUE */}
+              {/* TAB 0: DISPATCH & TASKS WITH WHATSAPP COORDINATION */}
               {activeTab === 'tasks' && (
                 <div className="space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                      <h3 className="text-base font-black text-white">Operations & Housekeeping Queue</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Tasks in Queue</span>
+                      <h3 className="text-base font-black text-white">Operations & Housekeeping Dispatch Queue</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Active Tasks</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {/* PRIORITY FILTER PILLS */}
                       <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
                         {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
@@ -468,6 +466,17 @@ export default function HostOperationsHub() {
                         const isDone = t.status === 'COMPLETED'
                         const priorityClass = getPriorityBadge(t.priority)
 
+                        // WHATSAPP COORDINATION TEXT GENERATOR
+                        const taskWhatsAppText = encodeURIComponent(
+                          `🚨 *LA ESTANCIA TASK DISPATCH*\n\n` +
+                          `📌 *Task:* ${t.title}\n` +
+                          `🏠 *Property:* ${t.property_title || 'La Estancia Property'}\n` +
+                          `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
+                          `👤 *Assigned Crew:* ${t.assignee || 'Housekeeping Team'}\n\n` +
+                          `📝 *Instructions:* ${t.description || 'Standard turnover clean'}\n\n` +
+                          `Please confirm once completed!`
+                        )
+
                         return (
                           <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
                             <div className="space-y-3">
@@ -497,22 +506,34 @@ export default function HostOperationsHub() {
                               </div>
                             </div>
 
-                            <div className="pt-2 border-t border-neutral-800 flex justify-between items-center">
-                              <button
-                                onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                                  isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                }`}
+                            <div className="space-y-2 pt-2 border-t border-neutral-800">
+                              {/* WHATSAPP COORDINATION BUTTON */}
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=256757386946&text=${taskWhatsAppText}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
                               >
-                                {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
-                              </button>
+                                💬 Coordinate on WhatsApp
+                              </a>
 
-                              <button
-                                onClick={() => handleDeleteTask(t.id)}
-                                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                              >
-                                🗑️ Remove
-                              </button>
+                              <div className="flex justify-between items-center pt-1">
+                                <button
+                                  onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                                    isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-amber-500 hover:bg-amber-400 text-black'
+                                  }`}
+                                >
+                                  {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteTask(t.id)}
+                                  className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                                >
+                                  🗑️ Remove
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )
@@ -831,7 +852,7 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* DISPATCH CUSTOM TASK MODAL */}
+      {/* MODALS */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -928,7 +949,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* OTHER MODALS (BOOKING, EXPENSE, UPSELL) PRESERVED */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
