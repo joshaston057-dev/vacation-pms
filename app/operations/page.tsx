@@ -8,7 +8,7 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('properties')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells'>('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -19,12 +19,12 @@ export default function HostOperationsHub() {
   // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
 
-  // iCal Sync Modal State
+  // iCal OTA Sync Modal State
   const [showICalModal, setShowICalModal] = useState(false)
   const [selectedPropertyForICal, setSelectedPropertyForICal] = useState<any>(null)
   const [icalInputUrl, setIcalInputUrl] = useState('')
 
-  // Task Modal State
+  // Task Dispatch Modal State
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [newTask, setNewTask] = useState({
     property_id: '',
@@ -92,7 +92,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // SAVE AIRBNB ICAL LINK TO PROPERTY
+  // SAVE OTA ICAL LINK (AIRBNB, BOOKING.COM, VRBO, EXPEDIA)
   const handleSaveICalUrl = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPropertyForICal) return
@@ -105,7 +105,7 @@ export default function HostOperationsHub() {
 
       if (error) throw error
 
-      alert('✅ Airbnb iCal link saved successfully! PMS is now connected to sync calendar dates.')
+      alert('✅ OTA Channel iCal link connected! PMS is now synced to block dates.')
       setShowICalModal(false)
       setSelectedPropertyForICal(null)
       setIcalInputUrl('')
@@ -121,7 +121,7 @@ export default function HostOperationsHub() {
     setShowICalModal(true)
   }
 
-  // DISPATCH TASK
+  // DISPATCH CUSTOM TASK
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -151,7 +151,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // APPROVE BOOKING & AUTO-DISPATCH
+  // APPROVE BOOKING & AUTO-DISPATCH HOUSEKEEPING
   const handleApproveBooking = async (booking: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -394,7 +394,7 @@ export default function HostOperationsHub() {
     return (t.priority || 'MEDIUM').toUpperCase() === priorityFilter
   })
 
-  // Financial Calculations
+  // Financial Ledger Calculations
   const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
   const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
   const totalExpenses = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
@@ -456,12 +456,12 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* TAB: PROPERTIES WITH AIRBNB ICAL SYNC BUTTONS */}
+              {/* TAB 1: PROPERTIES WITH OTA SYNC BUTTONS */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h3 className="text-base font-black text-white">Managed Listings & OTA Sync</h3>
+                      <h3 className="text-base font-black text-white">Managed Listings & Multi-Channel Sync</h3>
                       <span className="text-xs text-neutral-400 font-bold">{properties.length} Properties Registered</span>
                     </div>
                   </div>
@@ -499,9 +499,8 @@ export default function HostOperationsHub() {
                             </div>
                             <p className="text-xs text-neutral-400">📍 {p.location}</p>
 
-                            {/* ICAL STATUS INDICATOR */}
                             <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between text-[11px]">
-                              <span className="text-neutral-400 font-medium">Airbnb Sync:</span>
+                              <span className="text-neutral-400 font-medium">OTA Channel Sync:</span>
                               <span className={`font-black ${hasICal ? 'text-emerald-400' : 'text-amber-400'}`}>
                                 {hasICal ? '🟢 Connected' : '⚪ Not Linked'}
                               </span>
@@ -519,7 +518,7 @@ export default function HostOperationsHub() {
                                 onClick={() => openICalModal(p)}
                                 className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-xs rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1.5"
                               >
-                                🔗 {hasICal ? 'Edit Airbnb iCal Link' : 'Import Airbnb Calendar Link'}
+                                🔗 {hasICal ? 'Edit OTA iCal Link' : 'Import Channel Link (Airbnb/Booking)'}
                               </button>
                             </div>
                           </div>
@@ -530,125 +529,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB: TASKS */}
-              {activeTab === 'tasks' && (
-                <div className="space-y-5">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h3 className="text-base font-black text-white">Operations & Housekeeping Dispatch Queue</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Active Tasks</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
-                        {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
-                          <button
-                            key={level}
-                            onClick={() => setPriorityFilter(level)}
-                            className={`px-2.5 py-1 rounded-lg transition ${
-                              priorityFilter === level ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                            }`}
-                          >
-                            {level}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        onClick={() => setShowTaskModal(true)}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-1.5"
-                      >
-                        <span>⚡</span> Dispatch Custom Task
-                      </button>
-                    </div>
-                  </div>
-
-                  {filteredTasks.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No active tasks in this queue. Click "⚡ Dispatch Custom Task" or confirm a booking to queue housekeeping jobs.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredTasks.map((t) => {
-                        const isDone = t.status === 'COMPLETED'
-                        const priorityClass = getPriorityBadge(t.priority)
-
-                        const taskWhatsAppText = encodeURIComponent(
-                          `🚨 *LA ESTANCIA TASK DISPATCH*\n\n` +
-                          `📌 *Task:* ${t.title}\n` +
-                          `🏠 *Property:* ${t.property_title || 'La Estancia Property'}\n` +
-                          `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
-                          `👤 *Assigned Crew:* ${t.assignee || 'Housekeeping Team'}\n\n` +
-                          `📝 *Instructions:* ${t.description || 'Standard turnover clean'}\n\n` +
-                          `Please confirm once completed!`
-                        )
-
-                        return (
-                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start gap-2">
-                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border uppercase ${priorityClass}`}>
-                                  {t.priority || 'MEDIUM'} URGENCY
-                                </span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {t.status || 'PENDING'}
-                                </span>
-                              </div>
-
-                              <div className="space-y-1">
-                                <h4 className="font-black text-white text-sm leading-snug">{t.title}</h4>
-                                <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No special instructions.'}</p>
-                              </div>
-
-                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
-                                <div className="text-neutral-400 text-[11px]">
-                                  🏠 Listing: <span className="text-white font-bold">{t.property_title || 'General Operation'}</span>
-                                </div>
-                                <div className="text-neutral-400 text-[11px]">
-                                  👤 Assigned To: <span className="text-amber-400 font-bold">{t.assignee || 'Housekeeping Team'}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 pt-2 border-t border-neutral-800">
-                              <a
-                                href={`https://api.whatsapp.com/send?phone=256757386946&text=${taskWhatsAppText}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                              >
-                                💬 Coordinate on WhatsApp
-                              </a>
-
-                              <div className="flex justify-between items-center pt-1">
-                                <button
-                                  onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                                    isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-amber-500 hover:bg-amber-400 text-black'
-                                  }`}
-                                >
-                                  {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
-                                </button>
-
-                                <button
-                                  onClick={() => handleDeleteTask(t.id)}
-                                  className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                                >
-                                  🗑️ Remove
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* OTHER TABS (BOOKINGS, LEDGER, UPSELLS) PRESERVED */}
+              {/* TAB 2: BOOKINGS */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -770,6 +651,125 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
+              {/* TAB 3: TASKS WITH WHATSAPP DISPATCH */}
+              {activeTab === 'tasks' && (
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-base font-black text-white">Operations & Housekeeping Dispatch Queue</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Active Tasks</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
+                        {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setPriorityFilter(level)}
+                            className={`px-2.5 py-1 rounded-lg transition ${
+                              priorityFilter === level ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => setShowTaskModal(true)}
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-1.5"
+                      >
+                        <span>⚡</span> Dispatch Custom Task
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredTasks.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No active tasks in this queue. Click "⚡ Dispatch Custom Task" or confirm a booking to queue housekeeping jobs.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredTasks.map((t) => {
+                        const isDone = t.status === 'COMPLETED'
+                        const priorityClass = getPriorityBadge(t.priority)
+
+                        const taskWhatsAppText = encodeURIComponent(
+                          `🚨 *LA ESTANCIA TASK DISPATCH*\n\n` +
+                          `📌 *Task:* ${t.title}\n` +
+                          `🏠 *Property:* ${t.property_title || 'La Estancia Property'}\n` +
+                          `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
+                          `👤 *Assigned Crew:* ${t.assignee || 'Housekeeping Team'}\n\n` +
+                          `📝 *Instructions:* ${t.description || 'Standard turnover clean'}\n\n` +
+                          `Please confirm once completed!`
+                        )
+
+                        return (
+                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border uppercase ${priorityClass}`}>
+                                  {t.priority || 'MEDIUM'} URGENCY
+                                </span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  {t.status || 'PENDING'}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <h4 className="font-black text-white text-sm leading-snug">{t.title}</h4>
+                                <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No special instructions.'}</p>
+                              </div>
+
+                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
+                                <div className="text-neutral-400 text-[11px]">
+                                  🏠 Listing: <span className="text-white font-bold">{t.property_title || 'General Operation'}</span>
+                                </div>
+                                <div className="text-neutral-400 text-[11px]">
+                                  👤 Assigned To: <span className="text-amber-400 font-bold">{t.assignee || 'Housekeeping Team'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-neutral-800">
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=256757386946&text=${taskWhatsAppText}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                              >
+                                💬 Coordinate on WhatsApp
+                              </a>
+
+                              <div className="flex justify-between items-center pt-1">
+                                <button
+                                  onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                                    isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-amber-500 hover:bg-amber-400 text-black'
+                                  }`}
+                                >
+                                  {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteTask(t.id)}
+                                  className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                                >
+                                  🗑️ Remove
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: LEDGER & FINANCIALS */}
               {activeTab === 'ledger' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -856,6 +856,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
+              {/* TAB 5: UPSELLS */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -904,13 +905,13 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* AIRBNB ICAL LINK MODAL */}
+      {/* MULTI-CHANNEL OTA ICAL LINK MODAL */}
       {showICalModal && selectedPropertyForICal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <div>
-                <h3 className="text-base font-black text-white">Import Airbnb iCal Calendar</h3>
+                <h3 className="text-base font-black text-white">Import OTA Calendar (Airbnb, Booking.com, Vrbo)</h3>
                 <p className="text-xs text-neutral-400">{selectedPropertyForICal.title}</p>
               </div>
               <button onClick={() => setShowICalModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
@@ -918,11 +919,11 @@ export default function HostOperationsHub() {
 
             <form onSubmit={handleSaveICalUrl} className="space-y-4 text-xs">
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">Airbnb / OTA Calendar iCal URL (.ics)</label>
+                <label className="block text-neutral-400 font-bold mb-1">Channel Calendar iCal URL (.ics)</label>
                 <input
                   type="url"
                   required
-                  placeholder="https://www.airbnb.com/calendar/ical/..."
+                  placeholder="https://.../calendar/ical/... or .ics link"
                   value={icalInputUrl}
                   onChange={(e) => setIcalInputUrl(e.target.value)}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono text-[11px]"
@@ -930,12 +931,13 @@ export default function HostOperationsHub() {
               </div>
 
               <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-2 text-[11px] text-neutral-400">
-                <span className="font-bold text-amber-400 block uppercase tracking-wider">💡 Where to get your link:</span>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Log into Airbnb $\rightarrow$ Go to Calendar $\rightarrow$ Select this Listing.</li>
-                  <li>Click <strong>Pricing & availability</strong> $\rightarrow$ Scroll to <strong>Calendar Sync</strong>.</li>
-                  <li>Click <strong>Export Calendar</strong> and copy the `.ics` link into the box above.</li>
-                </ol>
+                <span className="font-bold text-amber-400 block uppercase tracking-wider">💡 Supported Booking Platforms:</span>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li><strong>Airbnb:</strong> Listing $\rightarrow$ Pricing & availability $\rightarrow$ Export Calendar.</li>
+                  <li><strong>Booking.com:</strong> Extranet $\rightarrow$ Rates & Availability $\rightarrow$ Sync calendars $\rightarrow$ Export.</li>
+                  <li><strong>Vrbo / Expedia:</strong> Calendar Settings $\rightarrow$ Export Calendar.</li>
+                  <li><strong>Google Calendar:</strong> Calendar Settings $\rightarrow$ Secret iCal URL.</li>
+                </ul>
               </div>
 
               <div className="pt-2 flex gap-3">
@@ -950,7 +952,7 @@ export default function HostOperationsHub() {
                   type="submit"
                   className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
                 >
-                  ⚡ Connect Calendar
+                  ⚡ Connect Channel Link
                 </button>
               </div>
             </form>
@@ -1055,7 +1057,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* OTHER MODALS (BOOKING, EXPENSE, UPSELL) */}
+      {/* MANUAL BOOKING MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
@@ -1186,6 +1188,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
+      {/* EXPENSE LOG MODAL */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -1280,6 +1283,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
+      {/* UPSELL MODAL */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
