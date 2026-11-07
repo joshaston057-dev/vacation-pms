@@ -8,7 +8,7 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'ledger' | 'bookings' | 'properties' | 'tasks' | 'upsells'>('ledger')
+  const [activeTab, setActiveTab] = useState<'ledger' | 'bookings' | 'properties' | 'tasks' | 'upsells'>('tasks')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -16,7 +16,20 @@ export default function HostOperationsHub() {
   const [expenses, setExpenses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Manual Booking Modal State
+  // Priority Filter State
+  const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
+
+  // Manual Task Dispatch Modal State
+  const [showTaskModal, setShowTaskModal] = useState(false)
+  const [newTask, setNewTask] = useState({
+    property_id: '',
+    title: '',
+    description: '',
+    priority: 'HIGH',
+    assignee: 'Housekeeping Team'
+  })
+
+  // Manual Booking & Expense Modal States
   const [showAddModal, setShowAddModal] = useState(false)
   const [manualBooking, setManualBooking] = useState({
     property_id: '',
@@ -29,7 +42,6 @@ export default function HostOperationsHub() {
     guest_notes: ''
   })
 
-  // Upsell Creation Modal State
   const [showUpsellModal, setShowUpsellModal] = useState(false)
   const [newUpsell, setNewUpsell] = useState({
     title: '',
@@ -39,7 +51,6 @@ export default function HostOperationsHub() {
     icon: '✨'
   })
 
-  // Expense Modal State
   const [showExpenseModal, setShowExpenseModal] = useState(false)
   const [newExpense, setNewExpense] = useState({
     property_id: '',
@@ -76,106 +87,129 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 1. GUARANTEED TASK AUTO-DISPATCH ON BOOKING APPROVAL
+  // MANUAL DISPATCH NEW TASK
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      const selectedProp = properties.find((p) => String(p.id) === String(newTask.property_id))
+
+      const { error } = await supabase.from('tasks').insert([
+        {
+          host_id: user?.id || null,
+          property_title: selectedProp?.title || 'General Operation',
+          title: newTask.title,
+          description: newTask.description,
+          priority: newTask.priority,
+          assignee: newTask.assignee,
+          status: 'PENDING'
+        }
+      ])
+
+      if (error) throw error
+
+      alert(`⚡ Task dispatched successfully with ${newTask.priority} priority!`)
+      setShowTaskModal(false)
+      setNewTask({ property_id: '', title: '', description: '', priority: 'HIGH', assignee: 'Housekeeping Team' })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error dispatching task: ' + err.message)
+    }
+  }
+
+  // BOOKING APPROVAL & AUTO-DISPATCH WITH PRIORITY
   const handleApproveBooking = async (booking: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
 
-      // A. Confirm Booking Status
-      const { error: bookingErr } = await supabase
-        .from('bookings')
-        .update({ status: 'CONFIRMED' })
-        .eq('id', booking.id)
+      await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
 
-      if (bookingErr) throw bookingErr
-
-      // B. Mark Property as OCCUPIED
       if (booking.property_id) {
-        await supabase
-          .from('properties')
-          .update({ status: 'OCCUPIED' })
-          .eq('id', booking.property_id)
+        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
       }
 
-      // C. Extract details safely with bulletproof fallbacks
       const propTitle = booking.property_title || (properties.find(p => String(p.id) === String(booking.property_id))?.title) || 'Vacation Stay'
       const guestName = cleanGuestName(booking.guest_name)
       const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
       const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
 
-      // D. Insert Housekeeping Dispatch Tasks Directly
-      const { error: taskErr } = await supabase.from('tasks').insert([
+      // Auto-dispatch urgent prep and turnover tasks
+      await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
-          title: `Pre-Arrival Prep: ${propTitle}`,
+          property_title: propTitle,
+          title: `🔥 URGENT Pre-Arrival Prep: ${propTitle}`,
           description: `Prepare apartment for guest ${guestName}. Check-in: ${checkInDate}`,
+          priority: 'URGENT',
+          assignee: 'Cleaning Supervisor',
           status: 'PENDING'
         },
         {
           host_id: user?.id || null,
-          title: `Turnover Checkout: ${propTitle}`,
-          description: `Housekeeping turnover after departure on ${checkOutDate}`,
+          property_title: propTitle,
+          title: `🧹 Turnover Checkout: ${propTitle}`,
+          description: `Full turnover clean required after departure on ${checkOutDate}`,
+          priority: 'HIGH',
+          assignee: 'Housekeeping Team',
           status: 'PENDING'
         }
       ])
 
-      if (taskErr) console.error('Task insert warning:', taskErr)
-
-      await fetchHostData()
-      alert('✅ Booking approved! Revenue accounted, property tagged OCCUPIED, and 2 cleaning tasks auto-dispatched to Tasks tab!')
+      fetchHostData()
+      alert('✅ Booking approved! Revenue accounted, property tagged OCCUPIED, and Urgent tasks queued!')
     } catch (err: any) {
       alert('Error approving booking: ' + err.message)
     }
   }
 
-  // 2. CREATE DIRECT MANUAL BOOKING WITH TASK DISPATCH
   const handleCreateManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
       const { data: { user } } = await supabase.auth.getUser()
       const selectedProp = properties.find((p) => String(p.id) === String(manualBooking.property_id))
 
-      const { error: bookingErr } = await supabase
-        .from('bookings')
-        .insert([
-          {
-            host_id: user?.id || null,
-            property_id: manualBooking.property_id,
-            property_title: selectedProp?.title || 'Direct Host Booking',
-            guest_name: manualBooking.guest_name,
-            phone: manualBooking.phone,
-            purpose: manualBooking.purpose,
-            check_in: manualBooking.check_in,
-            check_out: manualBooking.check_out,
-            total_price: parseFloat(manualBooking.total_price) || 0,
-            guest_notes: manualBooking.guest_notes || 'Manual direct booking',
-            status: 'CONFIRMED'
-          }
-        ])
+      const { error: bookingErr } = await supabase.from('bookings').insert([
+        {
+          host_id: user?.id || null,
+          property_id: manualBooking.property_id,
+          property_title: selectedProp?.title || 'Direct Host Booking',
+          guest_name: manualBooking.guest_name,
+          phone: manualBooking.phone,
+          purpose: manualBooking.purpose,
+          check_in: manualBooking.check_in,
+          check_out: manualBooking.check_out,
+          total_price: parseFloat(manualBooking.total_price) || 0,
+          guest_notes: manualBooking.guest_notes || 'Manual direct booking',
+          status: 'CONFIRMED'
+        }
+      ])
 
       if (bookingErr) throw bookingErr
 
-      await supabase
-        .from('properties')
-        .update({ status: 'OCCUPIED' })
-        .eq('id', manualBooking.property_id)
+      await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', manualBooking.property_id)
 
       await supabase.from('tasks').insert([
         {
           host_id: user?.id || null,
-          title: `Pre-Arrival Prep: ${selectedProp?.title || 'Property'}`,
+          property_title: selectedProp?.title || 'Direct Booking',
+          title: `🔥 URGENT Pre-Arrival Prep: ${selectedProp?.title || 'Property'}`,
           description: `Prepare listing for guest ${manualBooking.guest_name}. Check-in: ${manualBooking.check_in}`,
+          priority: 'URGENT',
+          assignee: 'Housekeeping Team',
           status: 'PENDING'
         },
         {
           host_id: user?.id || null,
-          title: `Turnover Checkout: ${selectedProp?.title || 'Property'}`,
+          property_title: selectedProp?.title || 'Direct Booking',
+          title: `🧹 Turnover Checkout: ${selectedProp?.title || 'Property'}`,
           description: `Housekeeping required after departure on ${manualBooking.check_out}`,
+          priority: 'HIGH',
+          assignee: 'Housekeeping Team',
           status: 'PENDING'
         }
       ])
 
-      alert('✅ Reservation confirmed! Property tagged OCCUPIED, calendar locked, and 2 housekeeping tasks auto-dispatched.')
+      alert('✅ Reservation confirmed! Calendar locked and tasks auto-queued.')
       setShowAddModal(false)
       setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
       fetchHostData()
@@ -184,7 +218,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 3. LOG EXPENSE IN LEDGER
   const handleCreateExpense = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -204,8 +237,7 @@ export default function HostOperationsHub() {
       ])
 
       if (error) throw error
-
-      alert('✅ Operational expense recorded successfully!')
+      alert('✅ Operational expense recorded!')
       setShowExpenseModal(false)
       setNewExpense({ property_id: '', title: '', amount: '', category: 'Utilities', date: new Date().toISOString().split('T')[0] })
       fetchHostData()
@@ -214,7 +246,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 4. CREATE UPSELL SERVICE
   const handleCreateUpsell = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -227,9 +258,7 @@ export default function HostOperationsHub() {
           icon: newUpsell.icon || '✨'
         }
       ])
-
       if (error) throw error
-
       alert('✅ New add-on service created!')
       setShowUpsellModal(false)
       setNewUpsell({ title: '', description: '', price: '', category: 'Service', icon: '✨' })
@@ -239,7 +268,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 5. TASK DISPATCH CONTROLS
   const handleUpdateTaskStatus = async (taskId: string | number, newStatus: string) => {
     try {
       const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
@@ -261,10 +289,9 @@ export default function HostOperationsHub() {
   }
 
   const handleDeleteExpense = async (expenseId: string | number) => {
-    if (!confirm('Are you sure you want to delete this expense record?')) return
+    if (!confirm('Are you sure you want to delete this expense?')) return
     try {
-      const { error } = await supabase.from('expenses').delete().eq('id', expenseId)
-      if (error) throw error
+      await supabase.from('expenses').delete().eq('id', expenseId)
       fetchHostData()
     } catch (err: any) {
       alert('Error deleting expense: ' + err.message)
@@ -316,6 +343,25 @@ export default function HostOperationsHub() {
     return '+256757386946'
   }
 
+  // Priority queueing helpers
+  const getPriorityBadge = (priority: string) => {
+    switch (priority?.toUpperCase()) {
+      case 'URGENT':
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+      case 'HIGH':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+      case 'MEDIUM':
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+      default:
+        return 'bg-neutral-800 text-neutral-400 border-neutral-700'
+    }
+  }
+
+  const filteredTasks = tasks.filter((t) => {
+    if (priorityFilter === 'ALL') return true
+    return (t.priority || 'MEDIUM').toUpperCase() === priorityFilter
+  })
+
   // Financial Calculations
   const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
   const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
@@ -330,6 +376,14 @@ export default function HostOperationsHub() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
           {/* NAVIGATION TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              🧹 Dispatch & Tasks ({tasks.length})
+            </button>
             <button
               onClick={() => setActiveTab('ledger')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
@@ -355,14 +409,6 @@ export default function HostOperationsHub() {
               🏠 Properties ({properties.length})
             </button>
             <button
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🧹 Tasks ({tasks.length})
-            </button>
-            <button
               onClick={() => setActiveTab('upsells')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -378,7 +424,105 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* TAB 0: LEDGER */}
+              {/* TAB 0: DISPATCH & TASKS WITH URGENCY QUEUE */}
+              {activeTab === 'tasks' && (
+                <div className="space-y-5">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                      <h3 className="text-base font-black text-white">Operations & Housekeeping Queue</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Tasks in Queue</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* PRIORITY FILTER PILLS */}
+                      <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
+                        {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
+                          <button
+                            key={level}
+                            onClick={() => setPriorityFilter(level)}
+                            className={`px-2.5 py-1 rounded-lg transition ${
+                              priorityFilter === level ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        onClick={() => setShowTaskModal(true)}
+                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-1.5"
+                      >
+                        <span>⚡</span> Dispatch Custom Task
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredTasks.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No active tasks in this queue. Click "⚡ Dispatch Custom Task" or confirm a booking to queue housekeeping jobs.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredTasks.map((t) => {
+                        const isDone = t.status === 'COMPLETED'
+                        const priorityClass = getPriorityBadge(t.priority)
+
+                        return (
+                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border uppercase ${priorityClass}`}>
+                                  {t.priority || 'MEDIUM'} URGENCY
+                                </span>
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
+                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  {t.status || 'PENDING'}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <h4 className="font-black text-white text-sm leading-snug">{t.title}</h4>
+                                <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No special instructions.'}</p>
+                              </div>
+
+                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
+                                <div className="text-neutral-400 text-[11px]">
+                                  🏠 Listing: <span className="text-white font-bold">{t.property_title || 'General Operation'}</span>
+                                </div>
+                                <div className="text-neutral-400 text-[11px]">
+                                  👤 Assigned To: <span className="text-amber-400 font-bold">{t.assignee || 'Housekeeping Team'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-neutral-800 flex justify-between items-center">
+                              <button
+                                onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
+                                  isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                                }`}
+                              >
+                                {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
+                              </button>
+
+                              <button
+                                onClick={() => handleDeleteTask(t.id)}
+                                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                              >
+                                🗑️ Remove
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* OTHER TABS (LEDGER, BOOKINGS, PROPERTIES, UPSELLS) PRESERVED */}
               {activeTab === 'ledger' && (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -465,7 +609,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 1: BOOKINGS */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -587,7 +730,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 2: PROPERTIES */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -641,65 +783,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB 3: TASKS */}
-              {activeTab === 'tasks' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-black text-white">Housekeeping & Operations Dispatch</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{tasks.length} Active Tasks</span>
-                    </div>
-                  </div>
-
-                  {tasks.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No tasks active. Tasks are automatically dispatched when bookings are created or approved.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {tasks.map((t) => {
-                        const isDone = t.status === 'COMPLETED'
-
-                        return (
-                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center gap-2">
-                                <h4 className="font-extrabold text-white text-sm leading-snug">{t.title}</h4>
-                                <span className={`text-[10px] font-black px-2.5 py-1 rounded border shrink-0 ${
-                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {t.status || 'PENDING'}
-                                </span>
-                              </div>
-                              <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No instructions provided.'}</p>
-                            </div>
-
-                            <div className="pt-2 border-t border-neutral-800 flex justify-between items-center">
-                              <button
-                                onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
-                                className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                                  isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                }`}
-                              >
-                                {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
-                              </button>
-
-                              <button
-                                onClick={() => handleDeleteTask(t.id)}
-                                className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                              >
-                                🗑️ Remove
-                              </button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB 4: UPSELLS */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -748,7 +831,104 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* MANUAL BOOKING MODAL */}
+      {/* DISPATCH CUSTOM TASK MODAL */}
+      {showTaskModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-base font-black text-white">Dispatch New Operational Task</h3>
+              <button onClick={() => setShowTaskModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Select Listing (Optional)</label>
+                <select
+                  value={newTask.property_id}
+                  onChange={(e) => setNewTask({ ...newTask, property_id: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="">-- General Operation --</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Task Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Deep clean backsplash tiles & worktop"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Urgency / Priority</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="URGENT">🔴 URGENT</option>
+                    <option value="HIGH">🟡 HIGH</option>
+                    <option value="MEDIUM">🔵 MEDIUM</option>
+                    <option value="LOW">⚪ LOW</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Assigned Crew</label>
+                  <select
+                    value={newTask.assignee}
+                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Housekeeping Team">Housekeeping Team</option>
+                    <option value="Cleaning Supervisor">Cleaning Supervisor</option>
+                    <option value="Maintenance Tech">Maintenance Tech</option>
+                    <option value="Property Host">Property Host</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Detailed Instructions</label>
+                <textarea
+                  rows={3}
+                  placeholder="Specific tasks, keys location, or guest requirements..."
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowTaskModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Dispatch Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* OTHER MODALS (BOOKING, EXPENSE, UPSELL) PRESERVED */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
@@ -879,7 +1059,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* LOG EXPENSE MODAL */}
       {showExpenseModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -974,7 +1153,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* CREATE UPSELL MODAL */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
