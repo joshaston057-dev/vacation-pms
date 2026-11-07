@@ -8,7 +8,7 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'ledger' | 'bookings' | 'properties' | 'upsells'>('tasks')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'upsells' | 'ledger'>('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -18,6 +18,11 @@ export default function HostOperationsHub() {
 
   // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
+
+  // iCal Sync Modal State
+  const [showICalModal, setShowICalModal] = useState(false)
+  const [selectedPropertyForICal, setSelectedPropertyForICal] = useState<any>(null)
+  const [icalInputUrl, setIcalInputUrl] = useState('')
 
   // Task Modal State
   const [showTaskModal, setShowTaskModal] = useState(false)
@@ -29,7 +34,7 @@ export default function HostOperationsHub() {
     assignee: 'Housekeeping Team'
   })
 
-  // Other Modal States
+  // Booking, Expense & Upsell Modal States
   const [showAddModal, setShowAddModal] = useState(false)
   const [manualBooking, setManualBooking] = useState({
     property_id: '',
@@ -87,7 +92,36 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 1. DISPATCH MANUAL TASK
+  // SAVE AIRBNB ICAL LINK TO PROPERTY
+  const handleSaveICalUrl = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedPropertyForICal) return
+
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ ical_url: icalInputUrl })
+        .eq('id', selectedPropertyForICal.id)
+
+      if (error) throw error
+
+      alert('✅ Airbnb iCal link saved successfully! PMS is now connected to sync calendar dates.')
+      setShowICalModal(false)
+      setSelectedPropertyForICal(null)
+      setIcalInputUrl('')
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error saving iCal link: ' + err.message)
+    }
+  }
+
+  const openICalModal = (property: any) => {
+    setSelectedPropertyForICal(property)
+    setIcalInputUrl(property.ical_url || '')
+    setShowICalModal(true)
+  }
+
+  // DISPATCH TASK
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -117,7 +151,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // 2. APPROVE BOOKING & DISPATCH URGENT TASKS
+  // APPROVE BOOKING & AUTO-DISPATCH
   const handleApproveBooking = async (booking: any) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -375,6 +409,22 @@ export default function HostOperationsHub() {
           {/* NAVIGATION TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
             <button
+              onClick={() => setActiveTab('properties')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              🏠 Properties ({properties.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              📅 Bookings & Inquiries ({bookings.length})
+            </button>
+            <button
               onClick={() => setActiveTab('tasks')}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
@@ -389,22 +439,6 @@ export default function HostOperationsHub() {
               }`}
             >
               💰 Ledger & Financials
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              📅 Bookings & Inquiries ({bookings.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🏠 Properties ({properties.length})
             </button>
             <button
               onClick={() => setActiveTab('upsells')}
@@ -422,7 +456,81 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* TAB 0: DISPATCH & TASKS WITH WHATSAPP COORDINATION */}
+              {/* TAB: PROPERTIES WITH AIRBNB ICAL SYNC BUTTONS */}
+              {activeTab === 'properties' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Managed Listings & OTA Sync</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{properties.length} Properties Registered</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {properties.map((p) => {
+                      const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
+                      const isOccupied = p.status === 'OCCUPIED'
+                      const hasICal = Boolean(p.ical_url)
+
+                      return (
+                        <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
+                          <div className="relative aspect-[16/10] bg-neutral-950">
+                            {gallery.length > 0 ? (
+                              <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
+                            )}
+                            <div className="absolute top-3 left-3 flex gap-2">
+                              <span className="bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
+                                {p.category || 'Apartment'}
+                              </span>
+                              {isOccupied && (
+                                <span className="bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase shadow-lg">
+                                  🔴 OCCUPIED
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="p-4 space-y-3">
+                            <div className="flex justify-between items-baseline">
+                              <h4 className="font-black text-white text-base truncate">{p.title}</h4>
+                              <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
+                            </div>
+                            <p className="text-xs text-neutral-400">📍 {p.location}</p>
+
+                            {/* ICAL STATUS INDICATOR */}
+                            <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between text-[11px]">
+                              <span className="text-neutral-400 font-medium">Airbnb Sync:</span>
+                              <span className={`font-black ${hasICal ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                {hasICal ? '🟢 Connected' : '⚪ Not Linked'}
+                              </span>
+                            </div>
+
+                            <div className="space-y-2 pt-1">
+                              <button
+                                onClick={() => openBookingModalForProperty(p.id)}
+                                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer text-center"
+                              >
+                                ⚡ Book Property & Account Revenue
+                              </button>
+
+                              <button
+                                onClick={() => openICalModal(p)}
+                                className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-xs rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1.5"
+                              >
+                                🔗 {hasICal ? 'Edit Airbnb iCal Link' : 'Import Airbnb Calendar Link'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB: TASKS */}
               {activeTab === 'tasks' && (
                 <div className="space-y-5">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -432,7 +540,6 @@ export default function HostOperationsHub() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                      {/* PRIORITY FILTER PILLS */}
                       <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
                         {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
                           <button
@@ -466,7 +573,6 @@ export default function HostOperationsHub() {
                         const isDone = t.status === 'COMPLETED'
                         const priorityClass = getPriorityBadge(t.priority)
 
-                        // WHATSAPP COORDINATION TEXT GENERATOR
                         const taskWhatsAppText = encodeURIComponent(
                           `🚨 *LA ESTANCIA TASK DISPATCH*\n\n` +
                           `📌 *Task:* ${t.title}\n` +
@@ -507,7 +613,6 @@ export default function HostOperationsHub() {
                             </div>
 
                             <div className="space-y-2 pt-2 border-t border-neutral-800">
-                              {/* WHATSAPP COORDINATION BUTTON */}
                               <a
                                 href={`https://api.whatsapp.com/send?phone=256757386946&text=${taskWhatsAppText}`}
                                 target="_blank"
@@ -543,93 +648,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* OTHER TABS (LEDGER, BOOKINGS, PROPERTIES, UPSELLS) PRESERVED */}
-              {activeTab === 'ledger' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">CONFIRMED REVENUE</span>
-                      <div className="text-2xl font-black text-emerald-400">${totalRevenue.toLocaleString()}</div>
-                      <span className="text-[10px] text-neutral-500 block">From {confirmedBookings.length} confirmed stays</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">TOTAL OPERATIONAL EXPENSES</span>
-                      <div className="text-2xl font-black text-rose-400">${totalExpenses.toLocaleString()}</div>
-                      <span className="text-[10px] text-neutral-500 block">Rent, utilities, gas, maintenance</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">NET PROFIT</span>
-                      <div className={`text-2xl font-black ${netProfit >= 0 ? 'text-amber-400' : 'text-rose-500'}`}>
-                        ${netProfit.toLocaleString()}
-                      </div>
-                      <span className="text-[10px] text-neutral-500 block">Revenue minus operational bills</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
-                    <div>
-                      <h3 className="text-base font-black text-white">Expense Allocation & Operational Bills</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{expenses.length} Expense Records</span>
-                    </div>
-
-                    <button
-                      onClick={() => setShowExpenseModal(true)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
-                    >
-                      <span>➕</span> Log New Expense / Bill
-                    </button>
-                  </div>
-
-                  {expenses.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No expenses logged yet. Click "Log New Expense / Bill" to add rent, utilities, or maintenance costs.
-                    </div>
-                  ) : (
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
-                            <tr>
-                              <th className="p-4">Date</th>
-                              <th className="p-4">Expense Title</th>
-                              <th className="p-4">Property</th>
-                              <th className="p-4">Category</th>
-                              <th className="p-4">Amount</th>
-                              <th className="p-4 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-800">
-                            {expenses.map((e) => (
-                              <tr key={e.id} className="hover:bg-neutral-800/50 transition">
-                                <td className="p-4 text-neutral-400 font-medium">{e.date || 'N/A'}</td>
-                                <td className="p-4 font-extrabold text-white">{e.title}</td>
-                                <td className="p-4 text-neutral-300">{e.property_title || 'General Operation'}</td>
-                                <td className="p-4">
-                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-md text-[10px] font-black">
-                                    {e.category || 'Utilities'}
-                                  </span>
-                                </td>
-                                <td className="p-4 font-black text-rose-400">-${e.amount}</td>
-                                <td className="p-4 text-right">
-                                  <button
-                                    onClick={() => handleDeleteExpense(e.id)}
-                                    className="text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                                  >
-                                    🗑️ Remove
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
+              {/* OTHER TABS (BOOKINGS, LEDGER, UPSELLS) PRESERVED */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -751,56 +770,89 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {activeTab === 'properties' && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-base font-black text-white">Managed Listings & Direct Booking</h3>
-                    <span className="text-xs text-neutral-400 font-bold">{properties.length} Listings</span>
+              {activeTab === 'ledger' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">CONFIRMED REVENUE</span>
+                      <div className="text-2xl font-black text-emerald-400">${totalRevenue.toLocaleString()}</div>
+                      <span className="text-[10px] text-neutral-500 block">From {confirmedBookings.length} confirmed stays</span>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">TOTAL OPERATIONAL EXPENSES</span>
+                      <div className="text-2xl font-black text-rose-400">${totalExpenses.toLocaleString()}</div>
+                      <span className="text-[10px] text-neutral-500 block">Rent, utilities, gas, maintenance</span>
+                    </div>
+
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold block">NET PROFIT</span>
+                      <div className={`text-2xl font-black ${netProfit >= 0 ? 'text-amber-400' : 'text-rose-500'}`}>
+                        ${netProfit.toLocaleString()}
+                      </div>
+                      <span className="text-[10px] text-neutral-500 block">Revenue minus operational bills</span>
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {properties.map((p) => {
-                      const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
-                      const isOccupied = p.status === 'OCCUPIED'
+                  <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
+                    <div>
+                      <h3 className="text-base font-black text-white">Expense Allocation & Operational Bills</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{expenses.length} Expense Records</span>
+                    </div>
 
-                      return (
-                        <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
-                          <div className="relative aspect-[16/10] bg-neutral-950">
-                            {gallery.length > 0 ? (
-                              <img src={gallery[0]} alt={p.title} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
-                            )}
-                            <div className="absolute top-3 left-3 flex gap-2">
-                              <span className="bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
-                                {p.category || 'Apartment'}
-                              </span>
-                              {isOccupied && (
-                                <span className="bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase shadow-lg">
-                                  🔴 OCCUPIED
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="p-4 space-y-3">
-                            <div className="flex justify-between items-baseline">
-                              <h4 className="font-black text-white text-base truncate">{p.title}</h4>
-                              <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
-                            </div>
-                            <p className="text-xs text-neutral-400">📍 {p.location}</p>
-
-                            <button
-                              onClick={() => openBookingModalForProperty(p.id)}
-                              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer text-center"
-                            >
-                              ⚡ Book Property & Account Revenue
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    <button
+                      onClick={() => setShowExpenseModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
+                    >
+                      <span>➕</span> Log New Expense / Bill
+                    </button>
                   </div>
+
+                  {expenses.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No expenses logged yet. Click "Log New Expense / Bill" to add rent, utilities, or maintenance costs.
+                    </div>
+                  ) : (
+                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
+                            <tr>
+                              <th className="p-4">Date</th>
+                              <th className="p-4">Expense Title</th>
+                              <th className="p-4">Property</th>
+                              <th className="p-4">Category</th>
+                              <th className="p-4">Amount</th>
+                              <th className="p-4 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-neutral-800">
+                            {expenses.map((e) => (
+                              <tr key={e.id} className="hover:bg-neutral-800/50 transition">
+                                <td className="p-4 text-neutral-400 font-medium">{e.date || 'N/A'}</td>
+                                <td className="p-4 font-extrabold text-white">{e.title}</td>
+                                <td className="p-4 text-neutral-300">{e.property_title || 'General Operation'}</td>
+                                <td className="p-4">
+                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-md text-[10px] font-black">
+                                    {e.category || 'Utilities'}
+                                  </span>
+                                </td>
+                                <td className="p-4 font-black text-rose-400">-${e.amount}</td>
+                                <td className="p-4 text-right">
+                                  <button
+                                    onClick={() => handleDeleteExpense(e.id)}
+                                    className="text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
+                                  >
+                                    🗑️ Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -852,7 +904,61 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* AIRBNB ICAL LINK MODAL */}
+      {showICalModal && selectedPropertyForICal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white">Import Airbnb iCal Calendar</h3>
+                <p className="text-xs text-neutral-400">{selectedPropertyForICal.title}</p>
+              </div>
+              <button onClick={() => setShowICalModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveICalUrl} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Airbnb / OTA Calendar iCal URL (.ics)</label>
+                <input
+                  type="url"
+                  required
+                  placeholder="https://www.airbnb.com/calendar/ical/..."
+                  value={icalInputUrl}
+                  onChange={(e) => setIcalInputUrl(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono text-[11px]"
+                />
+              </div>
+
+              <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-2 text-[11px] text-neutral-400">
+                <span className="font-bold text-amber-400 block uppercase tracking-wider">💡 Where to get your link:</span>
+                <ol className="list-decimal pl-4 space-y-1">
+                  <li>Log into Airbnb $\rightarrow$ Go to Calendar $\rightarrow$ Select this Listing.</li>
+                  <li>Click <strong>Pricing & availability</strong> $\rightarrow$ Scroll to <strong>Calendar Sync</strong>.</li>
+                  <li>Click <strong>Export Calendar</strong> and copy the `.ics` link into the box above.</li>
+                </ol>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowICalModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Connect Calendar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DISPATCH TASK MODAL */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
@@ -949,6 +1055,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
+      {/* OTHER MODALS (BOOKING, EXPENSE, UPSELL) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
