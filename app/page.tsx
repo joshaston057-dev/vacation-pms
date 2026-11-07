@@ -33,7 +33,7 @@ export default function GuestHomePage() {
   const [childAges, setChildAges] = useState('')
   const [nationality, setNationality] = useState('Uganda')
   const [purpose, setPurpose] = useState('Solo Business Traveler')
-  const [source, setSource] = useState('TikTok')
+  const [source, setSource] = useState('Website Inquiry')
   const [guestNotes, setGuestNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -95,6 +95,7 @@ export default function GuestHomePage() {
     try {
       const txnRef = `LE-INQ-${Math.floor(100000 + Math.random() * 900000)}`
 
+      // Explicitly attaches host_id for multi-tenant data isolation
       const { data: booking, error: bErr } = await supabase
         .from('bookings')
         .insert([
@@ -125,7 +126,7 @@ export default function GuestHomePage() {
 
       if (bErr) throw bErr
 
-      const hostWhatsApp = '+256757386946'
+      const hostWhatsApp = selectedProp.host_phone || '+256757386946'
       const whatsappText = encodeURIComponent(
         `🛎️ NEW BOOKING INQUIRY - LA ESTANCIA\n\n` +
         `👤 Guest Name: ${guestName}\n` +
@@ -528,7 +529,7 @@ export default function GuestHomePage() {
                   <label className="text-[10px] text-neutral-400 font-bold">Note to Host</label>
                   <input
                     type="text"
-                    placeholder="e.g. I have a playing board or special requests"
+                    placeholder="e.g. Special requests or arrival time"
                     value={guestNotes}
                     onChange={(e) => setGuestNotes(e.target.value)}
                     className="w-full bg-neutral-950 border border-neutral-800 text-xs text-white p-3 rounded-xl"

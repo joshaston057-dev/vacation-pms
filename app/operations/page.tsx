@@ -22,11 +22,20 @@ export default function HostOperationsHub() {
   const fetchHostData = async () => {
     setLoading(true)
     try {
+      // 1. Get authenticated host user
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      // 2. Enforce strict multi-tenant filtering by user.id (host_id)
       const [propsRes, bookRes, taskRes, upsellRes] = await Promise.all([
-        supabase.from('properties').select('*').order('id', { ascending: false }),
-        supabase.from('bookings').select('*').order('id', { ascending: false }),
-        supabase.from('tasks').select('*').order('id', { ascending: false }),
-        supabase.from('upsell_services').select('*').order('id', { ascending: false })
+        supabase.from('properties').select('*').eq('host_id', user.id).order('id', { ascending: false }),
+        supabase.from('bookings').select('*').eq('host_id', user.id).order('id', { ascending: false }),
+        supabase.from('tasks').select('*').eq('host_id', user.id).order('id', { ascending: false }),
+        supabase.from('upsell_services').select('*').order('id', { ascending: true })
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
@@ -34,13 +43,13 @@ export default function HostOperationsHub() {
       if (taskRes.data) setTasks(taskRes.data)
       if (upsellRes.data) setUpsells(upsellRes.data)
     } catch (err) {
-      console.error('Error loading operations data:', err)
+      console.error('Error loading host data:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleApproveBooking = async (bookingId: number) => {
+  const handleApproveBooking = async (bookingId: string | number) => {
     try {
       const { error } = await supabase
         .from('bookings')
@@ -49,12 +58,13 @@ export default function HostOperationsHub() {
 
       if (error) throw error
       fetchHostData()
+      alert('✅ Booking approved and confirmed!')
     } catch (err: any) {
       alert('Error approving booking: ' + err.message)
     }
   }
 
-  const handleDeleteBooking = async (bookingId: number) => {
+  const handleDeleteBooking = async (bookingId: string | number) => {
     if (!confirm('Are you sure you want to delete this booking?')) return
     try {
       await supabase.from('bookings').delete().eq('id', bookingId)
@@ -73,13 +83,17 @@ export default function HostOperationsHub() {
           return part.replace('Guest:', '').trim()
         }
       }
-      return parts[0].replace('Prop:', '').trim()
+      return parts[0].replace(/Prop:/i, '').replace(/\[/g, '').replace(/\]/g, '').trim()
     }
     return rawName.trim()
   }
 
   const cleanPhone = (b: any) => {
     if (b.phone && b.phone.trim()) return b.phone.trim()
+    if (b.guest_name && b.guest_name.includes('Ph:')) {
+      const match = b.guest_name.match(/Ph:\s*([^\s|]+)/)
+      if (match && match[1]) return match[1]
+    }
     return '+256757386946'
   }
 
@@ -107,6 +121,30 @@ export default function HostOperationsHub() {
             >
               🏠 Properties ({properties.length})
             </button>
+            <button
+              onClick={() => setActiveTab('tasks')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              🧹 Tasks ({tasks.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('upsells')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              ✨ Upsells ({upsells.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('ledger')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              💰 Ledger
+            </button>
           </div>
 
           {loading ? (
@@ -115,6 +153,7 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
+              {/* BOOKINGS TAB */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -248,6 +287,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
+              {/* PROPERTIES TAB */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <h3 className="text-base font-black text-white">Managed Listings</h3>
