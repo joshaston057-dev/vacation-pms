@@ -22,7 +22,7 @@ export default function HostOperationsHub() {
   const fetchHostData = async () => {
     setLoading(true)
     try {
-      // 1. Get authenticated host user
+      // 1. Authenticate host session
       const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
@@ -30,12 +30,12 @@ export default function HostOperationsHub() {
         return
       }
 
-      // 2. Enforce strict multi-tenant filtering by user.id (host_id)
+      // 2. Fetch scoped host data with fallback for unassigned records + global upsells
       const [propsRes, bookRes, taskRes, upsellRes] = await Promise.all([
-        supabase.from('properties').select('*').eq('host_id', user.id).order('id', { ascending: false }),
-        supabase.from('bookings').select('*').eq('host_id', user.id).order('id', { ascending: false }),
-        supabase.from('tasks').select('*').eq('host_id', user.id).order('id', { ascending: false }),
-        supabase.from('upsell_services').select('*').order('id', { ascending: true })
+        supabase.from('properties').select('*').or(`host_id.eq.${user.id},host_id.is.null`).order('id', { ascending: false }),
+        supabase.from('bookings').select('*').or(`host_id.eq.${user.id},host_id.is.null`).order('id', { ascending: false }),
+        supabase.from('tasks').select('*').or(`host_id.eq.${user.id},host_id.is.null`).order('id', { ascending: false }),
+        supabase.from('upsell_services').select('*').order('id', { ascending: true }) // Global services
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
@@ -43,7 +43,7 @@ export default function HostOperationsHub() {
       if (taskRes.data) setTasks(taskRes.data)
       if (upsellRes.data) setUpsells(upsellRes.data)
     } catch (err) {
-      console.error('Error loading host data:', err)
+      console.error('Error loading host operations data:', err)
     } finally {
       setLoading(false)
     }
@@ -103,11 +103,11 @@ export default function HostOperationsHub() {
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* TAB BAR */}
-          <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2">
+          {/* TAB NAVIGATION BAR */}
+          <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
             <button
               onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
@@ -115,7 +115,7 @@ export default function HostOperationsHub() {
             </button>
             <button
               onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
@@ -123,7 +123,7 @@ export default function HostOperationsHub() {
             </button>
             <button
               onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
@@ -131,7 +131,7 @@ export default function HostOperationsHub() {
             </button>
             <button
               onClick={() => setActiveTab('upsells')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
@@ -139,7 +139,7 @@ export default function HostOperationsHub() {
             </button>
             <button
               onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
                 activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
@@ -153,7 +153,7 @@ export default function HostOperationsHub() {
             </div>
           ) : (
             <>
-              {/* BOOKINGS TAB */}
+              {/* TAB 1: BOOKINGS */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -161,133 +161,137 @@ export default function HostOperationsHub() {
                     <span className="text-xs text-neutral-400 font-bold">{bookings.length} Total</span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {bookings.map((b) => {
-                      const totalStay = b.total_price || 150
-                      const depositDue = Math.round(totalStay * 0.3)
-                      const isConfirmed = b.status === 'CONFIRMED'
-                      const guestName = cleanGuestName(b.guest_name)
-                      const phoneNum = cleanPhone(b)
+                  {bookings.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No bookings found for your account.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                      {bookings.map((b) => {
+                        const totalStay = b.total_price || 150
+                        const depositDue = Math.round(totalStay * 0.3)
+                        const isConfirmed = b.status === 'CONFIRMED'
+                        const guestName = cleanGuestName(b.guest_name)
+                        const phoneNum = cleanPhone(b)
 
-                      const checkInDate = b.check_in || b.checkIn || 'N/A'
-                      const checkOutDate = b.check_out || b.checkOut || 'N/A'
-                      const specialNotes = b.guest_notes || b.notes || 'No special requests'
+                        const checkInDate = b.check_in || b.checkIn || 'N/A'
+                        const checkOutDate = b.check_out || b.checkOut || 'N/A'
+                        const specialNotes = b.guest_notes || b.notes || 'No special requests'
 
-                      const paymentWhatsAppText = encodeURIComponent(
-                        `Hello ${guestName}! 👋 Thank you for your inquiry for *${b.property_title || 'La Estancia Vacation Home'}*.\n\n` +
-                        `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
-                        `💰 *Total Stay:* $${totalStay}\n` +
-                        `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
-                        `Please complete your 30% deposit payment via Mobile Money (MoMo) or Card to secure your reservation. Once sent, kindly reply with your payment confirmation code here!`
-                      )
+                        const paymentWhatsAppText = encodeURIComponent(
+                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${b.property_title || 'La Estancia Vacation Home'}*.\n\n` +
+                          `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
+                          `💰 *Total Stay:* $${totalStay}\n` +
+                          `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
+                          `Please complete your 30% deposit payment via Mobile Money (MoMo) or Card to secure your reservation. Once sent, kindly reply with your payment confirmation code here!`
+                        )
 
-                      return (
-                        <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
-                          
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-start gap-3">
-                              <h4 className="font-black text-white text-sm leading-snug">
-                                {b.property_title || 'Vacation Stay'}
-                              </h4>
-                              <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
-                                isConfirmed
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                              }`}>
-                                {b.status || 'PENDING'}
-                              </span>
+                        return (
+                          <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-start gap-3">
+                                <h4 className="font-black text-white text-sm leading-snug">
+                                  {b.property_title || 'Vacation Stay'}
+                                </h4>
+                                <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
+                                  isConfirmed
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                }`}>
+                                  {b.status || 'PENDING'}
+                                </span>
+                              </div>
+
+                              <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-3 text-xs">
+                                <div className="flex items-center gap-2.5 text-neutral-300">
+                                  <span className="text-neutral-400 text-sm">👤</span>
+                                  <span className="text-neutral-400">Guest Name:</span>
+                                  <span className="font-extrabold text-white">{guestName}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 text-neutral-300">
+                                  <span className="text-neutral-400 text-sm">💬</span>
+                                  <span className="text-neutral-400">WhatsApp:</span>
+                                  <span className="font-extrabold text-emerald-400">{phoneNum}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 text-neutral-300">
+                                  <span className="text-neutral-400 text-sm">👥</span>
+                                  <span className="text-neutral-400">Demographic:</span>
+                                  <span className="font-extrabold text-amber-400">{b.purpose || 'Leisure'}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 text-neutral-300">
+                                  <span className="text-neutral-400 text-sm">👥</span>
+                                  <span className="text-neutral-400">Guests:</span>
+                                  <span className="font-extrabold text-white">{(b.adults || 1) + (b.children || 0)}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 text-neutral-300">
+                                  <span className="text-neutral-400 text-sm">📅</span>
+                                  <span className="text-neutral-400">Dates:</span>
+                                  <span className="font-extrabold text-white">{checkInDate} → {checkOutDate}</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 pt-1">
+                                  <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
+                                    <span className="text-[10px] text-neutral-400 block">Total Stay:</span>
+                                    <span className="text-amber-400 font-black text-sm">${totalStay}</span>
+                                  </div>
+                                  <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
+                                    <span className="text-[10px] text-neutral-400 block">30% Deposit Due:</span>
+                                    <span className="text-emerald-400 font-black text-sm">${depositDue}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800 space-y-1">
+                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
+                                  📝 GUEST NOTES:
+                                </span>
+                                <p className="text-xs text-neutral-300 font-medium leading-relaxed">
+                                  {specialNotes}
+                                </p>
+                              </div>
                             </div>
 
-                            <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-3 text-xs">
-                              <div className="flex items-center gap-2.5 text-neutral-300">
-                                <span className="text-neutral-400 text-sm">👤</span>
-                                <span className="text-neutral-400">Guest Name:</span>
-                                <span className="font-extrabold text-white">{guestName}</span>
-                              </div>
+                            <div className="space-y-2 pt-1">
+                              {!isConfirmed && (
+                                <button
+                                  onClick={() => handleApproveBooking(b.id)}
+                                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition text-center"
+                                >
+                                  ⚡ Approve Cash / MoMo
+                                </button>
+                              )}
 
-                              <div className="flex items-center gap-2.5 text-neutral-300">
-                                <span className="text-neutral-400 text-sm">💬</span>
-                                <span className="text-neutral-400">WhatsApp:</span>
-                                <span className="font-extrabold text-emerald-400">{phoneNum}</span>
-                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <a
+                                  href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${paymentWhatsAppText}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
+                                >
+                                  <span>💬</span> WhatsApp Payment
+                                </a>
 
-                              <div className="flex items-center gap-2.5 text-neutral-300">
-                                <span className="text-neutral-400 text-sm">👥</span>
-                                <span className="text-neutral-400">Demographic:</span>
-                                <span className="font-extrabold text-amber-400">{b.purpose || 'Leisure'}</span>
+                                <button
+                                  onClick={() => handleDeleteBooking(b.id)}
+                                  className="py-3 bg-rose-950 hover:bg-rose-900 border border-rose-900 text-rose-400 font-black text-xs rounded-xl shadow transition cursor-pointer text-center"
+                                >
+                                  🗑️ Delete
+                                </button>
                               </div>
-
-                              <div className="flex items-center gap-2.5 text-neutral-300">
-                                <span className="text-neutral-400 text-sm">👥</span>
-                                <span className="text-neutral-400">Guests:</span>
-                                <span className="font-extrabold text-white">{(b.adults || 1) + (b.children || 0)}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2.5 text-neutral-300">
-                                <span className="text-neutral-400 text-sm">📅</span>
-                                <span className="text-neutral-400">Dates:</span>
-                                <span className="font-extrabold text-white">{checkInDate} → {checkOutDate}</span>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-2 pt-1">
-                                <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
-                                  <span className="text-[10px] text-neutral-400 block">Total Stay:</span>
-                                  <span className="text-amber-400 font-black text-sm">${totalStay}</span>
-                                </div>
-                                <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
-                                  <span className="text-[10px] text-neutral-400 block">30% Deposit Due:</span>
-                                  <span className="text-emerald-400 font-black text-sm">${depositDue}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800 space-y-1">
-                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block">
-                                📝 GUEST NOTES:
-                              </span>
-                              <p className="text-xs text-neutral-300 font-medium leading-relaxed">
-                                {specialNotes}
-                              </p>
                             </div>
                           </div>
-
-                          <div className="space-y-2 pt-1">
-                            {!isConfirmed && (
-                              <button
-                                onClick={() => handleApproveBooking(b.id)}
-                                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition text-center"
-                              >
-                                ⚡ Approve Cash / MoMo
-                              </button>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <a
-                                href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${paymentWhatsAppText}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
-                              >
-                                <span>💬</span> WhatsApp Payment
-                              </a>
-                              
-                              <button
-                                onClick={() => handleDeleteBooking(b.id)}
-                                className="py-3 bg-rose-950 hover:bg-rose-900 border border-rose-900 text-rose-400 font-black text-xs rounded-xl shadow transition cursor-pointer text-center"
-                              >
-                                🗑️ Delete
-                              </button>
-                            </div>
-                          </div>
-
-                        </div>
-                      )
-                    })}
-                  </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* PROPERTIES TAB */}
+              {/* TAB 2: PROPERTIES */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
                   <h3 className="text-base font-black text-white">Managed Listings</h3>
@@ -318,6 +322,58 @@ export default function HostOperationsHub() {
                         </div>
                       )
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: TASKS */}
+              {activeTab === 'tasks' && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-white">Housekeeping & Operations Tasks</h3>
+                  {tasks.length === 0 ? (
+                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
+                      No operational tasks active.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {tasks.map((t) => (
+                        <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-4 rounded-2xl space-y-2">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-bold text-white text-sm">{t.title || 'Task Item'}</h4>
+                            <span className="text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded">
+                              {t.status || 'PENDING'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-neutral-400">{t.description || 'No description provided.'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* TAB 4: UPSELLS */}
+              {activeTab === 'upsells' && (
+                <div className="space-y-4">
+                  <h3 className="text-base font-black text-white">Platform Add-On Services</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {upsells.map((u) => (
+                      <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-2xl">{u.icon || '✨'}</span>
+                            <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                              +${u.price}
+                            </span>
+                          </div>
+                          <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
+                          <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
+                        </div>
+                        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
+                          {u.category || 'Service'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
