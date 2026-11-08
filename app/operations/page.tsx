@@ -17,18 +17,10 @@ export default function HostOperationsHub() {
   const [cohosts, setCohosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
-
-  // Search Query State
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Custom Property Name Modal State
-  const [showNameModal, setShowNameModal] = useState(false)
-  const [selectedPropForName, setSelectedPropForName] = useState<any>(null)
-  const [customPropNameInput, setCustomPropNameInput] = useState('')
-
-  // Edit Entire Listing Modal State
+  // Edit Entire Listing Modal State (Including Photos)
   const [showEditListingModal, setShowEditListingModal] = useState(false)
   const [editingProperty, setEditingProperty] = useState<any>({
     id: '',
@@ -36,25 +28,33 @@ export default function HostOperationsHub() {
     custom_name: '',
     price: '',
     location: '',
-    category: 'Apartment'
+    category: 'Apartment',
+    imagesText: ''
   })
 
-  // iCal OTA Sync Modal State
-  const [showICalModal, setShowICalModal] = useState(false)
-  const [selectedPropertyForICal, setSelectedPropertyForICal] = useState<any>(null)
-  const [icalInputUrl, setIcalInputUrl] = useState('')
+  // Co-Host Add Modal State
+  const [showCoHostModal, setShowCoHostModal] = useState(false)
+  const [newCoHost, setNewCoHost] = useState({
+    name: '',
+    specialty: '',
+    location: '',
+    rating: '5.0',
+    phone: '',
+    bio: '',
+    image_url: ''
+  })
 
-  // Task Dispatch Modal State
-  const [showTaskModal, setShowTaskModal] = useState(false)
-  const [newTask, setNewTask] = useState({
-    property_id: '',
+  // Upsell Modal State
+  const [showUpsellModal, setShowUpsellModal] = useState(false)
+  const [newUpsell, setNewUpsell] = useState({
     title: '',
     description: '',
-    priority: 'HIGH',
-    assignee: 'Housekeeping Team'
+    price: '',
+    category: 'Service',
+    icon: '✨'
   })
 
-  // Booking, Expense & Upsell Modal States
+  // Booking & Expense Modals
   const [showAddModal, setShowAddModal] = useState(false)
   const [manualBooking, setManualBooking] = useState({
     property_id: '',
@@ -65,15 +65,6 @@ export default function HostOperationsHub() {
     check_out: '',
     total_price: '',
     guest_notes: ''
-  })
-
-  const [showUpsellModal, setShowUpsellModal] = useState(false)
-  const [newUpsell, setNewUpsell] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: 'Service',
-    icon: '✨'
   })
 
   const [showExpenseModal, setShowExpenseModal] = useState(false)
@@ -108,50 +99,23 @@ export default function HostOperationsHub() {
       if (expenseRes.data) setExpenses(expenseRes.data)
       if (cohostRes.data) setCohosts(cohostRes.data)
     } catch (err) {
-      console.error('Error loading operations data:', err)
+      console.error('Error loading data:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  // SAVE CUSTOM PROPERTY NAME
-  const handleSaveCustomName = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedPropForName) return
-
-    try {
-      const { error } = await supabase
-        .from('properties')
-        .update({ custom_name: customPropNameInput, title: customPropNameInput })
-        .eq('id', selectedPropForName.id)
-
-      if (error) throw error
-
-      alert('✅ Property layout/name updated successfully!')
-      setShowNameModal(false)
-      setSelectedPropForName(null)
-      setCustomPropNameInput('')
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error saving property name: ' + err.message)
-    }
-  }
-
-  const openNameModal = (property: any) => {
-    setSelectedPropForName(property)
-    setCustomPropNameInput(property.custom_name || property.title || '')
-    setShowNameModal(true)
-  }
-
-  // EDIT ENTIRE LISTING
+  // FULL LISTING & PHOTO EDITOR
   const openEditListingModal = (property: any) => {
+    const imgArray = Array.isArray(property.images) ? property.images : property.image_url ? [property.image_url] : []
     setEditingProperty({
       id: property.id,
       title: property.title || '',
       custom_name: property.custom_name || '',
       price: property.price || '',
       location: property.location || '',
-      category: property.category || 'Apartment'
+      category: property.category || 'Apartment',
+      imagesText: imgArray.join('\n')
     })
     setShowEditListingModal(true)
   }
@@ -159,20 +123,26 @@ export default function HostOperationsHub() {
   const handleSaveFullListing = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const parsedImages = editingProperty.imagesText
+        ? editingProperty.imagesText.split('\n').map((url: string) => url.trim()).filter(Boolean)
+        : []
+
       const { error } = await supabase
         .from('properties')
         .update({
-          title: editingProperty.title,
+          title: editingProperty.custom_name,
           custom_name: editingProperty.custom_name,
           price: parseFloat(editingProperty.price) || 0,
           location: editingProperty.location,
-          category: editingProperty.category
+          category: editingProperty.category,
+          images: parsedImages,
+          image_url: parsedImages[0] || null
         })
         .eq('id', editingProperty.id)
 
       if (error) throw error
 
-      alert('✅ Property listing updated successfully!')
+      alert('✅ Property listing and photos updated successfully!')
       setShowEditListingModal(false)
       fetchHostData()
     } catch (err: any) {
@@ -180,197 +150,43 @@ export default function HostOperationsHub() {
     }
   }
 
-  // SAVE OTA ICAL LINK
-  const handleSaveICalUrl = async (e: React.FormEvent) => {
+  // CO-HOST MANAGEMENT
+  const handleCreateCoHost = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedPropertyForICal) return
-
     try {
-      const { error } = await supabase
-        .from('properties')
-        .update({ ical_url: icalInputUrl })
-        .eq('id', selectedPropertyForICal.id)
-
+      const { error } = await supabase.from('co_hosts').insert([
+        {
+          name: newCoHost.name,
+          specialty: newCoHost.specialty,
+          location: newCoHost.location,
+          rating: parseFloat(newCoHost.rating) || 5.0,
+          phone: newCoHost.phone,
+          bio: newCoHost.bio,
+          image_url: newCoHost.image_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
+        }
+      ])
       if (error) throw error
-
-      alert('✅ OTA Channel iCal link connected!')
-      setShowICalModal(false)
-      setSelectedPropertyForICal(null)
-      setIcalInputUrl('')
+      alert('✅ Co-host added to marketplace!')
+      setShowCoHostModal(false)
+      setNewCoHost({ name: '', specialty: '', location: '', rating: '5.0', phone: '', bio: '', image_url: '' })
       fetchHostData()
     } catch (err: any) {
-      alert('Error saving iCal link: ' + err.message)
+      alert('Error adding co-host: ' + err.message)
     }
   }
 
-  const openICalModal = (property: any) => {
-    setSelectedPropertyForICal(property)
-    setIcalInputUrl(property.ical_url || '')
-    setShowICalModal(true)
-  }
-
-  // DISPATCH CUSTOM TASK
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleDeleteCoHost = async (id: number) => {
+    if (!confirm('Are you sure you want to remove this co-host from the marketplace?')) return
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const selectedProp = properties.find((p) => String(p.id) === String(newTask.property_id))
-      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'General Operation'
-
-      const { error } = await supabase.from('tasks').insert([
-        {
-          host_id: user?.id || null,
-          property_title: propTitle,
-          title: newTask.title,
-          description: newTask.description,
-          priority: newTask.priority,
-          assignee: newTask.assignee,
-          status: 'PENDING'
-        }
-      ])
-
+      const { error } = await supabase.from('co_hosts').delete().eq('id', id)
       if (error) throw error
-
-      alert(`⚡ Task dispatched with ${newTask.priority} priority!`)
-      setShowTaskModal(false)
-      setNewTask({ property_id: '', title: '', description: '', priority: 'HIGH', assignee: 'Housekeeping Team' })
       fetchHostData()
     } catch (err: any) {
-      alert('Error dispatching task: ' + err.message)
+      alert('Error removing co-host: ' + err.message)
     }
   }
 
-  // APPROVE BOOKING & AUTO-DISPATCH HOUSEKEEPING
-  const handleApproveBooking = async (booking: any) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-
-      await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
-
-      if (booking.property_id) {
-        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
-      }
-
-      const matchingProp = properties.find(p => String(p.id) === String(booking.property_id))
-      const propTitle = booking.property_title || matchingProp?.custom_name || matchingProp?.title || '2 Bedroom Executive Apartment'
-      const guestName = cleanGuestName(booking.guest_name)
-      const checkInDate = booking.check_in || booking.checkIn || booking.check_in_date || 'Upcoming'
-      const checkOutDate = booking.check_out || booking.checkOut || booking.check_out_date || 'Departure'
-
-      await supabase.from('tasks').insert([
-        {
-          host_id: user?.id || null,
-          property_title: propTitle,
-          title: `🔥 URGENT Pre-Arrival Prep: ${propTitle}`,
-          description: `Prepare listing for guest ${guestName}. Check-in: ${checkInDate}`,
-          priority: 'URGENT',
-          assignee: 'Cleaning Supervisor',
-          status: 'PENDING'
-        },
-        {
-          host_id: user?.id || null,
-          property_title: propTitle,
-          title: `🧹 Turnover Checkout: ${propTitle}`,
-          description: `Housekeeping turnover after departure on ${checkOutDate}`,
-          priority: 'HIGH',
-          assignee: 'Housekeeping Team',
-          status: 'PENDING'
-        }
-      ])
-
-      fetchHostData()
-      alert('✅ Booking approved! Property tagged OCCUPIED and tasks queued!')
-    } catch (err: any) {
-      alert('Error approving booking: ' + err.message)
-    }
-  }
-
-  const handleCreateManualBooking = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const selectedProp = properties.find((p) => String(p.id) === String(manualBooking.property_id))
-      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'Direct Host Booking'
-
-      const { error: bookingErr } = await supabase.from('bookings').insert([
-        {
-          host_id: user?.id || null,
-          property_id: manualBooking.property_id,
-          property_title: propTitle,
-          guest_name: manualBooking.guest_name,
-          phone: manualBooking.phone,
-          purpose: manualBooking.purpose,
-          check_in: manualBooking.check_in,
-          check_out: manualBooking.check_out,
-          total_price: parseFloat(manualBooking.total_price) || 0,
-          guest_notes: manualBooking.guest_notes || 'Manual direct booking',
-          status: 'CONFIRMED'
-        }
-      ])
-
-      if (bookingErr) throw bookingErr
-
-      await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', manualBooking.property_id)
-
-      await supabase.from('tasks').insert([
-        {
-          host_id: user?.id || null,
-          property_title: propTitle,
-          title: `🔥 URGENT Pre-Arrival Prep: ${propTitle}`,
-          description: `Prepare listing for guest ${manualBooking.guest_name}. Check-in: ${manualBooking.check_in}`,
-          priority: 'URGENT',
-          assignee: 'Housekeeping Team',
-          status: 'PENDING'
-        },
-        {
-          host_id: user?.id || null,
-          property_title: propTitle,
-          title: `🧹 Turnover Checkout: ${propTitle}`,
-          description: `Housekeeping required after departure on ${manualBooking.check_out}`,
-          priority: 'HIGH',
-          assignee: 'Housekeeping Team',
-          status: 'PENDING'
-        }
-      ])
-
-      alert('✅ Reservation confirmed! Tasks auto-queued.')
-      setShowAddModal(false)
-      setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error creating booking: ' + err.message)
-    }
-  }
-
-  const handleCreateExpense = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      const selectedProp = properties.find((p) => String(p.id) === String(newExpense.property_id))
-      const propTitle = selectedProp?.custom_name || selectedProp?.title || 'General Operational Expense'
-
-      const { error } = await supabase.from('expenses').insert([
-        {
-          host_id: user?.id || null,
-          property_id: newExpense.property_id || null,
-          property_title: propTitle,
-          title: newExpense.title,
-          amount: parseFloat(newExpense.amount) || 0,
-          category: newExpense.category,
-          date: newExpense.date
-        }
-      ])
-
-      if (error) throw error
-      alert('✅ Operational expense recorded!')
-      setShowExpenseModal(false)
-      setNewExpense({ property_id: '', title: '', amount: '', category: 'Utilities', date: new Date().toISOString().split('T')[0] })
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error recording expense: ' + err.message)
-    }
-  }
-
+  // UPSELL MANAGEMENT
   const handleCreateUpsell = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -385,7 +201,7 @@ export default function HostOperationsHub() {
         }
       ])
       if (error) throw error
-      alert('✅ New add-on service created!')
+      alert('✅ Add-on service created!')
       setShowUpsellModal(false)
       setNewUpsell({ title: '', description: '', price: '', category: 'Service', icon: '✨' })
       fetchHostData()
@@ -394,92 +210,39 @@ export default function HostOperationsHub() {
     }
   }
 
-  const handleUpdateTaskStatus = async (taskId: string | number, newStatus: string) => {
+  const handleDeleteUpsell = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this upsell service?')) return
     try {
-      const { error } = await supabase.from('tasks').update({ status: newStatus }).eq('id', taskId)
-      if (error) throw error
+      await supabase.from('upsell_services').delete().eq('id', id)
       fetchHostData()
     } catch (err: any) {
-      alert('Error updating task: ' + err.message)
+      alert('Error deleting upsell: ' + err.message)
     }
   }
 
-  const handleDeleteTask = async (taskId: string | number) => {
+  // BOOKING / EXPENSE / TASKS HELPERS
+  const handleApproveBooking = async (booking: any) => {
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
-      if (error) throw error
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error deleting task: ' + err.message)
-    }
-  }
-
-  const handleDeleteExpense = async (expenseId: string | number) => {
-    if (!confirm('Are you sure you want to delete this expense?')) return
-    try {
-      await supabase.from('expenses').delete().eq('id', expenseId)
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error deleting expense: ' + err.message)
-    }
-  }
-
-  const handleDeleteBooking = async (bookingId: string | number) => {
-    if (!confirm('Are you sure you want to delete this booking?')) return
-    try {
-      await supabase.from('bookings').delete().eq('id', bookingId)
-      fetchHostData()
-    } catch (err: any) {
-      alert('Error deleting booking: ' + err.message)
-    }
-  }
-
-  const openBookingModalForProperty = (propertyId: string | number) => {
-    setManualBooking({
-      property_id: String(propertyId),
-      guest_name: '',
-      phone: '',
-      purpose: 'Direct Walk-in',
-      check_in: '',
-      check_out: '',
-      total_price: '',
-      guest_notes: ''
-    })
-    setShowAddModal(true)
-  }
-
-  const cleanGuestName = (rawName: string) => {
-    if (!rawName) return 'Valued Guest'
-    if (rawName.includes('|')) {
-      const parts = rawName.split('|')
-      for (let part of parts) {
-        if (part.includes('Guest:')) return part.replace('Guest:', '').trim()
+      await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
+      if (booking.property_id) {
+        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
       }
-      return parts[0].replace(/Prop:/i, '').replace(/\[/g, '').replace(/\]/g, '').trim()
+      fetchHostData()
+      alert('✅ Booking confirmed and property marked OCCUPIED!')
+    } catch (err: any) {
+      alert('Error: ' + err.message)
     }
-    return rawName.trim()
   }
 
-  const cleanPhone = (b: any) => {
-    if (b.phone && b.phone.trim()) return b.phone.trim()
-    if (b.guest_name && b.guest_name.includes('Ph:')) {
-      const match = b.guest_name.match(/Ph:\s*([^\s|]+)/)
-      if (match && match[1]) return match[1]
-    }
-    return '+256757386946'
+  const handleDeleteBooking = async (id: number) => {
+    if (!confirm('Delete booking?')) return
+    await supabase.from('bookings').delete().eq('id', id)
+    fetchHostData()
   }
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority?.toUpperCase()) {
-      case 'URGENT':
-        return 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-      case 'HIGH':
-        return 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-      case 'MEDIUM':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30'
-      default:
-        return 'bg-neutral-800 text-neutral-400 border-neutral-700'
-    }
+  const handleDeleteExpense = async (id: number) => {
+    await supabase.from('expenses').delete().eq('id', id)
+    fetchHostData()
   }
 
   const filteredProperties = properties.filter((p) =>
@@ -487,12 +250,6 @@ export default function HostOperationsHub() {
     (p.location || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const filteredTasks = tasks.filter((t) => {
-    if (priorityFilter === 'ALL') return true
-    return (t.priority || 'MEDIUM').toUpperCase() === priorityFilter
-  })
-
-  // Financial Calculations
   const confirmedBookings = bookings.filter((b) => b.status === 'CONFIRMED')
   const totalRevenue = confirmedBookings.reduce((acc, b) => acc + (parseFloat(b.total_price) || 150), 0)
   const totalExpenses = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
@@ -504,7 +261,7 @@ export default function HostOperationsHub() {
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* QUICK SEARCH BAR */}
+          {/* QUICK SEARCH */}
           <div className="relative">
             <input
               type="text"
@@ -513,91 +270,29 @@ export default function HostOperationsHub() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition shadow-lg"
             />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-white"
-              >
-                Clear ✕
-              </button>
-            )}
           </div>
 
-          {/* NAVIGATION TABS */}
+          {/* TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
-            <button
-              onClick={() => setActiveTab('properties')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🏠 Properties ({properties.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('bookings')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              📅 Bookings & Inquiries ({bookings.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🧹 Dispatch & Tasks ({tasks.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('ledger')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              💰 Ledger & Financials
-            </button>
-            <button
-              onClick={() => setActiveTab('upsells')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              ✨ Upsells ({upsells.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('cohosts')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
-                activeTab === 'cohosts' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
-              }`}
-            >
-              🤝 Co-Host Marketplace ({cohosts.length})
-            </button>
+            <button onClick={() => setActiveTab('properties')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>🏠 Properties ({properties.length})</button>
+            <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>📅 Bookings ({bookings.length})</button>
+            <button onClick={() => setActiveTab('tasks')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'tasks' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>🧹 Dispatch ({tasks.length})</button>
+            <button onClick={() => setActiveTab('ledger')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>💰 Ledger</button>
+            <button onClick={() => setActiveTab('upsells')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>✨ Upsells ({upsells.length})</button>
+            <button onClick={() => setActiveTab('cohosts')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'cohosts' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>🤝 Co-Hosts ({cohosts.length})</button>
           </div>
 
           {loading ? (
-            <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">
-              Loading operations hub...
-            </div>
+            <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">Loading operations hub...</div>
           ) : (
             <>
-              {/* TAB: PROPERTIES */}
+              {/* PROPERTIES TAB */}
               {activeTab === 'properties' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-black text-white">Managed Listings & Property Layouts</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{filteredProperties.length} Properties Registered</span>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredProperties.map((p) => {
                       const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
-                      const isOccupied = p.status === 'OCCUPIED'
-                      const hasICal = Boolean(p.ical_url)
                       const displayTitle = p.custom_name || p.title || 'Executive Apartment'
-
                       return (
                         <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
                           <div className="relative aspect-[16/10] bg-neutral-950">
@@ -606,62 +301,22 @@ export default function HostOperationsHub() {
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
                             )}
-                            <div className="absolute top-3 left-3 flex gap-2">
-                              <span className="bg-black/80 backdrop-blur-md text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
-                                {p.category || 'Apartment'}
-                              </span>
-                              {isOccupied && (
-                                <span className="bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase shadow-lg">
-                                  🔴 OCCUPIED
-                                </span>
-                              )}
-                            </div>
+                            <span className="absolute top-3 left-3 bg-black/80 text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
+                              {gallery.length} Photos
+                            </span>
                           </div>
-
                           <div className="p-4 space-y-3">
                             <div className="flex justify-between items-baseline">
                               <h4 className="font-black text-white text-base truncate">{displayTitle}</h4>
                               <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
                             </div>
                             <p className="text-xs text-neutral-400">📍 {p.location}</p>
-
-                            <div className="bg-neutral-950 p-2.5 rounded-xl border border-neutral-800 flex items-center justify-between text-[11px]">
-                              <span className="text-neutral-400 font-medium">OTA Channel Sync:</span>
-                              <span className={`font-black ${hasICal ? 'text-emerald-400' : 'text-amber-400'}`}>
-                                {hasICal ? '🟢 Connected' : '⚪ Not Linked'}
-                              </span>
-                            </div>
-
-                            <div className="space-y-2 pt-1">
-                              <button
-                                onClick={() => openBookingModalForProperty(p.id)}
-                                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl transition shadow cursor-pointer text-center"
-                              >
-                                ⚡ Book Property & Account Revenue
-                              </button>
-
-                              <button
-                                onClick={() => openEditListingModal(p)}
-                                className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
-                              >
-                                ✏️ Edit Entire Listing (Price, Location, etc.)
-                              </button>
-
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  onClick={() => openNameModal(p)}
-                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
-                                >
-                                  ✏️ Layout Title
-                                </button>
-                                <button
-                                  onClick={() => openICalModal(p)}
-                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
-                                >
-                                  🔗 iCal Sync
-                                </button>
-                              </div>
-                            </div>
+                            <button
+                              onClick={() => openEditListingModal(p)}
+                              className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              ✏️ Edit Entire Listing & Photos
+                            </button>
                           </div>
                         </div>
                       )
@@ -670,435 +325,114 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* TAB: BOOKINGS */}
+              {/* BOOKINGS TAB */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-black text-white">Guest Reservations & Inquiries</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{bookings.length} Total</span>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
-                        setShowAddModal(true)
-                      }}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
-                    >
-                      <span>➕</span> Manual Booking & Calendar Lock
-                    </button>
-                  </div>
-
-                  {bookings.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No active bookings found.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {bookings.map((b) => {
-                        const totalStay = b.total_price || 150
-                        const depositDue = Math.round(totalStay * 0.3)
-                        const isConfirmed = b.status === 'CONFIRMED'
-                        const guestName = cleanGuestName(b.guest_name)
-                        const phoneNum = cleanPhone(b)
-
-                        const rawTitle = b.property_title || '2 Bedroom Executive Apartment'
-                        const propertyBrandTitle = rawTitle.toLowerCase().includes('la estancia')
-                          ? rawTitle
-                          : `La Estancia | ${rawTitle}`
-
-                        const checkInDate = b.check_in || b.checkIn || b.check_in_date || b.start_date || 'N/A'
-                        const checkOutDate = b.check_out || b.checkOut || b.check_out_date || b.end_date || 'N/A'
-                        const specialNotes = b.guest_notes || b.notes || 'No special requests'
-
-                        const paymentWhatsAppText = encodeURIComponent(
-                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${propertyBrandTitle}*.\n\n` +
-                          `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
-                          `💰 *Total Stay:* $${totalStay}\n` +
-                          `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
-                          `Please complete your deposit payment via Mobile Money or Card. Reply with your payment code once sent!`
-                        )
-
-                        return (
-                          <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-2xl flex flex-col justify-between">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start gap-3">
-                                <h4 className="font-black text-white text-sm leading-snug">{propertyBrandTitle}</h4>
-                                <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
-                                  isConfirmed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {b.status || 'PENDING'}
-                                </span>
-                              </div>
-
-                              <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-3 text-xs">
-                                <div className="flex items-center gap-2.5 text-neutral-300">
-                                  <span className="text-neutral-400">👤 Guest:</span>
-                                  <span className="font-extrabold text-white">{guestName}</span>
-                                </div>
-                                <div className="flex items-center gap-2.5 text-neutral-300">
-                                  <span className="text-neutral-400">💬 Phone:</span>
-                                  <span className="font-extrabold text-emerald-400">{phoneNum}</span>
-                                </div>
-                                <div className="flex items-center gap-2.5 text-neutral-300">
-                                  <span className="text-neutral-400">📅 Dates:</span>
-                                  <span className="font-extrabold text-white">{checkInDate} → {checkOutDate}</span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                  <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
-                                    <span className="text-[10px] text-neutral-400 block">Total Stay:</span>
-                                    <span className="text-amber-400 font-black text-sm">${totalStay}</span>
-                                  </div>
-                                  <div className="bg-neutral-900 border border-neutral-800 px-3 py-2 rounded-lg">
-                                    <span className="text-[10px] text-neutral-400 block">30% Deposit:</span>
-                                    <span className="text-emerald-400 font-black text-sm">${depositDue}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block mb-0.5">Guest Notes:</span>
-                                <p className="text-xs text-neutral-300">{specialNotes}</p>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 pt-1">
-                              {!isConfirmed && (
-                                <button
-                                  onClick={() => handleApproveBooking(b)}
-                                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition text-center"
-                                >
-                                  ⚡ Approve Cash/MoMo & Account Revenue
-                                </button>
-                              )}
-                              <div className="grid grid-cols-2 gap-2">
-                                <a
-                                  href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${paymentWhatsAppText}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
-                                >
-                                  💬 WhatsApp
-                                </a>
-                                <button
-                                  onClick={() => handleDeleteBooking(b.id)}
-                                  className="py-3 bg-rose-950 hover:bg-rose-900 border border-rose-900 text-rose-400 font-black text-xs rounded-xl shadow transition cursor-pointer text-center"
-                                >
-                                  🗑️ Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* TAB: TASKS */}
-              {activeTab === 'tasks' && (
-                <div className="space-y-5">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                      <h3 className="text-base font-black text-white">Operations & Housekeeping Dispatch Queue</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{filteredTasks.length} Active Tasks</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex bg-neutral-900 border border-neutral-800 rounded-xl p-1 gap-1 text-[11px] font-bold">
-                        {['ALL', 'URGENT', 'HIGH', 'MEDIUM'].map((level) => (
-                          <button
-                            key={level}
-                            onClick={() => setPriorityFilter(level)}
-                            className={`px-2.5 py-1 rounded-lg transition ${
-                              priorityFilter === level ? 'bg-amber-500 text-black' : 'text-neutral-400 hover:text-white'
-                            }`}
-                          >
-                            {level}
-                          </button>
-                        ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {bookings.map((b) => (
+                      <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-black text-white text-sm">{b.property_title || 'Stay'}</h4>
+                          <span className={`text-[10px] font-black px-2.5 py-1 rounded border ${b.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`}>{b.status}</span>
+                        </div>
+                        <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
+                          <p className="text-white font-bold">👤 {b.guest_name}</p>
+                          <p className="text-amber-400 font-bold">${b.total_price}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {b.status !== 'CONFIRMED' && (
+                            <button onClick={() => handleApproveBooking(b)} className="w-1/2 py-2 bg-amber-500 text-black font-black text-xs rounded-xl cursor-pointer">Approve</button>
+                          )}
+                          <button onClick={() => handleDeleteBooking(b.id)} className="w-1/2 py-2 bg-rose-950 text-rose-400 font-black text-xs rounded-xl cursor-pointer">Delete</button>
+                        </div>
                       </div>
-
-                      <button
-                        onClick={() => setShowTaskModal(true)}
-                        className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-1.5"
-                      >
-                        <span>⚡</span> Dispatch Custom Task
-                      </button>
-                    </div>
+                    ))}
                   </div>
-
-                  {filteredTasks.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No active tasks in this queue. Click "⚡ Dispatch Custom Task" or confirm a booking to queue housekeeping jobs.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {filteredTasks.map((t) => {
-                        const isDone = t.status === 'COMPLETED'
-                        const priorityClass = getPriorityBadge(t.priority)
-
-                        const taskWhatsAppText = encodeURIComponent(
-                          `🚨 *${t.property_title || 'LA ESTANCIA'} - TASK DISPATCH*\n\n` +
-                          `📌 *Task:* ${t.title}\n` +
-                          `🏠 *Listing:* ${t.property_title || 'Vacation Stay'}\n` +
-                          `🔥 *Urgency:* ${t.priority || 'HIGH'}\n` +
-                          `👤 *Assigned Crew:* ${t.assignee || 'Housekeeping Team'}\n\n` +
-                          `📝 *Instructions:* ${t.description || 'Standard turnover clean'}\n\n` +
-                          `Please confirm once completed!`
-                        )
-
-                        return (
-                          <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
-                            <div className="space-y-3">
-                              <div className="flex justify-between items-start gap-2">
-                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded border uppercase ${priorityClass}`}>
-                                  {t.priority || 'MEDIUM'} URGENCY
-                                </span>
-                                <span className={`text-[10px] font-black px-2 py-0.5 rounded border ${
-                                  isDone ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                }`}>
-                                  {t.status || 'PENDING'}
-                                </span>
-                              </div>
-
-                              <div className="space-y-1">
-                                <h4 className="font-black text-white text-sm leading-snug">{t.title}</h4>
-                                <p className="text-xs text-neutral-400 leading-relaxed">{t.description || 'No special instructions.'}</p>
-                              </div>
-
-                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs space-y-1">
-                                <div className="text-neutral-400 text-[11px]">
-                                  🏠 Listing: <span className="text-white font-bold">{t.property_title || 'General Operation'}</span>
-                                </div>
-                                <div className="text-neutral-400 text-[11px]">
-                                  👤 Assigned To: <span className="text-amber-400 font-bold">{t.assignee || 'Housekeeping Team'}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="space-y-2 pt-2 border-t border-neutral-800">
-                              <a
-                                href={`https://api.whatsapp.com/send?phone=256757386946&text=${taskWhatsAppText}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                              >
-                                💬 Coordinate on WhatsApp
-                              </a>
-
-                              <div className="flex justify-between items-center pt-1">
-                                <button
-                                  onClick={() => handleUpdateTaskStatus(t.id, isDone ? 'PENDING' : 'COMPLETED')}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition cursor-pointer ${
-                                    isDone ? 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700' : 'bg-amber-500 hover:bg-amber-400 text-black'
-                                  }`}
-                                >
-                                  {isDone ? '↩️ Mark Pending' : '✅ Complete Task'}
-                                </button>
-
-                                <button
-                                  onClick={() => handleDeleteTask(t.id)}
-                                  className="text-xs text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                                >
-                                  🗑️ Remove
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
                 </div>
               )}
 
-              {/* TAB: LEDGER */}
+              {/* TASKS TAB */}
+              {activeTab === 'tasks' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {tasks.map((t) => (
+                      <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2">
+                        <h4 className="font-black text-white text-sm">{t.title}</h4>
+                        <p className="text-xs text-neutral-400">{t.description}</p>
+                        <button onClick={async () => { await supabase.from('tasks').delete().eq('id', t.id); fetchHostData(); }} className="text-xs text-rose-400 font-bold cursor-pointer">Remove Task</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* LEDGER TAB */}
               {activeTab === 'ledger' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">CONFIRMED REVENUE</span>
-                      <div className="text-2xl font-black text-emerald-400">${totalRevenue.toLocaleString()}</div>
-                      <span className="text-[10px] text-neutral-500 block">From {confirmedBookings.length} confirmed stays</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">TOTAL OPERATIONAL EXPENSES</span>
-                      <div className="text-2xl font-black text-rose-400">${totalExpenses.toLocaleString()}</div>
-                      <span className="text-[10px] text-neutral-500 block">Rent, utilities, gas, maintenance</span>
-                    </div>
-
-                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-2 shadow-xl">
-                      <span className="text-xs text-neutral-400 font-bold block">NET PROFIT</span>
-                      <div className={`text-2xl font-black ${netProfit >= 0 ? 'text-amber-400' : 'text-rose-500'}`}>
-                        ${netProfit.toLocaleString()}
-                      </div>
-                      <span className="text-[10px] text-neutral-500 block">Revenue minus operational bills</span>
-                    </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="bg-neutral-900 p-4 rounded-xl"><span className="text-xs text-neutral-400">Revenue</span><div className="text-xl font-black text-emerald-400">${totalRevenue}</div></div>
+                    <div className="bg-neutral-900 p-4 rounded-xl"><span className="text-xs text-neutral-400">Expenses</span><div className="text-xl font-black text-rose-400">${totalExpenses}</div></div>
+                    <div className="bg-neutral-900 p-4 rounded-xl"><span className="text-xs text-neutral-400">Net Profit</span><div className="text-xl font-black text-amber-400">${netProfit}</div></div>
                   </div>
-
-                  <div className="flex justify-between items-center pt-4 border-t border-neutral-800">
-                    <div>
-                      <h3 className="text-base font-black text-white">Expense Allocation & Operational Bills</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{expenses.length} Expense Records</span>
-                    </div>
-
-                    <button
-                      onClick={() => setShowExpenseModal(true)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
-                    >
-                      <span>➕</span> Log New Expense / Bill
-                    </button>
-                  </div>
-
-                  {expenses.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No expenses logged yet. Click "Log New Expense / Bill" to add rent, utilities, or maintenance costs.
-                    </div>
-                  ) : (
-                    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead className="bg-neutral-950 text-neutral-400 uppercase font-black border-b border-neutral-800">
-                            <tr>
-                              <th className="p-4">Date</th>
-                              <th className="p-4">Expense Title</th>
-                              <th className="p-4">Property</th>
-                              <th className="p-4">Category</th>
-                              <th className="p-4">Amount</th>
-                              <th className="p-4 text-right">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-neutral-800">
-                            {expenses.map((e) => (
-                              <tr key={e.id} className="hover:bg-neutral-800/50 transition">
-                                <td className="p-4 text-neutral-400 font-medium">{e.date || 'N/A'}</td>
-                                <td className="p-4 font-extrabold text-white">{e.title}</td>
-                                <td className="p-4 text-neutral-300">{e.property_title || 'General Operation'}</td>
-                                <td className="p-4">
-                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-md text-[10px] font-black">
-                                    {e.category || 'Utilities'}
-                                  </span>
-                                </td>
-                                <td className="p-4 font-black text-rose-400">-${e.amount}</td>
-                                <td className="p-4 text-right">
-                                  <button
-                                    onClick={() => handleDeleteExpense(e.id)}
-                                    className="text-rose-400 hover:text-rose-300 font-bold cursor-pointer"
-                                  >
-                                    🗑️ Remove
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  <div className="space-y-2">
+                    {expenses.map((e) => (
+                      <div key={e.id} className="bg-neutral-900 p-3 rounded-xl flex justify-between items-center text-xs">
+                        <span>{e.title} (-${e.amount})</span>
+                        <button onClick={() => handleDeleteExpense(e.id)} className="text-rose-400 font-bold cursor-pointer">Delete</button>
                       </div>
-                    </div>
-                  )}
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* TAB: UPSELLS */}
+              {/* UPSELLS TAB */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-black text-white">Platform Add-On Services Catalog</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{upsells.length} Active Offerings</span>
-                    </div>
-
-                    <button
-                      onClick={() => setShowUpsellModal(true)}
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
-                    >
-                      <span>➕</span> Add New Service
-                    </button>
+                    <h3 className="text-base font-black text-white">Upsell Services Catalog</h3>
+                    <button onClick={() => setShowUpsellModal(true)} className="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl cursor-pointer">➕ Add New Service</button>
                   </div>
-
-                  {upsells.length === 0 ? (
-                    <div className="py-12 text-center text-neutral-500 text-xs font-bold bg-neutral-900/50 rounded-2xl border border-neutral-800">
-                      No upsell services created yet. Click "+ Add New Service" to create your first offering.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {upsells.map((u) => (
-                        <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-2xl">{u.icon || '✨'}</span>
-                              <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                                +${u.price || u.price_usd || 0}
-                              </span>
-                            </div>
-                            <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
-                            <p className="text-xs text-neutral-400 leading-relaxed">{u.description}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {upsells.map((u) => (
+                      <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-2xl">{u.icon || '✨'}</span>
+                            <span className="text-xs font-black text-amber-400">+${u.price || u.price_usd || 0}</span>
                           </div>
-                          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider block pt-2 border-t border-neutral-800">
-                            {u.category || 'Service'}
-                          </span>
+                          <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
+                          <p className="text-xs text-neutral-400">{u.description}</p>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 text-rose-400 text-xs font-bold rounded-xl cursor-pointer">🗑️ Remove Service</button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* TAB: CO-HOST MARKETPLACE */}
+              {/* CO-HOST MARKETPLACE TAB */}
               {activeTab === 'cohosts' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="text-base font-black text-white">Verified Co-Host Marketplace</h3>
-                      <span className="text-xs text-neutral-400 font-bold">Connect with expert co-hosts for your properties</span>
-                    </div>
+                    <h3 className="text-base font-black text-white">Co-Host Marketplace</h3>
+                    <button onClick={() => setShowCoHostModal(true)} className="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl cursor-pointer">➕ Add New Co-Host</button>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {cohosts.map((ch) => {
-                      const cohostWhatsAppText = encodeURIComponent(
-                        `Hello ${ch.name}! 👋 I found your profile on *La Estancia Vacation Homes Marketplace* and would love to connect regarding co-hosting properties in ${ch.location}. Let's discuss!`
-                      )
-
-                      return (
-                        <div key={ch.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                              <img src={ch.image_url || 'https://via.placeholder.com/150'} alt={ch.name} className="w-14 h-14 rounded-full object-cover border border-amber-500/30" />
-                              <div>
-                                <h4 className="font-black text-white text-sm">{ch.name}</h4>
-                                <span className="text-[11px] text-amber-400 font-bold">⭐ {ch.rating} Rating</span>
-                              </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {cohosts.map((ch) => (
+                      <div key={ch.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 flex flex-col justify-between">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <img src={ch.image_url} alt={ch.name} className="w-12 h-12 rounded-full object-cover border border-amber-500/30" />
+                            <div>
+                              <h4 className="font-black text-white text-sm">{ch.name}</h4>
+                              <span className="text-[11px] text-amber-400 font-bold">⭐ {ch.rating} Rating</span>
                             </div>
-
-                            <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1.5 text-xs">
-                              <div className="text-neutral-300">
-                                <span className="text-neutral-400">🎯 Specialty:</span> <span className="font-bold text-white">{ch.specialty}</span>
-                              </div>
-                              <div className="text-neutral-300">
-                                <span className="text-neutral-400">📍 Location:</span> <span className="font-bold text-white">{ch.location}</span>
-                              </div>
-                            </div>
-
-                            <p className="text-xs text-neutral-400 leading-relaxed">{ch.bio}</p>
                           </div>
-
-                          <div className="pt-2 border-t border-neutral-800">
-                            <a
-                              href={`https://api.whatsapp.com/send?phone=${ch.phone.replace(/[^0-9]/g, '')}&text=${cohostWhatsAppText}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
-                            >
-                              💬 Connect with Co-Host on WhatsApp
-                            </a>
-                          </div>
+                          <p className="text-xs text-neutral-400">{ch.bio}</p>
                         </div>
-                      )
-                    })}
+                        <button onClick={() => handleDeleteCoHost(ch.id)} className="w-full py-2 bg-rose-950 hover:bg-rose-900 text-rose-400 font-black text-xs rounded-xl cursor-pointer">🗑️ Remove Co-Host</button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -1107,597 +441,73 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* PROPERTY LAYOUT / NAME MODAL */}
-      {showNameModal && selectedPropForName && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-white">Set Property Layout Name</h3>
-                <p className="text-xs text-neutral-400">Specify property type (e.g. 2 Bedroom Executive Apartment)</p>
-              </div>
-              <button onClick={() => setShowNameModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleSaveCustomName} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Property Layout Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 2 Bedroom Executive Apartment - Kisaasi"
-                  value={customPropNameInput}
-                  onChange={(e) => setCustomPropNameInput(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowNameModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Save Layout Name
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT ENTIRE LISTING MODAL */}
+      {/* EDIT LISTING & PHOTOS MODAL */}
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 text-xs">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-white">Edit Property Listing</h3>
-                <p className="text-xs text-neutral-400">Update pricing, location, and layout details</p>
-              </div>
-              <button onClick={() => setShowEditListingModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+              <h3 className="text-sm font-black text-white">Edit Listing Details & Photos</h3>
+              <button onClick={() => setShowEditListingModal(false)} className="text-neutral-400">✕</button>
             </div>
-
-            <form onSubmit={handleSaveFullListing} className="space-y-4 text-xs">
+            <form onSubmit={handleSaveFullListing} className="space-y-3">
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">Property Layout / Display Title</label>
-                <input
-                  type="text"
-                  required
-                  value={editingProperty.custom_name}
-                  onChange={(e) => setEditingProperty({ ...editingProperty, custom_name: e.target.value, title: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold"
-                />
+                <label className="block text-neutral-400 font-bold mb-1">Listing Title / Layout</label>
+                <input type="text" required value={editingProperty.custom_name} onChange={(e) => setEditingProperty({ ...editingProperty, custom_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Nightly Price ($ USD)</label>
-                  <input
-                    type="number"
-                    required
-                    value={editingProperty.price}
-                    onChange={(e) => setEditingProperty({ ...editingProperty, price: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold text-amber-400"
-                  />
+                  <label className="block text-neutral-400 font-bold mb-1">Price ($/night)</label>
+                  <input type="number" required value={editingProperty.price} onChange={(e) => setEditingProperty({ ...editingProperty, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold text-amber-400" />
                 </div>
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
-                  <select
-                    value={editingProperty.category}
-                    onChange={(e) => setEditingProperty({ ...editingProperty, category: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Apartment">Apartment</option>
-                    <option value="Villa">Villa</option>
-                    <option value="Mansion">Mansion</option>
-                    <option value="House">House</option>
-                  </select>
+                  <label className="block text-neutral-400 font-bold mb-1">Location</label>
+                  <input type="text" required value={editingProperty.location} onChange={(e) => setEditingProperty({ ...editingProperty, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
                 </div>
               </div>
-
               <div>
-                <label className="block text-neutral-400 font-bold mb-1">Location / Neighborhood</label>
-                <input
-                  type="text"
-                  required
-                  value={editingProperty.location}
-                  onChange={(e) => setEditingProperty({ ...editingProperty, location: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
+                <label className="block text-neutral-400 font-bold mb-1">Property Image URLs (One image URL per line)</label>
+                <textarea rows={4} value={editingProperty.imagesText} onChange={(e) => setEditingProperty({ ...editingProperty, imagesText: e.target.value })} placeholder="https://images.unsplash.com/..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-mono text-[11px]" />
               </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditListingModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Save Changes
-                </button>
-              </div>
+              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">⚡ Save Property & Photos</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* MULTI-CHANNEL OTA ICAL LINK MODAL */}
-      {showICalModal && selectedPropertyForICal && (
+      {/* ADD CO-HOST MODAL */}
+      {showCoHostModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-white">Import OTA Calendar (Airbnb, Booking.com, Vrbo)</h3>
-                <p className="text-xs text-neutral-400">{selectedPropertyForICal.custom_name || selectedPropertyForICal.title}</p>
-              </div>
-              <button onClick={() => setShowICalModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+              <h3 className="text-sm font-black text-white">Add Co-Host to Marketplace</h3>
+              <button onClick={() => setShowCoHostModal(false)} className="text-neutral-400">✕</button>
             </div>
-
-            <form onSubmit={handleSaveICalUrl} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Channel Calendar iCal URL (.ics)</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://.../calendar/ical/... or .ics link"
-                  value={icalInputUrl}
-                  onChange={(e) => setIcalInputUrl(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-mono text-[11px]"
-                />
-              </div>
-
-              <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-2 text-[11px] text-neutral-400">
-                <span className="font-bold text-amber-400 block uppercase tracking-wider">💡 Supported Booking Platforms:</span>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li><strong>Airbnb:</strong> Listing $\rightarrow$ Pricing & availability $\rightarrow$ Export Calendar.</li>
-                  <li><strong>Booking.com:</strong> Extranet $\rightarrow$ Rates & Availability $\rightarrow$ Sync calendars $\rightarrow$ Export.</li>
-                  <li><strong>Vrbo / Expedia:</strong> Calendar Settings $\rightarrow$ Export Calendar.</li>
-                </ul>
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowICalModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Connect Channel Link
-                </button>
-              </div>
+            <form onSubmit={handleCreateCoHost} className="space-y-3">
+              <input type="text" required placeholder="Co-Host Name" value={newCoHost.name} onChange={(e) => setNewCoHost({ ...newCoHost, name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Specialty (e.g. Guest Comms)" value={newCoHost.specialty} onChange={(e) => setNewCoHost({ ...newCoHost, specialty: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Location (e.g. Entebbe)" value={newCoHost.location} onChange={(e) => setNewCoHost({ ...newCoHost, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="WhatsApp Phone (+256...)" value={newCoHost.phone} onChange={(e) => setNewCoHost({ ...newCoHost, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" placeholder="Profile Photo URL" value={newCoHost.image_url} onChange={(e) => setNewCoHost({ ...newCoHost, image_url: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea rows={2} placeholder="Short Bio" value={newCoHost.bio} onChange={(e) => setNewCoHost({ ...newCoHost, bio: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">⚡ Add Co-Host</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* DISPATCH TASK MODAL */}
-      {showTaskModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-base font-black text-white">Dispatch New Operational Task</h3>
-              <button onClick={() => setShowTaskModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleCreateTask} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Select Listing (Optional)</label>
-                <select
-                  value={newTask.property_id}
-                  onChange={(e) => setNewTask({ ...newTask, property_id: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                >
-                  <option value="">-- General Operation --</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.custom_name || p.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Task Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Deep clean backsplash tiles & worktop"
-                  value={newTask.title}
-                  onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Urgency / Priority</label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="URGENT">🔴 URGENT</option>
-                    <option value="HIGH">🟡 HIGH</option>
-                    <option value="MEDIUM">🔵 MEDIUM</option>
-                    <option value="LOW">⚪ LOW</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Assigned Crew</label>
-                  <select
-                    value={newTask.assignee}
-                    onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Housekeeping Team">Housekeeping Team</option>
-                    <option value="Cleaning Supervisor">Cleaning Supervisor</option>
-                    <option value="Maintenance Tech">Maintenance Tech</option>
-                    <option value="Property Host">Property Host</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Detailed Instructions</label>
-                <textarea
-                  rows={3}
-                  placeholder="Specific tasks, keys location, or guest requirements..."
-                  value={newTask.description}
-                  onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowTaskModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Dispatch Task
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MANUAL BOOKING MODAL */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-base font-black text-white">Direct Booking & Revenue Accounting</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleCreateManualBooking} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Select Property</label>
-                <select
-                  required
-                  value={manualBooking.property_id}
-                  onChange={(e) => setManualBooking({ ...manualBooking, property_id: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                >
-                  <option value="">-- Choose Listing --</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.custom_name || p.title} (${p.price}/night)</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Guest Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Full Name"
-                    value={manualBooking.guest_name}
-                    onChange={(e) => setManualBooking({ ...manualBooking, guest_name: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">WhatsApp / Phone</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="+256..."
-                    value={manualBooking.phone}
-                    onChange={(e) => setManualBooking({ ...manualBooking, phone: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Check-In Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={manualBooking.check_in}
-                    onChange={(e) => setManualBooking({ ...manualBooking, check_in: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Check-Out Date</label>
-                  <input
-                    type="date"
-                    required
-                    value={manualBooking.check_out}
-                    onChange={(e) => setManualBooking({ ...manualBooking, check_out: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Total Agreed Price ($)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="150"
-                    value={manualBooking.total_price}
-                    onChange={(e) => setManualBooking({ ...manualBooking, total_price: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Booking Source</label>
-                  <select
-                    value={manualBooking.purpose}
-                    onChange={(e) => setManualBooking({ ...manualBooking, purpose: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Direct Walk-in">Direct Walk-in</option>
-                    <option value="Instagram / Phone">Instagram / Phone</option>
-                    <option value="Repeat Guest">Repeat Guest</option>
-                    <option value="Agent Referral">Agent Referral</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Host Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Paid cash upon key handover..."
-                  value={manualBooking.guest_notes}
-                  onChange={(e) => setManualBooking({ ...manualBooking, guest_notes: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Confirm & Account Revenue
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* EXPENSE MODAL */}
-      {showExpenseModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-base font-black text-white">Log Operational Expense / Bill</h3>
-              <button onClick={() => setShowExpenseModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleCreateExpense} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Select Property (Optional)</label>
-                <select
-                  value={newExpense.property_id}
-                  onChange={(e) => setNewExpense({ ...newExpense, property_id: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                >
-                  <option value="">-- General Platform Expense --</option>
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.id}>{p.custom_name || p.title}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Expense Description</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Monthly Rent, Gas Refill, Wifi Bill"
-                  value={newExpense.title}
-                  onChange={(e) => setNewExpense({ ...newExpense, title: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Amount ($ USD)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="120"
-                    value={newExpense.amount}
-                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
-                  <select
-                    value={newExpense.category}
-                    onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Utilities">Utilities (Water/Power)</option>
-                    <option value="Rent">Property Rent / Lease</option>
-                    <option value="Maintenance">Maintenance & Repairs</option>
-                    <option value="Consumables">Supplies & Gas</option>
-                    <option value="Marketing">Marketing / Ads</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={newExpense.date}
-                  onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowExpenseModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Record Expense
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* UPSELL MODAL */}
+      {/* ADD UPSELL MODAL */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-base font-black text-white">Create Add-On / Upsell Service</h3>
-              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+              <h3 className="text-sm font-black text-white">Create Add-On Service</h3>
+              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400">✕</button>
             </div>
-
-            <form onSubmit={handleCreateUpsell} className="space-y-4 text-xs">
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-1">
-                  <label className="block text-neutral-400 font-bold mb-1">Emoji Icon</label>
-                  <input
-                    type="text"
-                    placeholder="🚗"
-                    value={newUpsell.icon}
-                    onChange={(e) => setNewUpsell({ ...newUpsell, icon: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 text-center"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-neutral-400 font-bold mb-1">Service Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Airport Transfer"
-                    value={newUpsell.title}
-                    onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Price ($ USD)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="45"
-                    value={newUpsell.price}
-                    onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
-                  <select
-                    value={newUpsell.category}
-                    onChange={(e) => setNewUpsell({ ...newUpsell, category: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Transport">Transport</option>
-                    <option value="Dining">Dining</option>
-                    <option value="Flexibility">Flexibility</option>
-                    <option value="Cleaning">Cleaning</option>
-                    <option value="Experience">Experience</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-neutral-400 font-bold mb-1">Service Description</label>
-                <textarea
-                  rows={2}
-                  placeholder="Describe what is included in this add-on package..."
-                  value={newUpsell.description}
-                  onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowUpsellModal(false)}
-                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
-                >
-                  ⚡ Save Service
-                </button>
-              </div>
+            <form onSubmit={handleCreateUpsell} className="space-y-3">
+              <input type="text" required placeholder="Service Title (e.g. Airport Transfer)" value={newUpsell.title} onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="number" required placeholder="Price ($)" value={newUpsell.price} onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea rows={2} placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">⚡ Save Service</button>
             </form>
           </div>
         </div>
