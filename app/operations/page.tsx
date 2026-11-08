@@ -72,12 +72,18 @@ export default function HostOperationsHub() {
   const fetchHostData = async () => {
     setLoading(true)
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
       const [propsRes, bookRes, taskRes, upsellRes, expenseRes, cohostRes] = await Promise.all([
-        supabase.from('properties').select('*').order('id', { ascending: false }),
-        supabase.from('bookings').select('*').order('id', { ascending: false }),
-        supabase.from('tasks').select('*').order('id', { ascending: false }),
+        supabase.from('properties').select('*').eq('host_id', user.id).order('id', { ascending: false }),
+        supabase.from('bookings').select('*').eq('host_id', user.id).order('id', { ascending: false }),
+        supabase.from('tasks').select('*').eq('host_id', user.id).order('id', { ascending: false }),
         supabase.from('upsell_services').select('*').order('id', { ascending: true }),
-        supabase.from('expenses').select('*').order('id', { ascending: false }),
+        supabase.from('expenses').select('*').eq('host_id', user.id).order('id', { ascending: false }),
         supabase.from('co_hosts').select('*').order('id', { ascending: true })
       ])
 
@@ -173,6 +179,9 @@ export default function HostOperationsHub() {
   const handleSaveFullListing = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const { error } = await supabase
         .from('properties')
         .update({
@@ -183,7 +192,8 @@ export default function HostOperationsHub() {
           category: editingProperty.category,
           images: editingProperty.images,
           image_url: editingProperty.images[0] || null,
-          amenities: editingProperty.amenities
+          amenities: editingProperty.amenities,
+          host_id: user.id
         })
         .eq('id', editingProperty.id)
 
@@ -219,6 +229,9 @@ export default function HostOperationsHub() {
   const handleCreateManualBooking = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const selectedProp = properties.find((p) => String(p.id) === String(manualBooking.property_id))
       const propTitle = selectedProp?.custom_name || selectedProp?.title || 'Direct Booking'
 
@@ -226,6 +239,7 @@ export default function HostOperationsHub() {
         {
           property_id: manualBooking.property_id,
           property_title: propTitle,
+          host_id: user.id,
           guest_name: manualBooking.guest_name,
           phone: manualBooking.phone,
           purpose: manualBooking.purpose,
