@@ -8,21 +8,36 @@ import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells'>('properties')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells' | 'cohosts'>('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [upsells, setUpsells] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
+  const [cohosts, setCohosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // Priority Filter State
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL')
 
+  // Search Query State
+  const [searchQuery, setSearchQuery] = useState('')
+
   // Custom Property Name Modal State
   const [showNameModal, setShowNameModal] = useState(false)
   const [selectedPropForName, setSelectedPropForName] = useState<any>(null)
   const [customPropNameInput, setCustomPropNameInput] = useState('')
+
+  // Edit Entire Listing Modal State
+  const [showEditListingModal, setShowEditListingModal] = useState(false)
+  const [editingProperty, setEditingProperty] = useState<any>({
+    id: '',
+    title: '',
+    custom_name: '',
+    price: '',
+    location: '',
+    category: 'Apartment'
+  })
 
   // iCal OTA Sync Modal State
   const [showICalModal, setShowICalModal] = useState(false)
@@ -77,12 +92,13 @@ export default function HostOperationsHub() {
   const fetchHostData = async () => {
     setLoading(true)
     try {
-      const [propsRes, bookRes, taskRes, upsellRes, expenseRes] = await Promise.all([
+      const [propsRes, bookRes, taskRes, upsellRes, expenseRes, cohostRes] = await Promise.all([
         supabase.from('properties').select('*').order('id', { ascending: false }),
         supabase.from('bookings').select('*').order('id', { ascending: false }),
         supabase.from('tasks').select('*').order('id', { ascending: false }),
         supabase.from('upsell_services').select('*').order('id', { ascending: true }),
-        supabase.from('expenses').select('*').order('id', { ascending: false })
+        supabase.from('expenses').select('*').order('id', { ascending: false }),
+        supabase.from('co_hosts').select('*').order('id', { ascending: true })
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
@@ -90,6 +106,7 @@ export default function HostOperationsHub() {
       if (taskRes.data) setTasks(taskRes.data)
       if (upsellRes.data) setUpsells(upsellRes.data)
       if (expenseRes.data) setExpenses(expenseRes.data)
+      if (cohostRes.data) setCohosts(cohostRes.data)
     } catch (err) {
       console.error('Error loading operations data:', err)
     } finally {
@@ -97,7 +114,7 @@ export default function HostOperationsHub() {
     }
   }
 
-  // SAVE CUSTOM PROPERTY NAME (e.g. 2 Bedroom Executive Apartment)
+  // SAVE CUSTOM PROPERTY NAME
   const handleSaveCustomName = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedPropForName) return
@@ -124,6 +141,43 @@ export default function HostOperationsHub() {
     setSelectedPropForName(property)
     setCustomPropNameInput(property.custom_name || property.title || '')
     setShowNameModal(true)
+  }
+
+  // EDIT ENTIRE LISTING
+  const openEditListingModal = (property: any) => {
+    setEditingProperty({
+      id: property.id,
+      title: property.title || '',
+      custom_name: property.custom_name || '',
+      price: property.price || '',
+      location: property.location || '',
+      category: property.category || 'Apartment'
+    })
+    setShowEditListingModal(true)
+  }
+
+  const handleSaveFullListing = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({
+          title: editingProperty.title,
+          custom_name: editingProperty.custom_name,
+          price: parseFloat(editingProperty.price) || 0,
+          location: editingProperty.location,
+          category: editingProperty.category
+        })
+        .eq('id', editingProperty.id)
+
+      if (error) throw error
+
+      alert('✅ Property listing updated successfully!')
+      setShowEditListingModal(false)
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error updating listing: ' + err.message)
+    }
   }
 
   // SAVE OTA ICAL LINK
@@ -325,6 +379,7 @@ export default function HostOperationsHub() {
           title: newUpsell.title,
           description: newUpsell.description,
           price: parseFloat(newUpsell.price) || 0,
+          price_usd: parseFloat(newUpsell.price) || 0,
           category: newUpsell.category,
           icon: newUpsell.icon || '✨'
         }
@@ -427,6 +482,11 @@ export default function HostOperationsHub() {
     }
   }
 
+  const filteredProperties = properties.filter((p) =>
+    (p.custom_name || p.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.location || '').toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
   const filteredTasks = tasks.filter((t) => {
     if (priorityFilter === 'ALL') return true
     return (t.priority || 'MEDIUM').toUpperCase() === priorityFilter
@@ -444,6 +504,25 @@ export default function HostOperationsHub() {
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+          {/* QUICK SEARCH BAR */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="🔍 Quick search properties, guests, or tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition shadow-lg"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-white"
+              >
+                Clear ✕
+              </button>
+            )}
+          </div>
+
           {/* NAVIGATION TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
             <button
@@ -486,6 +565,14 @@ export default function HostOperationsHub() {
             >
               ✨ Upsells ({upsells.length})
             </button>
+            <button
+              onClick={() => setActiveTab('cohosts')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'cohosts' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+              }`}
+            >
+              🤝 Co-Host Marketplace ({cohosts.length})
+            </button>
           </div>
 
           {loading ? (
@@ -500,12 +587,12 @@ export default function HostOperationsHub() {
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="text-base font-black text-white">Managed Listings & Property Layouts</h3>
-                      <span className="text-xs text-neutral-400 font-bold">{properties.length} Properties Registered</span>
+                      <span className="text-xs text-neutral-400 font-bold">{filteredProperties.length} Properties Registered</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {properties.map((p) => {
+                    {filteredProperties.map((p) => {
                       const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
                       const isOccupied = p.status === 'OCCUPIED'
                       const hasICal = Boolean(p.ical_url)
@@ -553,12 +640,19 @@ export default function HostOperationsHub() {
                                 ⚡ Book Property & Account Revenue
                               </button>
 
+                              <button
+                                onClick={() => openEditListingModal(p)}
+                                className="w-full py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
+                              >
+                                ✏️ Edit Entire Listing (Price, Location, etc.)
+                              </button>
+
                               <div className="grid grid-cols-2 gap-2">
                                 <button
                                   onClick={() => openNameModal(p)}
-                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
+                                  className="py-2 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-200 font-bold text-[11px] rounded-xl transition cursor-pointer text-center flex items-center justify-center gap-1"
                                 >
-                                  ✏️ Edit Layout Name
+                                  ✏️ Layout Title
                                 </button>
                                 <button
                                   onClick={() => openICalModal(p)}
@@ -609,7 +703,6 @@ export default function HostOperationsHub() {
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
 
-                        // Format string so guest sees La Estancia + Specific Property Layout (e.g. 2 Bedroom Apartment)
                         const rawTitle = b.property_title || '2 Bedroom Executive Apartment'
                         const propertyBrandTitle = rawTitle.toLowerCase().includes('la estancia')
                           ? rawTitle
@@ -938,7 +1031,7 @@ export default function HostOperationsHub() {
                             <div className="flex justify-between items-center">
                               <span className="text-2xl">{u.icon || '✨'}</span>
                               <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
-                                +${u.price}
+                                +${u.price || u.price_usd || 0}
                               </span>
                             </div>
                             <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
@@ -951,6 +1044,62 @@ export default function HostOperationsHub() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB: CO-HOST MARKETPLACE */}
+              {activeTab === 'cohosts' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Verified Co-Host Marketplace</h3>
+                      <span className="text-xs text-neutral-400 font-bold">Connect with expert co-hosts for your properties</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {cohosts.map((ch) => {
+                      const cohostWhatsAppText = encodeURIComponent(
+                        `Hello ${ch.name}! 👋 I found your profile on *La Estancia Vacation Homes Marketplace* and would love to connect regarding co-hosting properties in ${ch.location}. Let's discuss!`
+                      )
+
+                      return (
+                        <div key={ch.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                              <img src={ch.image_url || 'https://via.placeholder.com/150'} alt={ch.name} className="w-14 h-14 rounded-full object-cover border border-amber-500/30" />
+                              <div>
+                                <h4 className="font-black text-white text-sm">{ch.name}</h4>
+                                <span className="text-[11px] text-amber-400 font-bold">⭐ {ch.rating} Rating</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1.5 text-xs">
+                              <div className="text-neutral-300">
+                                <span className="text-neutral-400">🎯 Specialty:</span> <span className="font-bold text-white">{ch.specialty}</span>
+                              </div>
+                              <div className="text-neutral-300">
+                                <span className="text-neutral-400">📍 Location:</span> <span className="font-bold text-white">{ch.location}</span>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-neutral-400 leading-relaxed">{ch.bio}</p>
+                          </div>
+
+                          <div className="pt-2 border-t border-neutral-800">
+                            <a
+                              href={`https://api.whatsapp.com/send?phone=${ch.phone.replace(/[^0-9]/g, '')}&text=${cohostWhatsAppText}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                            >
+                              💬 Connect with Co-Host on WhatsApp
+                            </a>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </>
@@ -996,6 +1145,87 @@ export default function HostOperationsHub() {
                   className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
                 >
                   ⚡ Save Layout Name
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ENTIRE LISTING MODAL */}
+      {showEditListingModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-white">Edit Property Listing</h3>
+                <p className="text-xs text-neutral-400">Update pricing, location, and layout details</p>
+              </div>
+              <button onClick={() => setShowEditListingModal(false)} className="text-neutral-400 hover:text-white font-bold text-sm">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveFullListing} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Layout / Display Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProperty.custom_name}
+                  onChange={(e) => setEditingProperty({ ...editingProperty, custom_name: e.target.value, title: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Nightly Price ($ USD)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editingProperty.price}
+                    onChange={(e) => setEditingProperty({ ...editingProperty, price: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500 font-bold text-amber-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Category</label>
+                  <select
+                    value={editingProperty.category}
+                    onChange={(e) => setEditingProperty({ ...editingProperty, category: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Apartment">Apartment</option>
+                    <option value="Villa">Villa</option>
+                    <option value="Mansion">Mansion</option>
+                    <option value="House">House</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Location / Neighborhood</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProperty.location}
+                  onChange={(e) => setEditingProperty({ ...editingProperty, location: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowEditListingModal(false)}
+                  className="w-1/2 py-3 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl transition shadow cursor-pointer"
+                >
+                  ⚡ Save Changes
                 </button>
               </div>
             </form>
