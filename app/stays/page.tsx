@@ -118,18 +118,22 @@ export default function BrowseStaysPage() {
       }
 
       const occupantsText = `${adultsCount} Adult(s), ${childrenCount} Child(ren)`
+      const compiledNotes = `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`
 
       const { error } = await supabase.from('bookings').insert([
         {
+          property_id: selectedPropertyForBooking.id,
           property_title: selectedPropertyForBooking.title,
           guest_name: guestName,
-          guest_phone: guestContact,
+          phone: guestContact,
+          guest_phone: guestContact, // Supports both schema variants
           check_in: checkInDate,
           check_out: checkOutDate,
           total_price: totalAmount,
           total_amount: totalAmount,
-          status: 'Pending Host Review',
-          notes: `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`,
+          status: 'PENDING',
+          guest_notes: compiledNotes,
+          notes: compiledNotes,
         },
       ])
 
