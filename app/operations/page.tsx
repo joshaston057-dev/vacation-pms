@@ -31,7 +31,7 @@ export default function HostOperationsHub() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Edit Entire Listing Modal State
+  // Edit Listing Modal
   const [showEditListingModal, setShowEditListingModal] = useState(false)
   const [uploadingImages, setUploadingImages] = useState(false)
   const [editingProperty, setEditingProperty] = useState<any>({
@@ -45,7 +45,7 @@ export default function HostOperationsHub() {
     amenities: []
   })
 
-  // Manual Booking Modal State
+  // Manual Booking Modal
   const [showAddModal, setShowAddModal] = useState(false)
   const [manualBooking, setManualBooking] = useState({
     property_id: '',
@@ -94,7 +94,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // OPEN EDIT LISTING
   const openEditListingModal = (property: any) => {
     const imgArray = Array.isArray(property.images) ? property.images : property.image_url ? [property.image_url] : []
     const amenitiesArray = Array.isArray(property.amenities) ? property.amenities : ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave']
@@ -112,7 +111,6 @@ export default function HostOperationsHub() {
     setShowEditListingModal(true)
   }
 
-  // DIRECT DEVICE FILE UPLOAD TO SUPABASE STORAGE
   const handleDeviceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -144,9 +142,9 @@ export default function HostOperationsHub() {
       }
 
       setEditingProperty({ ...editingProperty, images: updatedImages })
-      alert('✅ Photos uploaded successfully from your device!')
+      alert('✅ Photos uploaded successfully!')
     } catch (err: any) {
-      alert('Upload Error: ' + err.message + '\n\nNote: Make sure your Supabase storage bucket "property-images" is created and public.')
+      alert('Upload Error: ' + err.message)
     } finally {
       setUploadingImages(false)
     }
@@ -191,7 +189,7 @@ export default function HostOperationsHub() {
 
       if (error) throw error
 
-      alert('✅ Property listing, photos, and amenities updated successfully!')
+      alert('✅ Listing updated successfully!')
       setShowEditListingModal(false)
       fetchHostData()
     } catch (err: any) {
@@ -199,7 +197,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  // BOOKING HANDLERS
   const handleApproveBooking = async (booking: any) => {
     try {
       await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
@@ -207,14 +204,14 @@ export default function HostOperationsHub() {
         await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
       }
       fetchHostData()
-      alert('✅ Booking confirmed and property marked OCCUPIED!')
+      alert('✅ Booking confirmed!')
     } catch (err: any) {
       alert('Error: ' + err.message)
     }
   }
 
   const handleDeleteBooking = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this booking?')) return
+    if (!confirm('Delete booking?')) return
     await supabase.from('bookings').delete().eq('id', id)
     fetchHostData()
   }
@@ -241,7 +238,6 @@ export default function HostOperationsHub() {
       ])
 
       if (error) throw error
-
       await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', manualBooking.property_id)
 
       alert('✅ Reservation confirmed & calendar locked!')
@@ -249,7 +245,7 @@ export default function HostOperationsHub() {
       setManualBooking({ property_id: '', guest_name: '', phone: '', purpose: 'Direct Walk-in', check_in: '', check_out: '', total_price: '', guest_notes: '' })
       fetchHostData()
     } catch (err: any) {
-      alert('Error creating booking: ' + err.message)
+      alert('Error: ' + err.message)
     }
   }
 
@@ -274,7 +270,6 @@ export default function HostOperationsHub() {
     return '+256757386946'
   }
 
-  // CO-HOST & UPSELL HANDLERS
   const handleCreateCoHost = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -319,7 +314,6 @@ export default function HostOperationsHub() {
         <HeaderNav />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-          {/* SEARCH */}
           <div className="relative">
             <input
               type="text"
@@ -330,7 +324,6 @@ export default function HostOperationsHub() {
             />
           </div>
 
-          {/* TABS */}
           <div className="flex items-center border-b border-neutral-800 pb-4 overflow-x-auto gap-2 scrollbar-none">
             <button onClick={() => setActiveTab('properties')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'properties' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>🏠 Properties ({properties.length})</button>
             <button onClick={() => setActiveTab('bookings')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'bookings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>📅 Bookings ({bookings.length})</button>
@@ -344,7 +337,6 @@ export default function HostOperationsHub() {
             <div className="py-12 text-center text-xs font-bold text-neutral-500 animate-pulse">Loading operations hub...</div>
           ) : (
             <>
-              {/* PROPERTIES TAB */}
               {activeTab === 'properties' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                   {filteredProperties.map((p) => {
@@ -381,7 +373,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* BOOKINGS TAB */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -410,9 +401,9 @@ export default function HostOperationsHub() {
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
                         const rawTitle = b.property_title || 'Executive Apartment'
-                        const checkInDate = b.check_in || b.checkIn || 'N/A'
-                        const checkOutDate = b.check_out || b.checkOut || 'N/A'
-                        const specialNotes = b.guest_notes || b.notes || 'No special requests'
+                        const checkInDate = b.check_in || 'N/A'
+                        const checkOutDate = b.check_out || 'N/A'
+                        const specialNotes = b.guest_notes || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
                           `Hello ${guestName}! 👋 Thank you for your inquiry for *${rawTitle}*.\n\n` +
@@ -490,7 +481,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* UPSELLS TAB */}
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -515,7 +505,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* CO-HOSTS TAB */}
               {activeTab === 'cohosts' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -549,7 +538,6 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT LISTING MODAL */}
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs my-8 shadow-2xl">
@@ -575,7 +563,6 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
-              {/* DIRECT DEVICE UPLOAD */}
               <div className="space-y-2">
                 <label className="block text-neutral-400 font-bold">Property Photos (Upload from Device)</label>
                 <input
@@ -603,7 +590,6 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
-              {/* CHECKBOX AMENITIES */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
                 <label className="block text-neutral-400 font-bold">Property Amenities (Select applicable)</label>
                 <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
@@ -636,7 +622,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* MANUAL BOOKING MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-xs">
@@ -710,7 +695,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* ADD CO-HOST MODAL */}
       {showCoHostModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
@@ -731,7 +715,6 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* ADD UPSELL MODAL */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
