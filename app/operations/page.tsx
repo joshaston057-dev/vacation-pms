@@ -20,7 +20,6 @@ export default function HostOperationsHub() {
 
   // Edit Entire Listing Modal State (Photos & Amenities)
   const [showEditListingModal, setShowEditListingModal] = useState(false)
-  const [uploadingImages, setUploadingImages] = useState(false)
   const [editingProperty, setEditingProperty] = useState<any>({
     id: '',
     title: '',
@@ -28,10 +27,9 @@ export default function HostOperationsHub() {
     price: '',
     location: '',
     category: 'Apartment',
-    images: [],
-    amenities: []
+    imagesText: '',
+    amenitiesText: ''
   })
-  const [amenityInput, setAmenityInput] = useState('')
 
   // Modals for other tabs
   const [showCoHostModal, setShowCoHostModal] = useState(false)
@@ -81,74 +79,23 @@ export default function HostOperationsHub() {
       price: property.price || '',
       location: property.location || '',
       category: property.category || 'Apartment',
-      images: imgArray,
-      amenities: amenitiesArray
+      imagesText: imgArray.join('\n'),
+      amenitiesText: amenitiesArray.join(', ')
     })
     setShowEditListingModal(true)
-  }
-
-  // DIRECT FILE UPLOAD TO SUPABASE STORAGE
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    setUploadingImages(true)
-    try {
-      const uploadedUrls: string[] = [...editingProperty.images]
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Math.random().toString(36.substring(2))}-${Date.now()}.${fileExt}`
-        const filePath = `listings/${fileName}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, file)
-
-        if (uploadError) throw uploadError
-
-        const { data: publicUrlData } = supabase.storage
-          .from('property-images')
-          .getPublicUrl(filePath)
-
-        if (publicUrlData?.publicUrl) {
-          uploadedUrls.push(publicUrlData.publicUrl)
-        }
-      }
-
-      setEditingProperty({ ...editingProperty, images: uploadedUrls })
-      alert('✅ Photos uploaded successfully from your device!')
-    } catch (err: any) {
-      alert('Error uploading files: ' + err.message + '. Make sure your Supabase storage bucket "property-images" is created and public.')
-    } finally {
-      setUploadingImages(false)
-    }
-  }
-
-  const handleRemoveImage = (indexToRemove: number) => {
-    const updated = editingProperty.images.filter((_: any, idx: number) => idx !== indexToRemove)
-    setEditingProperty({ ...editingProperty, images: updated })
-  }
-
-  // AMENITIES HANDLERS
-  const handleAddAmenity = () => {
-    if (!amenityInput.trim()) return
-    setEditingProperty({
-      ...editingProperty,
-      amenities: [...editingProperty.amenities, amenityInput.trim()]
-    })
-    setAmenityInput('')
-  }
-
-  const handleRemoveAmenity = (indexToRemove: number) => {
-    const updated = editingProperty.amenities.filter((_: any, idx: number) => idx !== indexToRemove)
-    setEditingProperty({ ...editingProperty, amenities: updated })
   }
 
   const handleSaveFullListing = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const parsedImages = editingProperty.imagesText
+        ? editingProperty.imagesText.split('\n').map((url: string) => url.trim()).filter(Boolean)
+        : []
+
+      const parsedAmenities = editingProperty.amenitiesText
+        ? editingProperty.amenitiesText.split(',').map((item: string) => item.trim()).filter(Boolean)
+        : []
+
       const { error } = await supabase
         .from('properties')
         .update({
@@ -157,9 +104,9 @@ export default function HostOperationsHub() {
           price: parseFloat(editingProperty.price) || 0,
           location: editingProperty.location,
           category: editingProperty.category,
-          images: editingProperty.images,
-          image_url: editingProperty.images[0] || null,
-          amenities: editingProperty.amenities
+          images: parsedImages,
+          image_url: parsedImages[0] || null,
+          amenities: parsedAmenities
         })
         .eq('id', editingProperty.id)
 
@@ -332,7 +279,6 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* OTHER TABS PLACEHOLDERS (Bookings, Tasks, Ledger) */}
               {activeTab === 'bookings' && <div className="text-neutral-400 text-xs">Bookings management active.</div>}
               {activeTab === 'tasks' && <div className="text-neutral-400 text-xs">Tasks dispatch active.</div>}
               {activeTab === 'ledger' && <div className="text-neutral-400 text-xs">Ledger financials active.</div>}
@@ -341,7 +287,7 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT LISTING, PHOTOS (DIRECT UPLOAD) & AMENITIES MODAL */}
+      {/* EDIT LISTING, PHOTOS & AMENITIES MODAL */}
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs my-8">
@@ -367,56 +313,14 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
-              {/* DIRECT PHOTO UPLOAD FROM DEVICE */}
-              <div className="space-y-2">
-                <label className="block text-neutral-400 font-bold">Property Photos (Direct Computer Upload)</label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-300 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
-                />
-                {uploadingImages && <p className="text-amber-400 font-bold">Uploading images to storage...</p>}
-
-                {/* THUMBNAILS PREVIEW */}
-                <div className="grid grid-cols-4 gap-2 pt-2">
-                  {editingProperty.images.map((url: string, idx: number) => (
-                    <div key={idx} className="relative aspect-square bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800 group">
-                      <img src={url} alt="listing" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px]"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Image URLs (One URL per line)</label>
+                <textarea rows={4} value={editingProperty.imagesText} onChange={(e) => setEditingProperty({ ...editingProperty, imagesText: e.target.value })} placeholder="https://images.unsplash.com/..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-mono text-[11px]" />
               </div>
 
-              {/* AMENITIES EDITOR */}
-              <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <label className="block text-neutral-400 font-bold">Property Amenities</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add amenity (e.g. Swimming Pool)"
-                    value={amenityInput}
-                    onChange={(e) => setAmenityInput(e.target.value)}
-                    className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
-                  />
-                  <button type="button" onClick={handleAddAmenity} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl cursor-pointer">Add</button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {editingProperty.amenities.map((amenity: string, idx: number) => (
-                    <span key={idx} className="bg-neutral-950 border border-neutral-800 px-3 py-1.5 rounded-xl text-neutral-300 flex items-center gap-2">
-                      {amenity}
-                      <button type="button" onClick={() => handleRemoveAmenity(idx)} className="text-rose-400 font-bold">✕</button>
-                    </span>
-                  ))}
-                </div>
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Amenities (Comma separated)</label>
+                <input type="text" value={editingProperty.amenitiesText} onChange={(e) => setEditingProperty({ ...editingProperty, amenitiesText: e.target.value })} placeholder="High-Speed WiFi, Air Conditioning, Smart TV, Kitchen" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               </div>
 
               <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl cursor-pointer">⚡ Save Listing Changes</button>
