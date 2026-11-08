@@ -380,7 +380,7 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
-              {/* BOOKINGS TAB (Restored Dates & Special Notes) */}
+              {/* BOOKINGS TAB */}
               {activeTab === 'bookings' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -551,4 +551,204 @@ export default function HostOperationsHub() {
       {/* EDIT LISTING MODAL */}
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs my-8 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white">Edit Listing, Device Photos & Amenities</h3>
+              <button onClick={() => setShowEditListingModal(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleSaveFullListing} className="space-y-4">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Listing Title / Layout</label>
+                <input type="text" required value={editingProperty.custom_name} onChange={(e) => setEditingProperty({ ...editingProperty, custom_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Price ($/night)</label>
+                  <input type="number" required value={editingProperty.price} onChange={(e) => setEditingProperty({ ...editingProperty, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold text-amber-400" />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Location</label>
+                  <input type="text" required value={editingProperty.location} onChange={(e) => setEditingProperty({ ...editingProperty, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+              </div>
+
+              {/* DIRECT DEVICE UPLOAD */}
+              <div className="space-y-2">
+                <label className="block text-neutral-400 font-bold">Property Photos (Upload from Device)</label>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleDeviceFileUpload}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-300 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
+                />
+                {uploadingImages && <p className="text-amber-400 font-bold animate-pulse">Uploading photos to Supabase Storage...</p>}
+
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                  {editingProperty.images.map((url: string, idx: number) => (
+                    <div key={idx} className="relative aspect-square bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800">
+                      <img src={url} alt="listing preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] cursor-pointer shadow"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* CHECKBOX AMENITIES */}
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="block text-neutral-400 font-bold">Property Amenities (Select applicable)</label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  {COMMON_AMENITIES.map((amenity) => {
+                    const isChecked = (editingProperty.amenities || []).includes(amenity)
+                    return (
+                      <label
+                        key={amenity}
+                        onClick={() => handleToggleAmenity(amenity)}
+                        className={`flex items-center gap-2 p-2 rounded-xl border transition cursor-pointer text-xs ${
+                          isChecked ? 'bg-amber-500/10 border-amber-500 text-white font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}}
+                          className="rounded border-neutral-800 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span className="truncate">{amenity}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl cursor-pointer shadow-lg">⚡ Save Listing Changes</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MANUAL BOOKING MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-xs">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white">Manual Booking & Calendar Lock</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            <form onSubmit={handleCreateManualBooking} className="space-y-4">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Select Property</label>
+                <select
+                  required
+                  value={manualBooking.property_id}
+                  onChange={(e) => setManualBooking({ ...manualBooking, property_id: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                >
+                  <option value="">-- Choose Listing --</option>
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.id}>{p.custom_name || p.title} (${p.price}/night)</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Guest Name</label>
+                  <input type="text" required placeholder="Full Name" value={manualBooking.guest_name} onChange={(e) => setManualBooking({ ...manualBooking, guest_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">WhatsApp Phone</label>
+                  <input type="text" required placeholder="+256..." value={manualBooking.phone} onChange={(e) => setManualBooking({ ...manualBooking, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Check-In Date</label>
+                  <input type="date" required value={manualBooking.check_in} onChange={(e) => setManualBooking({ ...manualBooking, check_in: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Check-Out Date</label>
+                  <input type="date" required value={manualBooking.check_out} onChange={(e) => setManualBooking({ ...manualBooking, check_out: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Total Agreed Price ($)</label>
+                  <input type="number" required placeholder="150" value={manualBooking.total_price} onChange={(e) => setManualBooking({ ...manualBooking, total_price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Booking Source</label>
+                  <select value={manualBooking.purpose} onChange={(e) => setManualBooking({ ...manualBooking, purpose: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white">
+                    <option value="Direct Walk-in">Direct Walk-in</option>
+                    <option value="Instagram / Phone">Instagram / Phone</option>
+                    <option value="Repeat Guest">Repeat Guest</option>
+                    <option value="Agent Referral">Agent Referral</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Special Notes / Requests</label>
+                <textarea rows={2} placeholder="e.g. Early check-in requested..." value={manualBooking.guest_notes} onChange={(e) => setManualBooking({ ...manualBooking, guest_notes: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              </div>
+
+              <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl cursor-pointer shadow">⚡ Confirm & Lock Calendar</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD CO-HOST MODAL */}
+      {showCoHostModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white">Add Co-Host</h3>
+              <button onClick={() => setShowCoHostModal(false)} className="text-neutral-400">✕</button>
+            </div>
+            <form onSubmit={handleCreateCoHost} className="space-y-3">
+              <input type="text" required placeholder="Name" value={newCoHost.name} onChange={(e) => setNewCoHost({ ...newCoHost, name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Specialty" value={newCoHost.specialty} onChange={(e) => setNewCoHost({ ...newCoHost, specialty: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Location" value={newCoHost.location} onChange={(e) => setNewCoHost({ ...newCoHost, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Phone (+256...)" value={newCoHost.phone} onChange={(e) => setNewCoHost({ ...newCoHost, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" placeholder="Photo URL" value={newCoHost.image_url} onChange={(e) => setNewCoHost({ ...newCoHost, image_url: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea rows={2} placeholder="Bio" value={newCoHost.bio} onChange={(e) => setNewCoHost({ ...newCoHost, bio: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Co-Host</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD UPSELL MODAL */}
+      {showUpsellModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white">Add Upsell Service</h3>
+              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400">✕</button>
+            </div>
+            <form onSubmit={handleCreateUpsell} className="space-y-3">
+              <input type="text" required placeholder="Service Title" value={newUpsell.title} onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="number" required placeholder="Price ($)" value={newUpsell.price} onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea rows={2} placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Service</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <Footer />
+    </main>
+  )
+}
