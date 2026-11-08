@@ -401,9 +401,10 @@ export default function HostOperationsHub() {
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
                         const rawTitle = b.property_title || 'Executive Apartment'
-                        const checkInDate = b.check_in || 'N/A'
-                        const checkOutDate = b.check_out || 'N/A'
-                        const specialNotes = b.guest_notes || 'No special requests'
+                        
+                        const checkInDate = b.check_in || b.checkin || b.start_date || b.dates || 'N/A'
+                        const checkOutDate = b.check_out || b.checkout || b.end_date || 'N/A'
+                        const specialNotes = b.guest_notes || b.notes || b.special_request || b.comment || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
                           `Hello ${guestName}! 👋 Thank you for your inquiry for *${rawTitle}*.\n\n` +
