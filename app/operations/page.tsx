@@ -7,6 +7,19 @@ import HeaderNav from '../components/HeaderNav'
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 
+const COMMON_AMENITIES = [
+  'High-Speed WiFi',
+  'Air Conditioning',
+  'Smart TV',
+  'Kitchen / Microwave',
+  'Free Parking',
+  'Washing Machine',
+  'Balcony / Garden',
+  '24/7 Security',
+  'Hot Shower',
+  'Generator Backup'
+]
+
 export default function HostOperationsHub() {
   const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells' | 'cohosts'>('properties')
   const [properties, setProperties] = useState<any[]>([])
@@ -18,7 +31,7 @@ export default function HostOperationsHub() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Edit Entire Listing Modal State (Direct Device Upload & Amenities)
+  // Edit Entire Listing Modal State (Device Upload & Checkbox Amenities)
   const [showEditListingModal, setShowEditListingModal] = useState(false)
   const [uploadingImages, setUploadingImages] = useState(false)
   const [editingProperty, setEditingProperty] = useState<any>({
@@ -31,7 +44,6 @@ export default function HostOperationsHub() {
     images: [],
     amenities: []
   })
-  const [amenityInput, setAmenityInput] = useState('')
 
   // Modals for other tabs
   const [showCoHostModal, setShowCoHostModal] = useState(false)
@@ -72,7 +84,7 @@ export default function HostOperationsHub() {
   // OPEN EDIT LISTING
   const openEditListingModal = (property: any) => {
     const imgArray = Array.isArray(property.images) ? property.images : property.image_url ? [property.image_url] : []
-    const amenitiesArray = Array.isArray(property.amenities) ? property.amenities : ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen', 'Free Parking']
+    const amenitiesArray = Array.isArray(property.amenities) ? property.amenities : ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave']
     
     setEditingProperty({
       id: property.id,
@@ -120,7 +132,7 @@ export default function HostOperationsHub() {
       setEditingProperty({ ...editingProperty, images: updatedImages })
       alert('✅ Photos uploaded successfully from your device!')
     } catch (err: any) {
-      alert('Upload Error: ' + err.message + '\n\nNote: Ensure you have created a public Supabase Storage bucket named "property-images".')
+      alert('Upload Error: ' + err.message + '\n\nNote: Make sure your Supabase storage bucket "property-images" is created and public.')
     } finally {
       setUploadingImages(false)
     }
@@ -131,19 +143,20 @@ export default function HostOperationsHub() {
     setEditingProperty({ ...editingProperty, images: filtered })
   }
 
-  // AMENITIES HANDLERS
-  const handleAddAmenity = () => {
-    if (!amenityInput.trim()) return
-    setEditingProperty({
-      ...editingProperty,
-      amenities: [...editingProperty.amenities, amenityInput.trim()]
-    })
-    setAmenityInput('')
-  }
-
-  const handleRemoveAmenity = (indexToRemove: number) => {
-    const filtered = editingProperty.amenities.filter((_: any, idx: number) => idx !== indexToRemove)
-    setEditingProperty({ ...editingProperty, amenities: filtered })
+  // TOGGLE AMENITY CHECKBOX
+  const handleToggleAmenity = (amenityName: string) => {
+    const currentAmenities = editingProperty.amenities || []
+    if (currentAmenities.includes(amenityName)) {
+      setEditingProperty({
+        ...editingProperty,
+        amenities: currentAmenities.filter((a: string) => a !== amenityName)
+      })
+    } else {
+      setEditingProperty({
+        ...editingProperty,
+        amenities: [...currentAmenities, amenityName]
+      })
+    }
   }
 
   const handleSaveFullListing = async (e: React.FormEvent) => {
@@ -340,7 +353,7 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* EDIT LISTING, DIRECT DEVICE FILE UPLOAD & AMENITIES MODAL */}
+      {/* EDIT LISTING, DIRECT DEVICE FILE UPLOAD & CHECKBOX AMENITIES MODAL */}
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs my-8 shadow-2xl">
@@ -395,26 +408,30 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
-              {/* AMENITIES TAGGER */}
+              {/* CHECKBOX AMENITIES SELECTOR */}
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <label className="block text-neutral-400 font-bold">Property Amenities</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Add amenity (e.g. Swimming Pool)"
-                    value={amenityInput}
-                    onChange={(e) => setAmenityInput(e.target.value)}
-                    className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
-                  />
-                  <button type="button" onClick={handleAddAmenity} className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white font-bold rounded-xl cursor-pointer">Add</button>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {editingProperty.amenities.map((amenity: string, idx: number) => (
-                    <span key={idx} className="bg-neutral-950 border border-neutral-800 px-3 py-1.5 rounded-xl text-neutral-300 flex items-center gap-2">
-                      {amenity}
-                      <button type="button" onClick={() => handleRemoveAmenity(idx)} className="text-rose-400 font-bold cursor-pointer">✕</button>
-                    </span>
-                  ))}
+                <label className="block text-neutral-400 font-bold">Property Amenities (Select applicable)</label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  {COMMON_AMENITIES.map((amenity) => {
+                    const isChecked = (editingProperty.amenities || []).includes(amenity)
+                    return (
+                      <label
+                        key={amenity}
+                        onClick={() => handleToggleAmenity(amenity)}
+                        className={`flex items-center gap-2 p-2 rounded-xl border transition cursor-pointer text-xs ${
+                          isChecked ? 'bg-amber-500/10 border-amber-500 text-white font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // Handled by container click
+                          className="rounded border-neutral-800 text-amber-500 focus:ring-amber-500"
+                        />
+                        <span className="truncate">{amenity}</span>
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
 
