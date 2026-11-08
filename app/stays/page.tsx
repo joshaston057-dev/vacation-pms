@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 
 interface Property {
   id: string
+  host_id?: string
   title: string
   location: string
   price_per_night?: number
@@ -120,13 +121,15 @@ export default function BrowseStaysPage() {
       const occupantsText = `${adultsCount} Adult(s), ${childrenCount} Child(ren)`
       const compiledNotes = `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`
 
+      // Step 2 Integration: Pass host_id from the property record so it links to the correct host account
       const { error } = await supabase.from('bookings').insert([
         {
           property_id: selectedPropertyForBooking.id,
           property_title: selectedPropertyForBooking.title,
+          host_id: selectedPropertyForBooking.host_id || null, 
           guest_name: guestName,
           phone: guestContact,
-          guest_phone: guestContact, // Supports both schema variants
+          guest_phone: guestContact,
           check_in: checkInDate,
           check_out: checkOutDate,
           total_price: totalAmount,
