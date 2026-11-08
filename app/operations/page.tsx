@@ -263,6 +263,7 @@ export default function HostOperationsHub() {
 
   const cleanPhone = (b: any) => {
     if (b.phone && b.phone.trim()) return b.phone.trim()
+    if (b.guest_phone && b.guest_phone.trim()) return b.guest_phone.trim()
     if (b.guest_name && b.guest_name.includes('Ph:')) {
       const match = b.guest_name.match(/Ph:\s*([^\s|]+)/)
       if (match && match[1]) return match[1]
@@ -395,15 +396,15 @@ export default function HostOperationsHub() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                       {bookings.map((b) => {
-                        const totalStay = b.total_price || 150
+                        const totalStay = b.total_price || b.total_amount || 150
                         const depositDue = Math.round(totalStay * 0.3)
                         const isConfirmed = b.status === 'CONFIRMED'
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
                         const rawTitle = b.property_title || 'Executive Apartment'
                         
-                        const checkInDate = b.check_in || b.checkin || b.start_date || b.dates || 'N/A'
-                        const checkOutDate = b.check_out || b.checkout || b.end_date || 'N/A'
+                        const checkInDate = b.check_in || b.checkin || b.start_date || b.dates || 'Not specified'
+                        const checkOutDate = b.check_out || b.checkout || b.end_date || 'Not specified'
                         const specialNotes = b.guest_notes || b.notes || b.special_request || b.comment || 'No special requests'
 
                         const paymentWhatsAppText = encodeURIComponent(
@@ -610,55 +611,59 @@ export default function HostOperationsHub() {
                           onChange={() => {}}
                           className="rounded border-neutral-800 text-amber-500 focus:ring-amber-500"
                         />
-                        <span className="truncate">{amenity}</span>
+                        {amenity}
                       </label>
                     )
                   })}
                 </div>
               </div>
 
-              <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl cursor-pointer shadow-lg">⚡ Save Listing Changes</button>
+              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800">
+                <button type="button" onClick={() => setShowEditListingModal(false)} className="px-4 py-2 bg-neutral-800 text-white font-bold rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Changes</button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* Manual Booking Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl text-xs">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 text-xs my-8 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
               <h3 className="text-sm font-black text-white">Manual Booking & Calendar Lock</h3>
               <button onClick={() => setShowAddModal(false)} className="text-neutral-400 hover:text-white">✕</button>
             </div>
 
-            <form onSubmit={handleCreateManualBooking} className="space-y-4">
+            <form onSubmit={handleCreateManualBooking} className="space-y-3">
               <div>
                 <label className="block text-neutral-400 font-bold mb-1">Select Property</label>
                 <select
                   required
                   value={manualBooking.property_id}
                   onChange={(e) => setManualBooking({ ...manualBooking, property_id: e.target.value })}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold"
                 >
-                  <option value="">-- Choose Listing --</option>
+                  <option value="">-- Choose property --</option>
                   {properties.map((p) => (
                     <option key={p.id} value={p.id}>{p.custom_name || p.title} (${p.price}/night)</option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Guest Name</label>
-                  <input type="text" required placeholder="Full Name" value={manualBooking.guest_name} onChange={(e) => setManualBooking({ ...manualBooking, guest_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                  <label className="block text-neutral-400 font-bold mb-1">Guest Full Name</label>
+                  <input type="text" required placeholder="e.g. David Smith" value={manualBooking.guest_name} onChange={(e) => setManualBooking({ ...manualBooking, guest_name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
                 </div>
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">WhatsApp Phone</label>
+                  <label className="block text-neutral-400 font-bold mb-1">Phone / WhatsApp</label>
                   <input type="text" required placeholder="+256..." value={manualBooking.phone} onChange={(e) => setManualBooking({ ...manualBooking, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-neutral-400 font-bold mb-1">Check-In Date</label>
                   <input type="date" required value={manualBooking.check_in} onChange={(e) => setManualBooking({ ...manualBooking, check_in: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
@@ -669,65 +674,66 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Total Agreed Price ($)</label>
-                  <input type="number" required placeholder="150" value={manualBooking.total_price} onChange={(e) => setManualBooking({ ...manualBooking, total_price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                  <label className="block text-neutral-400 font-bold mb-1">Total Stay Price ($)</label>
+                  <input type="number" required placeholder="e.g. 300" value={manualBooking.total_price} onChange={(e) => setManualBooking({ ...manualBooking, total_price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-amber-400 font-bold" />
                 </div>
                 <div>
-                  <label className="block text-neutral-400 font-bold mb-1">Booking Source</label>
-                  <select value={manualBooking.purpose} onChange={(e) => setManualBooking({ ...manualBooking, purpose: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white">
-                    <option value="Direct Walk-in">Direct Walk-in</option>
-                    <option value="Instagram / Phone">Instagram / Phone</option>
-                    <option value="Repeat Guest">Repeat Guest</option>
-                    <option value="Agent Referral">Agent Referral</option>
-                  </select>
+                  <label className="block text-neutral-400 font-bold mb-1">Booking Source / Purpose</label>
+                  <input type="text" value={manualBooking.purpose} onChange={(e) => setManualBooking({ ...manualBooking, purpose: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
                 </div>
               </div>
 
               <div>
                 <label className="block text-neutral-400 font-bold mb-1">Special Notes / Requests</label>
-                <textarea rows={2} placeholder="e.g. Early check-in requested..." value={manualBooking.guest_notes} onChange={(e) => setManualBooking({ ...manualBooking, guest_notes: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+                <textarea rows={2} placeholder="Late check-in, airport pickup..." value={manualBooking.guest_notes} onChange={(e) => setManualBooking({ ...manualBooking, guest_notes: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               </div>
 
-              <button type="submit" className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-black rounded-xl cursor-pointer shadow">⚡ Confirm & Lock Calendar</button>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 bg-neutral-800 text-white font-bold rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Confirm & Lock Calendar</button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* Co-Host Modal */}
       {showCoHostModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-sm font-black text-white">Add Co-Host</h3>
-              <button onClick={() => setShowCoHostModal(false)} className="text-neutral-400">✕</button>
-            </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+            <h3 className="text-sm font-black text-white">Add Co-Host</h3>
             <form onSubmit={handleCreateCoHost} className="space-y-3">
               <input type="text" required placeholder="Name" value={newCoHost.name} onChange={(e) => setNewCoHost({ ...newCoHost, name: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <input type="text" required placeholder="Specialty" value={newCoHost.specialty} onChange={(e) => setNewCoHost({ ...newCoHost, specialty: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Specialty (e.g. Guest Communications)" value={newCoHost.specialty} onChange={(e) => setNewCoHost({ ...newCoHost, specialty: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               <input type="text" required placeholder="Location" value={newCoHost.location} onChange={(e) => setNewCoHost({ ...newCoHost, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <input type="text" required placeholder="Phone (+256...)" value={newCoHost.phone} onChange={(e) => setNewCoHost({ ...newCoHost, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <input type="text" placeholder="Photo URL" value={newCoHost.image_url} onChange={(e) => setNewCoHost({ ...newCoHost, image_url: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <textarea rows={2} placeholder="Bio" value={newCoHost.bio} onChange={(e) => setNewCoHost({ ...newCoHost, bio: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Co-Host</button>
+              <input type="text" required placeholder="Phone / WhatsApp" value={newCoHost.phone} onChange={(e) => setNewCoHost({ ...newCoHost, phone: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Image URL" value={newCoHost.image_url} onChange={(e) => setNewCoHost({ ...newCoHost, image_url: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea placeholder="Bio" value={newCoHost.bio} onChange={(e) => setNewCoHost({ ...newCoHost, bio: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCoHostModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Add Co-Host</button>
+              </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* Upsell Modal */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-sm font-black text-white">Add Upsell Service</h3>
-              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400">✕</button>
-            </div>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+            <h3 className="text-sm font-black text-white">Add Upsell Service</h3>
             <form onSubmit={handleCreateUpsell} className="space-y-3">
-              <input type="text" required placeholder="Service Title" value={newUpsell.title} onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Title (e.g. Airport Transfer)" value={newUpsell.title} onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               <input type="number" required placeholder="Price ($)" value={newUpsell.price} onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <textarea rows={2} placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Service</button>
+              <input type="text" placeholder="Icon Emoji (e.g. 🚗)" value={newUpsell.icon} onChange={(e) => setNewUpsell({ ...newUpsell, icon: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <textarea placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowUpsellModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Add Upsell</button>
+              </div>
             </form>
           </div>
         </div>
