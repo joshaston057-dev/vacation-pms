@@ -112,7 +112,7 @@ export default function HostOperationsHub() {
     setShowEditListingModal(true)
   }
 
-  // DIRECT DEVICE FILE UPLOAD TO SUPABASE STORAGE
+  // DIRECT DEVICE FILE UPLOAD TO SUPABASE STORAGE (Fixed syntax)
   const handleDeviceFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -124,7 +124,8 @@ export default function HostOperationsHub() {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         const fileExt = file.name.split('.').pop()
-        const fileName = `pms-${Math.random().toString(36.substring(2))}-${Date.now()}.${fileExt}`
+        const randomStr = Math.random().toString(36).substring(2)
+        const fileName = `pms-${randomStr}-${Date.now()}.${fileExt}`
         const filePath = `listings/${fileName}`
 
         const { error: uploadError } = await supabase.storage
@@ -733,22 +734,4 @@ export default function HostOperationsHub() {
       {/* ADD UPSELL MODAL */}
       {showUpsellModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs">
-            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-sm font-black text-white">Add Upsell Service</h3>
-              <button onClick={() => setShowUpsellModal(false)} className="text-neutral-400">✕</button>
-            </div>
-            <form onSubmit={handleCreateUpsell} className="space-y-3">
-              <input type="text" required placeholder="Service Title" value={newUpsell.title} onChange={(e) => setNewUpsell({ ...newUpsell, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <input type="number" required placeholder="Price ($)" value={newUpsell.price} onChange={(e) => setNewUpsell({ ...newUpsell, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <textarea rows={2} placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <button type="submit" className="w-full py-3 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save Service</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      <Footer />
-    </main>
-  )
-}
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs"></div>
