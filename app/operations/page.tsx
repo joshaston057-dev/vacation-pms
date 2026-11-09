@@ -11,6 +11,7 @@ export default function OperationsPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('bookings')
+
   // Property Form State
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
@@ -28,34 +29,31 @@ export default function OperationsPage() {
     try {
       const { data, error } = await supabase.from('properties').select('*')
       if (error) throw error
-      setProperties(data || [])
-    } catch (err) {
-      console.error('Error fetching properties:', err)
+      if (data) setProperties(data)
+    } catch (error) {
+      console.error('Error fetching properties:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateProperty = async (e: React.FormEvent) => {
+  const handlePropertySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setUploading(true)
 
     try {
       let imageUrl = ''
 
-      // Handle photo upload to Supabase storage bucket 'property-images'
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const fileName = `${Math.random()}.${fileExt}`
         const filePath = `${fileName}`
 
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(filePath, selectedFile, { upsert: true })
+          .upload(filePath, selectedFile)
 
-        if (uploadError) {
-          throw new Error('Upload Error: ' + uploadError.message)
-        }
+        if (uploadError) throw uploadError
 
         const { data: publicURLData } = supabase.storage
           .from('property-images')
@@ -68,116 +66,89 @@ export default function OperationsPage() {
         {
           title,
           location,
-          price_per_night: parseFloat(pricePerNight) || 0,
+          price_per_night: parseFloat(pricePerNight),
           category,
           description,
           image_url: imageUrl,
-        }
+        },
       ])
 
       if (insertError) throw insertError
 
-      alert('Property published successfully!')
+      alert('Property added successfully!')
       setTitle('')
       setLocation('')
       setPricePerNight('')
       setDescription('')
       setSelectedFile(null)
       fetchProperties()
-    } catch (err: any) {
-      console.error('Error creating property:', err)
-      alert(err.message || 'Failed to create property.')
+    } catch (error: any) {
+      console.error('Error adding property:', error.message)
+      alert('Error adding property: ' + error.message)
     } finally {
       setUploading(false)
     }
   }
 
-  const handleDeleteProperty = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this property?')) return
-    try {
-      const { error } = await supabase.from('properties').delete().eq('id', id)
-      if (error) throw error
-      fetchProperties()
-    } catch (err: any) {
-      alert('Error deleting property: ' + err.message)
-    }
-  }
-
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 w-full flex flex-col justify-between">
-      {/* Top Header */}
-      <div className="bg-neutral-900 border-b border-neutral-800 py-6 px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Operations Hub</h1>
-          <p className="text-neutral-400 text-sm mt-1">Manage your properties, listings, and portfolio overview.</p>
-        </div>
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg text-sm transition"
-        >
-          View Public Stays ↗
-        </a>
+    <main className="min-h-screen bg-neutral-950 text-white">
+      {/* Header Anchor */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Operations Hub</h1>
+        <p className="text-neutral-400 text-sm mt-1">Manage your properties, bookings, tasks, and financials from one central command center.</p>
       </div>
 
-      {/* Main Full-Screen Content Area */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow space-y-10">
-        
-        {/* Add Property Card */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 w-full shadow-2xl">
-          <h2 className="text-xl font-bold mb-6 text-emerald-400">Add New Property Listing</h2>
-          
-          <form onSubmit={handleCreateProperty} className="space-y-6 w-full">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Property Creation Form Anchor (Primary Functional Anchor) */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <h2 className="text-xl font-bold text-white mb-4">Add New Property Listing</h2>
+          <form onSubmit={handlePropertySubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-2">Property Title</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Luxury 1 Bedroom Apartment"
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Property Title</label>
+                <input 
+                  type="text" 
+                  value={title} 
+                  onChange={(e) => setTitle(e.target.value)} 
+                  placeholder="e.g. Luxury Entebbe Villa" 
+                  required 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-2">Location</label>
-                <input
-                  type="text"
-                  required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Kisaasi, Kampala"
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Location</label>
+                <input 
+                  type="text" 
+                  value={location} 
+                  onChange={(e) => setLocation(e.target.value)} 
+                  placeholder="e.g. Entebbe, Uganda" 
+                  required 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-2">Price ($ / night)</label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={pricePerNight}
-                  onChange={(e) => setPricePerNight(e.target.value)}
-                  placeholder="45"
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Price Per Night ($)</label>
+                <input 
+                  type="number" 
+                  value={pricePerNight} 
+                  onChange={(e) => setPricePerNight(e.target.value)} 
+                  placeholder="150" 
+                  required 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-2">Category</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500"
+                <label className="block text-xs font-medium text-neutral-400 mb-1">Category</label>
+                <select 
+                  value={category} 
+                  onChange={(e) => setCategory(e.target.value)} 
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
                 >
                   <option value="Apartment">Apartment</option>
-                  <option value="Standalone House">Standalone House</option>
+                  <option value="House">House</option>
                   <option value="Villa">Villa</option>
                   <option value="Mansion">Mansion</option>
                 </select>
@@ -185,39 +156,37 @@ export default function OperationsPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2">Property Description</label>
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe amenities, internet speed, security, etc..."
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
+              <label className="block text-xs font-medium text-neutral-400 mb-1">Description</label>
+              <textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)} 
+                placeholder="Describe the property highlights, amenities, and features..." 
+                rows={3} 
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-2">Property Photo (Upload from Device)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-400 text-sm file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
+              <label className="block text-xs font-medium text-neutral-400 mb-1">Property Image</label>
+              <input 
+                type="file" 
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
+                className="w-full text-xs text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-white hover:file:bg-neutral-700"
               />
             </div>
 
-            <div className="flex justify-end pt-4">
-              <button
-                type="submit"
-                disabled={uploading}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-8 py-3 rounded-lg text-sm transition disabled:opacity-50 shadow-lg"
-              >
-                {uploading ? 'Uploading & Publishing...' : 'Publish Property'}
-              </button>
-            </div>
+            <button 
+              type="submit" 
+              disabled={uploading} 
+              className="w-full bg-white text-black font-medium py-2.5 rounded-xl text-sm hover:bg-neutral-200 transition"
+            >
+              {uploading ? 'Publishing Property...' : 'Publish Property Listing'}
+            </button>
           </form>
         </div>
+      </div>
 
-{/* Operations Hub Tab Navigation Bar */}
+      {/* Operations Hub Tab Navigation Bar */}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* Search Bar */}
@@ -235,19 +204,19 @@ export default function OperationsPage() {
             onClick={() => setActiveTab('properties')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'properties' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
           >
-            🏠 Properties
+            🏠 Properties ({properties.length})
           </button>
           <button 
             onClick={() => setActiveTab('bookings')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'bookings' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
           >
-            📅 Bookings
+            📅 Bookings (2)
           </button>
           <button 
             onClick={() => setActiveTab('dispatch')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'dispatch' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
           >
-            ⚡ Dispatch / Tasks
+            ⚡ Dispatch / Tasks (1)
           </button>
           <button 
             onClick={() => setActiveTab('ledger')}
@@ -259,13 +228,13 @@ export default function OperationsPage() {
             onClick={() => setActiveTab('upsells')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'upsells' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
           >
-            ⭐ Upsells
+            ⭐ Upsells (4)
           </button>
           <button 
             onClick={() => setActiveTab('cohosts')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'cohosts' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
           >
-            🤝 Co-Hosts
+            🤝 Co-Hosts (0)
           </button>
         </div>
 
@@ -274,11 +243,28 @@ export default function OperationsPage() {
           
           {activeTab === 'properties' && (
             <div>
-              <h2 className="text-xl font-bold text-white mb-2">Property Management & Creation</h2>
-              <p className="text-neutral-400 text-sm mb-6">Use your property creation form above to add listings, or manage existing inventory.</p>
-              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-                Property management view active.
-              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Property Management & Inventory</h2>
+              <p className="text-neutral-400 text-sm mb-6">Review your live property portfolio loaded from Supabase.</p>
+              {loading ? (
+                <p className="text-neutral-500 text-sm">Loading properties...</p>
+              ) : properties.length === 0 ? (
+                <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                  No properties added yet. Use the form above to add your first listing.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {properties.map((property) => (
+                    <div key={property.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                      {property.image_url && (
+                        <img src={property.image_url} alt={property.title} className="w-full h-36 object-cover rounded-lg mb-3" />
+                      )}
+                      <h3 className="font-bold text-white text-sm">{property.title}</h3>
+                      <p className="text-neutral-400 text-xs mt-1">{property.location}</p>
+                      <p className="text-emerald-400 font-semibold text-xs mt-2">${property.price_per_night} / night</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -287,7 +273,7 @@ export default function OperationsPage() {
               <h2 className="text-xl font-bold text-white mb-2">Reservations & Bookings Ledger</h2>
               <p className="text-neutral-400 text-sm mb-6">Monitor confirmed stays, guest details, and pending inquiries.</p>
               <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-                Bookings management active.
+                Bookings management active. View guest contact, check-in dates, and payment statuses here.
               </div>
             </div>
           )}
@@ -347,62 +333,6 @@ export default function OperationsPage() {
           )}
 
         </div>
-
-      </div>
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Financial Ledger & Expenses</h2>
-            <p className="text-neutral-400 text-sm">Track monthly earnings, utility bills, rent, and operational costs.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-              <span className="text-xs text-neutral-400">Total Revenue (MTD)</span>
-              <p className="text-2xl font-bold text-white mt-1">$4,850</p>
-            </div>
-            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-              <span className="text-xs text-neutral-400">Operational Bills (Rent/Gas)</span>
-              <p className="text-2xl font-bold text-rose-400 mt-1">$1,200</p>
-            </div>
-            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-              <span className="text-xs text-neutral-400">Net Profit</span>
-              <p className="text-2xl font-bold text-emerald-400 mt-1">$3,650</p>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. Guest Upsells & Services */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Guest Upsells & Services</h2>
-            <p className="text-neutral-400 text-sm">Configure airport pickups, private chef bookings, and extra guest services.</p>
-          </div>
-        </div>
-
-        {/* 6. Co-Host & Property Marketing Services */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Co-Host & Property Marketing Services</h2>
-            <p className="text-neutral-400 text-sm">Manage external client property listings, landing page requests, and co-hosting agreements.</p>
-          </div>
-        </div>
-
-      </div>
-        {/* Reservations & Operational Ledger Module */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 border-t border-neutral-800 mt-12">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">Reservations & Operational Ledger</h2>
-            <p className="text-neutral-400 text-sm mt-1">Track guest bookings, status updates, and operational tasks.</p>
-          </div>
-        </div>
-
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <h3 className="text-lg font-semibold mb-4 text-emerald-400">Incoming & Confirmed Bookings</h3>
-          <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-            Booking tracking ledger active. View guest contact, check-in dates, and payment statuses here.
-          </div>
-        </div>
-      </div>
 
       </div>
     </main>
