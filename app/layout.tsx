@@ -1,7 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import Navbar from './Navbar' // Adjust path if Navbar.tsx is located in a components folder
+import Navbar from '../Navbar'
 
 const inter = Inter({ subsets: ['latin'] })
 
