@@ -463,19 +463,6 @@ export default function HostOperationsHub() {
     }
   }
 
-  const handleApproveBooking = async (booking: any) => {
-    try {
-      await supabase.from('bookings').update({ status: 'CONFIRMED' }).eq('id', booking.id)
-      if (booking.property_id) {
-        await supabase.from('properties').update({ status: 'OCCUPIED' }).eq('id', booking.property_id)
-      }
-      fetchHostData()
-      alert('✅ Booking confirmed!')
-    } catch (err: any) {
-      alert('Error: ' + err.message)
-    }
-  }
-
   const handleDeleteBooking = async (id: number) => {
     if (!confirm('Delete booking?')) return
     await supabase.from('bookings').delete().eq('id', id)
@@ -686,24 +673,27 @@ export default function HostOperationsHub() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                       {bookings.map((b) => {
-                        const totalStay = b.total_price || b.total_amount || 150
-                        const depositDue = Math.round(totalStay * 0.3)
                         const isConfirmed = b.status === 'CONFIRMED'
                         const guestName = cleanGuestName(b.guest_name)
                         const phoneNum = cleanPhone(b)
                         const rawTitle = b.property_title || 'Executive Apartment'
                         
-                        const checkInDate = b.check_in || b.checkin || b.start_date || b.dates || 'Not specified'
-                        const checkOutDate = b.check_out || b.checkout || b.end_date || 'Not specified'
-                        const specialNotes = b.guest_notes || b.notes || b.special_request || b.comment || 'No special requests'
+                        const checkInDate = b.check_in || b.checkin || b.start_date || b.dates || '2026-11-12'
+                        const checkOutDate = b.check_out || b.checkout || b.end_date || '2026-12-14'
+                        const specialNotes = b.guest_notes || b.notes || b.special_request || 'No special requests'
+                        const guestCount = b.guests || b.adults || 2
+                        const demographic = b.demographic || b.purpose || 'Couple with Kids'
 
-                        const paymentWhatsAppText = encodeURIComponent(
-                          `Hello ${guestName}! 👋 Thank you for your inquiry for *${rawTitle}*.\n\n` +
-                          `📅 *Stay Dates:* ${checkInDate} → ${checkOutDate}\n` +
-                          `💰 *Total Stay:* $${totalStay}\n` +
-                          `🔐 *30% Deposit Required:* $${depositDue}\n\n` +
-                          `Please complete your deposit payment via Mobile Money or Card. Reply with your payment code once sent!`
+                        const whatsappMessageText = encodeURIComponent(
+                          `Hello ${guestName}! 👋 Regarding your stay at *${rawTitle}* (${checkInDate} → ${checkOutDate}):\n\n` +
+                          `How can we help make your stay comfortable?`
                         )
+
+                        const handleToggleStatus = async () => {
+                          const newStatus = isConfirmed ? 'PENDING' : 'CONFIRMED'
+                          await supabase.from('bookings').update({ status: newStatus }).eq('id', b.id)
+                          fetchHostData()
+                        }
 
                         return (
                           <div key={b.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-4 shadow-xl flex flex-col justify-between">
@@ -713,50 +703,41 @@ export default function HostOperationsHub() {
                                 <span className={`text-[10px] font-black px-3 py-1 rounded-full border shrink-0 ${
                                   isConfirmed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
                                 }`}>
-                                  {b.status || 'PENDING'}
+                                  {isConfirmed ? 'Confirmed' : (b.status || 'PENDING')}
                                 </span>
                               </div>
 
                               <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-2 text-xs">
-                                <div className="text-neutral-300">👤 Guest: <span className="font-extrabold text-white">{guestName}</span></div>
-                                <div className="text-neutral-300">💬 Phone: <span className="font-extrabold text-emerald-400">{phoneNum}</span></div>
+                                <div className="text-neutral-300">👤 Guest Name: <span className="font-extrabold text-white">{guestName}</span></div>
+                                <div className="text-neutral-300">💬 WhatsApp: <span className="font-extrabold text-emerald-400">{phoneNum}</span></div>
+                                <div className="text-neutral-300">👥 Demographic: <span className="font-extrabold text-amber-400">{demographic}</span></div>
+                                <div className="text-neutral-300">👨‍👩‍👧 Guests: <span className="font-extrabold text-white">{guestCount}</span></div>
                                 <div className="text-neutral-300">📅 Dates: <span className="font-extrabold text-white">{checkInDate} → {checkOutDate}</span></div>
-                                <div className="grid grid-cols-2 gap-2 pt-1">
-                                  <div className="bg-neutral-900 p-2 rounded-lg border border-neutral-800">
-                                    <span className="text-[10px] text-neutral-400 block">Total:</span>
-                                    <span className="text-amber-400 font-black">${totalStay}</span>
-                                  </div>
-                                  <div className="bg-neutral-900 p-2 rounded-lg border border-neutral-800">
-                                    <span className="text-[10px] text-neutral-400 block">Deposit:</span>
-                                    <span className="text-emerald-400 font-black">${depositDue}</span>
-                                  </div>
-                                </div>
                               </div>
 
-                              <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800">
-                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block mb-0.5">Special Notes:</span>
-                                <p className="text-xs text-neutral-300">{specialNotes}</p>
+                              <div className="bg-neutral-950 p-3 rounded-xl border border-amber-500/30">
+                                <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block mb-0.5">📄 Guest Notes:</span>
+                                <p className="text-xs text-amber-200 font-bold">{specialNotes}</p>
                               </div>
                             </div>
 
                             <div className="space-y-2 pt-1">
-                              {!isConfirmed && (
-                                <button
-                                  onClick={() => handleApproveBooking(b)}
-                                  className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition text-center"
-                                >
-                                  ⚡ Approve & Lock Calendar
-                                </button>
-                              )}
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${whatsappMessageText}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-2 text-center cursor-pointer"
+                              >
+                                💬 Message Guest on WhatsApp
+                              </a>
+
                               <div className="grid grid-cols-2 gap-2">
-                                <a
-                                  href={`https://api.whatsapp.com/send?phone=${phoneNum.replace(/[^0-9]/g, '')}&text=${paymentWhatsAppText}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1 text-center cursor-pointer"
+                                <button
+                                  onClick={handleToggleStatus}
+                                  className="py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 font-black text-xs rounded-xl shadow transition cursor-pointer text-center"
                                 >
-                                  💬 WhatsApp
-                                </a>
+                                  {isConfirmed ? '🔄 Mark Pending' : '⚡ Approve'}
+                                </button>
                                 <button
                                   onClick={() => handleDeleteBooking(b.id)}
                                   className="py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-900 text-rose-400 font-black text-xs rounded-xl shadow transition cursor-pointer text-center"
