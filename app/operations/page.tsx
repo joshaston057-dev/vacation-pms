@@ -20,8 +20,21 @@ const COMMON_AMENITIES = [
   'Generator Backup'
 ]
 
+const DEFAULT_UPSELLS = [
+  { id: 1, title: 'Airport Transfer (Entebbe Pickup)', description: 'Private airport pickup directly to your apartment or villa.', price: 40, category: 'Transport', icon: '🚗' },
+  { id: 2, title: 'Deep Housekeeping & Linen Change', description: 'Mid-stay professional cleaning and fresh bed sheets.', price: 25, category: 'Service', icon: '🧹' },
+  { id: 3, title: 'Chef-Prepared Local Breakfast', description: 'Traditional or continental breakfast prepared on-site.', price: 15, category: 'Food', icon: '🍳' },
+  { id: 4, title: 'Guided City Tour & Safari', description: 'Full-day guided tour around Kampala or Jinja source of the Nile.', price: 90, category: 'Experience', icon: '🌍' }
+]
+
+const DEFAULT_TASKS = [
+  { id: 1, title: 'Pre-arrival Deep Cleaning', property_title: 'Executive Apartment', priority: 'High', status: 'Pending', assignee: 'Cleaning Team' },
+  { id: 2, title: 'AC Filter & Gas Check', property_title: 'Entebbe Villa', priority: 'Medium', status: 'Scheduled', assignee: 'Maintenance' },
+  { id: 3, title: 'Key Handover & Wi-Fi Setup', property_title: 'Kisaasi 1-Bedroom', priority: 'High', status: 'Completed', assignee: 'Co-Host' }
+]
+
 export default function HostOperationsHub() {
-  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells' | 'cohosts'>('properties')
+  const [activeTab, setActiveTab] = useState<'properties' | 'bookings' | 'tasks' | 'ledger' | 'upsells' | 'cohosts' | 'settings'>('properties')
   const [properties, setProperties] = useState<any[]>([])
   const [bookings, setBookings] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
@@ -30,6 +43,29 @@ export default function HostOperationsHub() {
   const [cohosts, setCohosts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Host WhatsApp Settings State
+  const [hostWhatsApp, setHostWhatsApp] = useState('+256757386946')
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  // Add Property Modal State
+  const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
+  const [newProperty, setNewProperty] = useState({ title: '', price: '', location: '', category: 'Apartment' })
+
+  // Add Task Modal State
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false)
+  const [newTask, setNewTask] = useState({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff' })
+
+  // Add Expense Modal State
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false)
+  const [newExpense, setNewExpense] = useState({ title: '', amount: '', category: 'Utilities' })
+
+  // Upsell Request Modal State (Host Route Inquiry)
+  const [selectedUpsellForRequest, setSelectedUpsellForRequest] = useState<any>(null)
+  const [requestGuestName, setRequestGuestName] = useState('')
+  const [requestGuestContact, setRequestGuestContact] = useState('')
+  const [requestNotes, setRequestNotes] = useState('')
+  const [submittingRequest, setSubmittingRequest] = useState(false)
 
   // Edit Listing Modal
   const [showEditListingModal, setShowEditListingModal] = useState(false)
@@ -78,25 +114,181 @@ export default function HostOperationsHub() {
         return
       }
 
-      const [propsRes, bookRes, taskRes, upsellRes, expenseRes, cohostRes] = await Promise.all([
+      const [propsRes, bookRes, taskRes, upsellRes, expenseRes, cohostRes, profileRes] = await Promise.all([
         supabase.from('properties').select('*').eq('host_id', user.id).order('id', { ascending: false }),
         supabase.from('bookings').select('*').eq('host_id', user.id).order('id', { ascending: false }),
         supabase.from('tasks').select('*').eq('host_id', user.id).order('id', { ascending: false }),
         supabase.from('upsell_services').select('*').order('id', { ascending: true }),
         supabase.from('expenses').select('*').eq('host_id', user.id).order('id', { ascending: false }),
-        supabase.from('co_hosts').select('*').order('id', { ascending: true })
+        supabase.from('co_hosts').select('*').order('id', { ascending: true }),
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       ])
 
       if (propsRes.data) setProperties(propsRes.data)
       if (bookRes.data) setBookings(bookRes.data)
-      if (taskRes.data) setTasks(taskRes.data)
-      if (upsellRes.data) setUpsells(upsellRes.data)
+      
+      if (taskRes.data && taskRes.data.length > 0) {
+        setTasks(taskRes.data)
+      } else {
+        setTasks(DEFAULT_TASKS)
+      }
+
+      if (upsellRes.data && upsellRes.data.length > 0) {
+        setUpsells(upsellRes.data)
+      } else {
+        setUpsells(DEFAULT_UPSELLS)
+      }
+
       if (expenseRes.data) setExpenses(expenseRes.data)
       if (cohostRes.data) setCohosts(cohostRes.data)
+      if (profileRes.data?.whatsapp) {
+        setHostWhatsApp(profileRes.data.whatsapp)
+      }
     } catch (err) {
       console.error('Error loading data:', err)
+      setUpsells(DEFAULT_UPSELLS)
+      setTasks(DEFAULT_TASKS)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSaveWhatsAppSettings = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingSettings(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({ id: user.id, whatsapp: hostWhatsApp, updated_at: new Date() })
+
+      if (error) throw error
+      alert('✅ WhatsApp contact saved successfully!')
+    } catch (err: any) {
+      alert('Error saving WhatsApp settings: ' + err.message)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handleCreatePropertySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase.from('properties').insert([
+        {
+          title: newProperty.title,
+          custom_name: newProperty.title,
+          price: parseFloat(newProperty.price) || 0,
+          location: newProperty.location,
+          category: newProperty.category,
+          host_id: user.id,
+          status: 'AVAILABLE'
+        }
+      ])
+
+      if (error) throw error
+      alert('✅ Property added successfully!')
+      setShowAddPropertyModal(false)
+      setNewProperty({ title: '', price: '', location: '', category: 'Apartment' })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error: ' + err.message)
+    }
+  }
+
+  const handleCreateTaskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase.from('tasks').insert([
+        {
+          ...newTask,
+          host_id: user.id,
+          status: 'Pending'
+        }
+      ])
+
+      if (error) throw error
+      alert('✅ Task dispatched!')
+      setShowAddTaskModal(false)
+      setNewTask({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff' })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error: ' + err.message)
+    }
+  }
+
+  const handleCreateExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error } = await supabase.from('expenses').insert([
+        {
+          title: newExpense.title,
+          amount: parseFloat(newExpense.amount) || 0,
+          category: newExpense.category,
+          host_id: user.id
+        }
+      ])
+
+      if (error) throw error
+      alert('✅ Expense logged!')
+      setShowAddExpenseModal(false)
+      setNewExpense({ title: '', amount: '', category: 'Utilities' })
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error: ' + err.message)
+    }
+  }
+
+  const handleUpsellInquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUpsellForRequest) return
+
+    setSubmittingRequest(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const servicePrice = selectedUpsellForRequest.price || selectedUpsellForRequest.price_usd || 0
+      const compiledNotes = `Upsell Inquiry: ${selectedUpsellForRequest.title} ($${servicePrice}). Notes: ${requestNotes || 'None'}`
+
+      const { error } = await supabase.from('bookings').insert([
+        {
+          property_title: `[Service] ${selectedUpsellForRequest.title}`,
+          host_id: user.id,
+          guest_name: requestGuestName,
+          phone: requestGuestContact,
+          guest_phone: requestGuestContact,
+          total_price: servicePrice,
+          total_amount: servicePrice,
+          status: 'PENDING',
+          guest_notes: compiledNotes,
+          notes: compiledNotes,
+        },
+      ])
+
+      if (error) throw error
+
+      alert('✅ Service inquiry submitted successfully to your host bookings hub!')
+      setSelectedUpsellForRequest(null)
+      setRequestGuestName('')
+      setRequestGuestContact('')
+      setRequestNotes('')
+      fetchHostData()
+    } catch (err: any) {
+      alert('Error submitting service inquiry: ' + err.message)
+    } finally {
+      setSubmittingRequest(false)
     }
   }
 
@@ -282,7 +474,7 @@ export default function HostOperationsHub() {
       const match = b.guest_name.match(/Ph:\s*([^\s|]+)/)
       if (match && match[1]) return match[1]
     }
-    return '+256757386946'
+    return hostWhatsApp
   }
 
   const handleCreateCoHost = async (e: React.FormEvent) => {
@@ -323,6 +515,10 @@ export default function HostOperationsHub() {
     (p.location || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const totalRevenue = bookings.reduce((acc, b) => acc + (parseFloat(b.total_price || b.total_amount) || 0), 0)
+  const totalExpensesSum = expenses.reduce((acc, ex) => acc + (parseFloat(ex.amount) || 0), 0)
+  const netEarnings = totalRevenue - totalExpensesSum
+
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
       <div>
@@ -346,6 +542,7 @@ export default function HostOperationsHub() {
             <button onClick={() => setActiveTab('ledger')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'ledger' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>💰 Ledger</button>
             <button onClick={() => setActiveTab('upsells')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'upsells' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>✨ Upsells ({upsells.length})</button>
             <button onClick={() => setActiveTab('cohosts')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'cohosts' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>🤝 Co-Hosts ({cohosts.length})</button>
+            <button onClick={() => setActiveTab('settings')} className={`px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer shrink-0 ${activeTab === 'settings' ? 'bg-amber-500 text-black shadow-lg' : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'}`}>⚙️ WhatsApp Settings</button>
           </div>
 
           {loading ? (
@@ -353,38 +550,53 @@ export default function HostOperationsHub() {
           ) : (
             <>
               {activeTab === 'properties' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {filteredProperties.map((p) => {
-                    const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
-                    const displayTitle = p.custom_name || p.title || 'Executive Apartment'
-                    return (
-                      <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
-                        <div className="relative aspect-[16/10] bg-neutral-950">
-                          {gallery.length > 0 ? (
-                            <img src={gallery[0]} alt={displayTitle} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
-                          )}
-                          <span className="absolute top-3 left-3 bg-black/80 text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
-                            {gallery.length} Photos
-                          </span>
-                        </div>
-                        <div className="p-4 space-y-3">
-                          <div className="flex justify-between items-baseline">
-                            <h4 className="font-black text-white text-base truncate">{displayTitle}</h4>
-                            <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Property Portfolio</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{properties.length} Active Listings</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAddPropertyModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition flex items-center gap-2"
+                    >
+                      <span>➕</span> Add New Property
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                    {filteredProperties.map((p) => {
+                      const gallery = Array.isArray(p.images) && p.images.length > 0 ? p.images : p.image_url ? [p.image_url] : []
+                      const displayTitle = p.custom_name || p.title || 'Executive Apartment'
+                      return (
+                        <div key={p.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between">
+                          <div className="relative aspect-[16/10] bg-neutral-950">
+                            {gallery.length > 0 ? (
+                              <img src={gallery[0]} alt={displayTitle} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-neutral-700 text-xs font-bold">No Image</div>
+                            )}
+                            <span className="absolute top-3 left-3 bg-black/80 text-amber-400 text-[10px] font-black px-2.5 py-1 rounded uppercase">
+                              {gallery.length} Photos
+                            </span>
                           </div>
-                          <p className="text-xs text-neutral-400">📍 {p.location}</p>
-                          <button
-                            onClick={() => openEditListingModal(p)}
-                            className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            ✏️ Edit Listing, Photos & Amenities
-                          </button>
+                          <div className="p-4 space-y-3">
+                            <div className="flex justify-between items-baseline">
+                              <h4 className="font-black text-white text-base truncate">{displayTitle}</h4>
+                              <span className="text-amber-400 font-black text-base">${p.price || 0}/night</span>
+                            </div>
+                            <p className="text-xs text-neutral-400">📍 {p.location}</p>
+                            <button
+                              onClick={() => openEditListingModal(p)}
+                              className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-amber-400 font-bold text-xs rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                            >
+                              ✏️ Edit Listing, Photos & Amenities
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -497,6 +709,119 @@ export default function HostOperationsHub() {
                 </div>
               )}
 
+              {activeTab === 'tasks' && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Operations & Dispatch Task Tracker</h3>
+                      <span className="text-xs text-neutral-400 font-bold">{tasks.length} Active Tasks</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAddTaskModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition"
+                    >
+                      ➕ Dispatch New Task
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {tasks.map((t) => (
+                      <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded border border-amber-500/20">{t.priority || 'Medium'} Priority</span>
+                            <span className="text-xs text-neutral-400 font-bold">{t.status || 'Pending'}</span>
+                          </div>
+                          <h4 className="font-extrabold text-white text-sm">{t.title}</h4>
+                          <p className="text-xs text-neutral-400">🏠 Property: <strong className="text-white">{t.property_title || 'General'}</strong></p>
+                          <p className="text-xs text-neutral-400">👤 Assignee: <strong className="text-emerald-400">{t.assignee || 'Staff'}</strong></p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'ledger' && (
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="text-base font-black text-white">Financial Ledger & Utility Bills</h3>
+                      <span className="text-xs text-neutral-400 font-bold">Track earnings, rent, and utility expenses</span>
+                    </div>
+                    <button
+                      onClick={() => setShowAddExpenseModal(true)}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition"
+                    >
+                      ➕ Log Expense / Utility Bill
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-1 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold uppercase">Total Bookings Revenue</span>
+                      <div className="text-2xl font-black text-amber-400">${totalRevenue}</div>
+                    </div>
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-1 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold uppercase">Total Operational Expenses</span>
+                      <div className="text-2xl font-black text-rose-400">${totalExpensesSum}</div>
+                    </div>
+                    <div className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-1 shadow-xl">
+                      <span className="text-xs text-neutral-400 font-bold uppercase">Net Host Earnings</span>
+                      <div className="text-2xl font-black text-emerald-400">${netEarnings}</div>
+                    </div>
+                  </div>
+
+                  <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-4 shadow-xl">
+                    <h4 className="text-sm font-black text-white">Logged Expenses & Bills</h4>
+                    {expenses.length === 0 ? (
+                      <p className="text-xs text-neutral-500 font-bold py-4">No operational expenses or utility bills logged yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {expenses.map((ex) => (
+                          <div key={ex.id} className="flex justify-between items-center bg-neutral-950 p-3 rounded-xl border border-neutral-800 text-xs">
+                            <div>
+                              <span className="font-bold text-white block">{ex.title}</span>
+                              <span className="text-[10px] text-neutral-400">{ex.category}</span>
+                            </div>
+                            <span className="text-rose-400 font-black">-${ex.amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'settings' && (
+                <div className="max-w-xl bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-4 shadow-xl">
+                  <div>
+                    <h3 className="text-base font-black text-white">Host WhatsApp Contact Configuration</h3>
+                    <p className="text-xs text-neutral-400 mt-0.5">Enter your direct WhatsApp phone number with country code (e.g. +256757386946). This number will be used when messaging guests or connecting from your portfolio.</p>
+                  </div>
+                  <form onSubmit={handleSaveWhatsAppSettings} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-neutral-300 mb-1">WhatsApp Phone Number</label>
+                      <input
+                        type="text"
+                        required
+                        value={hostWhatsApp}
+                        onChange={(e) => setHostWhatsApp(e.target.value)}
+                        placeholder="+256..."
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-500 font-bold"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={savingSettings}
+                      className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow cursor-pointer transition"
+                    >
+                      {savingSettings ? 'Saving...' : 'Save WhatsApp Number'}
+                    </button>
+                  </form>
+                </div>
+              )}
+
               {activeTab === 'upsells' && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -504,19 +829,32 @@ export default function HostOperationsHub() {
                     <button onClick={() => setShowUpsellModal(true)} className="px-4 py-2 bg-amber-500 text-black font-black text-xs rounded-xl cursor-pointer">➕ Add New Service</button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {upsells.map((u) => (
-                      <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 flex flex-col justify-between">
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-2xl">{u.icon || '✨'}</span>
-                            <span className="text-xs font-black text-amber-400">+${u.price || u.price_usd || 0}</span>
+                    {upsells.map((u) => {
+                      const servicePrice = u.price || u.price_usd || 0
+
+                      return (
+                        <div key={u.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 flex flex-col justify-between shadow-xl">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="text-2xl">{u.icon || '✨'}</span>
+                              <span className="text-xs font-black text-amber-400">+${servicePrice}</span>
+                            </div>
+                            <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
+                            <p className="text-xs text-neutral-400">{u.description}</p>
                           </div>
-                          <h4 className="font-extrabold text-white text-sm">{u.title}</h4>
-                          <p className="text-xs text-neutral-400">{u.description}</p>
+
+                          <div className="space-y-2 pt-2 border-t border-neutral-800">
+                            <button
+                              onClick={() => setSelectedUpsellForRequest(u)}
+                              className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
+                            >
+                              📋 Contact Service (Host Route)
+                            </button>
+                            <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 hover:bg-rose-900 text-rose-400 font-bold text-xs rounded-xl cursor-pointer">🗑️ Remove Service</button>
+                          </div>
                         </div>
-                        <button onClick={() => handleDeleteUpsell(u.id)} className="w-full py-2 bg-rose-950 text-rose-400 text-xs font-bold rounded-xl cursor-pointer">🗑️ Remove Service</button>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -546,13 +884,136 @@ export default function HostOperationsHub() {
                   </div>
                 </div>
               )}
-
-              {activeTab === 'tasks' && <div className="text-neutral-400 text-xs">Tasks dispatch active.</div>}
-              {activeTab === 'ledger' && <div className="text-neutral-400 text-xs">Ledger financials active.</div>}
             </>
           )}
         </div>
       </div>
+
+      {/* Add Property Modal */}
+      {showAddPropertyModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+            <h3 className="text-sm font-black text-white">Add New Property</h3>
+            <form onSubmit={handleCreatePropertySubmit} className="space-y-3">
+              <input type="text" required placeholder="Property Title (e.g. Kisaasi 2-Bedroom)" value={newProperty.title} onChange={(e) => setNewProperty({ ...newProperty, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
+              <input type="number" required placeholder="Price per Night ($)" value={newProperty.price} onChange={(e) => setNewProperty({ ...newProperty, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-amber-400 font-bold" />
+              <input type="text" required placeholder="Location (e.g. Kisaasi, Kampala)" value={newProperty.location} onChange={(e) => setNewProperty({ ...newProperty, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <select value={newProperty.category} onChange={(e) => setNewProperty({ ...newProperty, category: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold">
+                <option value="Apartment">Apartment</option>
+                <option value="Standalone House">Standalone House</option>
+                <option value="Villa">Villa</option>
+                <option value="Mansion">Mansion</option>
+              </select>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAddPropertyModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Save Property</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Task Modal */}
+      {showAddTaskModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+            <h3 className="text-sm font-black text-white">Dispatch New Task</h3>
+            <form onSubmit={handleCreateTaskSubmit} className="space-y-3">
+              <input type="text" required placeholder="Task Title (e.g. Deep Cleaning)" value={newTask.title} onChange={(e) => setNewTask({ ...newTask, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
+              <input type="text" required placeholder="Property Name" value={newTask.property_title} onChange={(e) => setNewTask({ ...newTask, property_title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <select value={newTask.priority} onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold">
+                <option value="High">High Priority</option>
+                <option value="Medium">Medium Priority</option>
+                <option value="Low">Low Priority</option>
+              </select>
+              <input type="text" required placeholder="Assignee (e.g. Cleaning Team)" value={newTask.assignee} onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAddTaskModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Dispatch Task</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Expense Modal */}
+      {showAddExpenseModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
+            <h3 className="text-sm font-black text-white">Log Operational Expense / Utility Bill</h3>
+            <form onSubmit={handleCreateExpenseSubmit} className="space-y-3">
+              <input type="text" required placeholder="Expense Title (e.g. Monthly Rent / Gas)" value={newExpense.title} onChange={(e) => setNewExpense({ ...newExpense, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
+              <input type="number" required placeholder="Amount ($)" value={newExpense.amount} onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-rose-400 font-bold" />
+              <select value={newExpense.category} onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold">
+                <option value="Utilities">Utilities (Gas/Water/Electricity)</option>
+                <option value="Rent">Property Rent</option>
+                <option value="Maintenance">Maintenance & Repairs</option>
+                <option value="Other">Other Operational Bill</option>
+              </select>
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowAddExpenseModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Log Expense</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Upsell Service Request Modal (Host Route) */}
+      {selectedUpsellForRequest && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-4 text-xs my-8 shadow-2xl relative">
+            <button
+              onClick={() => setSelectedUpsellForRequest(null)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div>
+              <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Service Inquiry</span>
+              <h3 className="text-lg font-extrabold text-white">{selectedUpsellForRequest.title}</h3>
+              <p className="text-xs text-neutral-400 mt-0.5">Price: <strong className="text-amber-400">${selectedUpsellForRequest.price || selectedUpsellForRequest.price_usd || 0}</strong> • Submitted directly to host bookings queue.</p>
+            </div>
+
+            <form onSubmit={handleUpsellInquirySubmit} className="space-y-3">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Your Full Name</label>
+                <input
+                  type="text" required placeholder="e.g. Alex Morgan"
+                  value={requestGuestName} onChange={(e) => setRequestGuestName(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Email or Phone / WhatsApp</label>
+                <input
+                  type="text" required placeholder="e.g. +256..."
+                  value={requestGuestContact} onChange={(e) => setRequestGuestContact(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500 font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Specific Instructions / Details (Optional)</label>
+                <textarea
+                  rows={3} placeholder="Flight number, preferred time, or delivery address..."
+                  value={requestNotes} onChange={(e) => setRequestNotes(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <button
+                type="submit" disabled={submittingRequest}
+                className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg cursor-pointer"
+              >
+                {submittingRequest ? 'Submitting Inquiry...' : 'Confirm & Submit Service Inquiry'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showEditListingModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -746,7 +1207,7 @@ export default function HostOperationsHub() {
               <textarea placeholder="Description" value={newUpsell.description} onChange={(e) => setNewUpsell({ ...newUpsell, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowUpsellModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Add Upsell</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Add Upsell Service</button>
               </div>
             </form>
           </div>
