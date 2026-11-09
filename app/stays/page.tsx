@@ -95,7 +95,22 @@ export default function BrowseStaysPage() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
-      <div className="bg-neutral-900 border-b border-neutral-800 py-6 px-4 text-center">
+    {/* Top Utility & Host Navigation Bar */}
+      <div className="bg-neutral-900 border-b border-neutral-800 px-6 py-3 flex justify-between items-center text-sm">
+        <span className="font-semibold tracking-wider text-emerald-400">LA ESTANCIA</span>
+        <a 
+          href="/operations" 
+          className="text-neutral-300 hover:text-white bg-neutral-800 hover:bg-neutral-700 px-3 py-1.5 rounded-md transition text-xs font-medium border border-neutral-700"
+        >
+          Host Sign In 🔑
+        </a>
+      </div>
+
+      {/* Dynamic Upsells Banner */}
+      <div className="bg-gradient-to-r from-emerald-950 via-neutral-900 to-emerald-950 border-b border-emerald-900/40 py-3 px-4 text-center text-xs sm:text-sm text-emerald-300 font-medium animate-pulse">
+        ✨ Special Offer: Book your stay today and add an airport pickup or private chef service at checkout! 🚗💨
+      </div>
+    <div className="bg-neutral-900 border-b border-neutral-800 py-6 px-4 text-center">
         <h1 className="text-3xl font-bold tracking-tight">La Estancia Vacation Homes</h1>
         <p className="text-neutral-400 mt-2">Explore our exclusive portfolio of stays and book your experience.</p>
       </div>
