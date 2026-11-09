@@ -46,7 +46,7 @@ export default function OperationsPage() {
       // Handle photo upload to Supabase storage bucket 'property-images'
       if (selectedFile) {
         const fileExt = selectedFile.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36.substring(2)}.${fileExt}`
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
         const filePath = `${fileName}`
 
         const { error: uploadError } = await supabase.storage
