@@ -1,102 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import HeaderNav from '../components/HeaderNav'
-import Footer from '../components/Footer'
-import { supabase } from '@/lib/supabase'
+import React, { useState, useEffect } from 'react'
+import { createClient } from '@supabase/supabase-js'
 
-interface Property {
-  id: string
-  host_id?: string
-  title: string
-  location: string
-  price_per_night?: number
-  price?: number
-  bedrooms?: number
-  bathrooms?: number
-  guests?: number
-  property_type?: string
-  description?: string
-  amenities?: string[]
-  image_url?: string
-  image_urls?: string[]
-}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function BrowseStaysPage() {
-  const [properties, setProperties] = useState<Property[]>([])
+  const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeImageIndexes, setActiveImageIndexes] = useState<{ [key: string]: number }>({})
+  const [selectedPropertyForBooking, setSelectedPropertyForBooking] = useState<any>(null)
+  const [showBookingModal, setShowBookingModal] = useState(false)
+  const [bookingSuccess, setBookingSuccess] = useState(false)
 
-  const [selectedType, setSelectedType] = useState<string>('All')
-  const [selectedBedrooms, setSelectedBedrooms] = useState<string>('All')
-
-  const [selectedPropertyForBooking, setSelectedPropertyForBooking] = useState<Property | null>(null)
+  // Booking form state
   const [guestName, setGuestName] = useState('')
   const [guestContact, setGuestContact] = useState('')
   const [checkInDate, setCheckInDate] = useState('')
   const [checkOutDate, setCheckOutDate] = useState('')
-  const [adultsCount, setAdultsCount] = useState('1')
-  const [childrenCount, setChildrenCount] = useState('0')
+  const [adultCount, setAdultCount] = useState(1)
+  const [childrenCount, setChildrenCount] = useState(0)
   const [guestMessage, setGuestMessage] = useState('')
   const [submittingInquiry, setSubmittingInquiry] = useState(false)
-  const [bookingSuccess, setBookingSuccess] = useState(false)
 
   useEffect(() => {
-    const fetchProperties = async () => {
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('properties')
-          .select('*')
-          .order('created_at', { ascending: false })
-
-        if (error) console.error('Error fetching properties:', error.message)
-        else setProperties(data || [])
-      } catch (err) {
-        console.error('Unexpected error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchProperties()
   }, [])
 
-  const filteredProperties = properties.filter((property) => {
-    const matchesType =
-      selectedType === 'All' ||
-      (property.property_type && property.property_type.toLowerCase() === selectedType.toLowerCase())
-
-    let matchesBedrooms = true
-    const beds = property.bedrooms || 1
-
-    if (selectedBedrooms === '1') matchesBedrooms = beds === 1
-    else if (selectedBedrooms === '2') matchesBedrooms = beds === 2
-    else if (selectedBedrooms === '3') matchesBedrooms = beds === 3
-    else if (selectedBedrooms === '4+') matchesBedrooms = beds >= 4
-
-    return matchesType && matchesBedrooms
-  })
-
-  const setCardActiveImage = (propertyId: string, index: number) => {
-    setActiveImageIndexes((prev) => ({ ...prev, [propertyId]: index }))
-  }
-
-  const handleOpenBookingModal = (property: Property) => {
-    setSelectedPropertyForBooking(property)
-    setBookingSuccess(false)
-    setGuestName('')
-    setGuestContact('')
-    setCheckInDate('')
-    setCheckOutDate('')
-    setAdultsCount('1')
-    setChildrenCount('0')
-    setGuestMessage('')
-  }
-
-  const handleCloseBookingModal = () => {
-    setSelectedPropertyForBooking(null)
-    setBookingSuccess(false)
+  const fetchProperties = async () => {
+    try {
+      const { data, error } = await supabase.from('properties').select('*')
+      if (error) throw error
+      setProperties(data || [])
+    } catch (err) {
+      console.error('Error fetching properties:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleBookNowSubmit = async (e: React.FormEvent) => {
@@ -104,29 +45,27 @@ export default function BrowseStaysPage() {
     if (!selectedPropertyForBooking) return
 
     setSubmittingInquiry(true)
-    try {
-      const pricePerNight = selectedPropertyForBooking.price_per_night || selectedPropertyForBooking.price || 0
-      
-      let totalAmount = pricePerNight
-      if (checkInDate && checkOutDate) {
-        const start = new Date(checkInDate)
-        const end = new Date(checkOutDate)
-        const diffTime = end.getTime() - start.getTime()
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-        if (diffDays > 0) {
-          totalAmount = diffDays * pricePerNight
-        }
+
+    let totalAmount = selectedPropertyForBooking.price_per_night || 0
+    if (checkInDate && checkOutDate) {
+      const start = new Date(checkInDate)
+      const end = new Date(checkOutDate)
+      const diffTime = end.getTime() - start.getTime()
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      if (diffDays > 0) {
+        totalAmount = diffDays * (selectedPropertyForBooking.price_per_night || 0)
       }
+    }
 
-      const occupantsText = `${adultsCount} Adult(s), ${childrenCount} Child(ren)`
-      const compiledNotes = `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`
+    const occupantsText = `${adultCount} Adult(s), ${childrenCount} child(ren)`
+    const compiledNotes = `Occupants: ${occupantsText}. Note: ${guestMessage || 'None'}`
 
-      // Step 2 Integration: Pass host_id from the property record so it links to the correct host account
+    try {
       const { error } = await supabase.from('bookings').insert([
         {
           property_id: selectedPropertyForBooking.id,
           property_title: selectedPropertyForBooking.title,
-          host_id: selectedPropertyForBooking.host_id || null, 
+          host_id: selectedPropertyForBooking.host_id || null,
           guest_name: guestName,
           phone: guestContact,
           guest_phone: guestContact,
@@ -137,7 +76,7 @@ export default function BrowseStaysPage() {
           status: 'PENDING',
           guest_notes: compiledNotes,
           notes: compiledNotes,
-        },
+        }
       ])
 
       if (error) {
@@ -156,292 +95,181 @@ export default function BrowseStaysPage() {
 
   return (
     <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
-      <div>
-        <HeaderNav />
-
-        <section className="bg-neutral-900 border-b border-neutral-800 py-6 sm:py-8 px-4 text-center">
-          <div className="max-w-4xl mx-auto space-y-1.5">
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-extrabold text-amber-500 tracking-tight">
-              Browse La Estancia Portfolio
-            </h1>
-            <p className="text-neutral-400 text-xs sm:text-sm max-w-xl mx-auto">
-              Private short-stay booking portal. Submit dates & guest occupants directly to host management.
-            </p>
-          </div>
-        </section>
-
-        <section className="max-w-6xl mx-auto p-3 sm:p-6">
-          <div className="bg-neutral-900 border border-neutral-800 p-3 sm:p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
-            <div className="w-full sm:w-1/2">
-              <label className="block text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                Property Category
-              </label>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {['All', 'Apartment', 'Standalone House', 'Villa', 'Mansion'].map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setSelectedType(type)}
-                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition ${
-                      selectedType === type
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="w-full sm:w-1/2">
-              <label className="block text-[10px] sm:text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-1.5">
-                Size / Bedrooms
-              </label>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                {['All', '1', '2', '3', '4+'].map((beds) => (
-                  <button
-                    key={beds}
-                    onClick={() => setSelectedBedrooms(beds)}
-                    className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold transition ${
-                      selectedBedrooms === beds
-                        ? 'bg-amber-500 text-black shadow-md'
-                        : 'bg-neutral-950 text-neutral-400 border border-neutral-800 hover:text-white hover:border-neutral-700'
-                    }`}
-                  >
-                    {beds === 'All' ? 'Any Size' : beds === '4+' ? '4+ Beds' : `${beds} Bed`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-16 space-y-3">
-              <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="text-xs text-neutral-400">Loading listings...</p>
-            </div>
-          ) : filteredProperties.length === 0 ? (
-            <div className="text-center py-16 bg-neutral-900 border border-neutral-800 rounded-2xl p-8">
-              <p className="text-amber-500 font-bold text-base mb-1">No Matching Properties</p>
-              <p className="text-neutral-400 text-xs mb-4">Try adjusting your search filters.</p>
-              <button
-                onClick={() => { setSelectedType('All'); setSelectedBedrooms('All') }}
-                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold rounded-xl transition"
-              >
-                Reset Filters
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-              {filteredProperties.map((prop) => {
-                const images = prop.image_urls && prop.image_urls.length > 0 
-                  ? prop.image_urls 
-                  : [prop.image_url || '/placeholder.jpg']
-                
-                const activeIdx = activeImageIndexes[prop.id] || 0
-                const currentImg = images[activeIdx] || images[0]
-
-                return (
-                  <div
-                    key={prop.id}
-                    className="bg-neutral-900 border border-neutral-800 rounded-xl sm:rounded-2xl overflow-hidden hover:border-neutral-700 transition flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="relative h-44 sm:h-64 lg:h-72 bg-neutral-950 overflow-hidden">
-                        <img
-                          src={currentImg}
-                          alt={prop.title}
-                          className="w-full h-full object-cover transition-opacity duration-300"
-                        />
-                        <span className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-amber-500 text-black font-extrabold text-[10px] sm:text-xs px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-md">
-                          ${prop.price_per_night ?? prop.price ?? 0} / night
-                        </span>
-                      </div>
-
-                      {images.length > 1 && (
-                        <div className="flex items-center gap-1.5 p-2 bg-neutral-950/80 overflow-x-auto border-b border-neutral-800">
-                          {images.map((imgUrl, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setCardActiveImage(prop.id, idx)}
-                              className={`relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 transition ${
-                                activeIdx === idx ? 'border-amber-500 scale-95' : 'border-transparent opacity-60 hover:opacity-100'
-                              }`}
-                            >
-                              <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="p-2.5 sm:p-4 space-y-2">
-                        <div>
-                          <h3 className="font-bold text-white text-xs sm:text-base leading-tight line-clamp-2">{prop.title}</h3>
-                          <p className="text-[10px] sm:text-xs text-neutral-400 capitalize mt-0.5">📍 {prop.location}</p>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs text-neutral-300 py-1 border-y border-neutral-800/80">
-                          <span>🛏️ {prop.bedrooms ?? 1} Bed</span>
-                          <span>🚿 {prop.bathrooms ?? 1} Bath</span>
-                          <span>👥 {prop.guests ?? 2} Guests</span>
-                        </div>
-
-                        {prop.description ? (
-                          <p className="text-[10px] sm:text-xs text-neutral-300 leading-snug line-clamp-2">
-                            {prop.description}
-                          </p>
-                        ) : null}
-
-                        {prop.amenities && prop.amenities.length > 0 && (
-                          <div className="pt-1">
-                            <span className="block text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-1">
-                              Included Amenities
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              {prop.amenities.map((item, i) => (
-                                <span
-                                  key={i}
-                                  className="text-[9px] sm:text-[10px] bg-neutral-950 border border-neutral-800 text-amber-500 font-medium px-2 py-0.5 rounded-md"
-                                >
-                                  ✓ {item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 sm:p-4 pt-0">
-                      <button
-                        onClick={() => handleOpenBookingModal(prop)}
-                        className="w-full py-2 sm:py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[10px] sm:text-xs rounded-lg sm:rounded-xl shadow-md transition"
-                      >
-                        ✨ Book Now / Reserve
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
+      <div className="bg-neutral-900 border-b border-neutral-800 py-6 px-4 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">La Estancia Vacation Homes</h1>
+        <p className="text-neutral-400 mt-2">Explore our exclusive portfolio of stays and book your experience.</p>
       </div>
 
-      {selectedPropertyForBooking && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-neutral-900 border border-neutral-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative my-8">
+      <div className="max-w-6xl mx-auto px-4 py-10 w-full flex-grow">
+        {loading ? (
+          <div className="text-center text-neutral-400 py-20">Loading available stays...</div>
+        ) : properties.length === 0 ? (
+          <div className="text-center text-neutral-400 py-20">No properties currently listed.</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {properties.map((property) => (
+              <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col justify-between">
+                <div>
+                  {property.image_url ? (
+                    <img src={property.image_url} alt={property.title} className="w-full h-48 object-cover" />
+                  ) : (
+                    <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-500">No Image</div>
+                  )}
+                  <div className="p-5">
+                    <h2 className="text-xl font-semibold">{property.title}</h2>
+                    <p className="text-neutral-400 text-sm mt-1">{property.location}</p>
+                    <p className="text-emerald-400 font-bold mt-4">${property.price_per_night} <span className="text-xs text-neutral-400 font-normal">/ night</span></p>
+                  </div>
+                </div>
+                <div className="p-5 pt-0">
+                  <button
+                    onClick={() => {
+                      setSelectedPropertyForBooking(property)
+                      setBookingSuccess(false)
+                      setShowBookingModal(true)
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg transition"
+                  >
+                    Book Now
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {showBookingModal && selectedPropertyForBooking && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
             <button
-              onClick={handleCloseBookingModal}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-lg font-bold"
+              onClick={() => setShowBookingModal(false)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white"
             >
               ✕
             </button>
 
             {bookingSuccess ? (
-              <div className="text-center py-8 space-y-4">
-                <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 text-2xl rounded-full flex items-center justify-center mx-auto border border-emerald-500/30">
-                  ✓
-                </div>
-                <h3 className="text-xl font-bold text-white">Booking Request Received!</h3>
-                <p className="text-xs text-neutral-300 leading-relaxed max-w-sm mx-auto">
-                  Your reservation request for <strong className="text-amber-500">{selectedPropertyForBooking.title}</strong> has been logged into the host operations portal.
-                </p>
+              <div className="text-center py-8">
+                <div className="text-emerald-400 text-5xl mb-4">✓</div>
+                <h3 className="text-2xl font-bold">Inquiry Sent Successfully!</h3>
+                <p className="text-neutral-400 mt-2">Your booking inquiry has been received. Our team will review and contact you shortly.</p>
                 <button
-                  onClick={handleCloseBookingModal}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-xl transition"
+                  onClick={() => setShowBookingModal(false)}
+                  className="mt-6 bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-2 rounded-lg transition"
                 >
-                  Done
+                  Close
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleBookNowSubmit} className="space-y-4">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider">Reserve Stay</span>
-                  <h3 className="text-lg font-extrabold text-white">{selectedPropertyForBooking.title}</h3>
-                  <p className="text-xs text-neutral-400">📍 {selectedPropertyForBooking.location} • ${selectedPropertyForBooking.price_per_night ?? selectedPropertyForBooking.price ?? 0} / night</p>
-                </div>
+              <form onSubmit={handleBookNowSubmit}>
+                <h3 className="text-xl font-bold mb-1">Book: {selectedPropertyForBooking.title}</h3>
+                <p className="text-sm text-neutral-400 mb-6">Fill in your stay details below.</p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Your Full Name</label>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Full Name</label>
                     <input
-                      type="text" required placeholder="e.g. Alex Morgan"
-                      value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      type="text"
+                      required
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Jane Doe"
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Email or WhatsApp Phone</label>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Phone / WhatsApp Contact</label>
                     <input
-                      type="text" required placeholder="e.g. +256..."
-                      value={guestContact} onChange={(e) => setGuestContact(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
+                      type="text"
+                      required
+                      value={guestContact}
+                      onChange={(e) => setGuestContact(e.target.value)}
+                      placeholder="+256..."
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Check-in Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={checkInDate}
+                        onChange={(e) => setCheckInDate(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Check-out Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={checkOutDate}
+                        onChange={(e) => setCheckOutDate(e.target.value)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Adults</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={adultCount}
+                        onChange={(e) => setAdultCount(parseInt(e.target.value) || 1)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Children</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={childrenCount}
+                        onChange={(e) => setChildrenCount(parseInt(e.target.value) || 0)}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
+                    <textarea
+                      rows={3}
+                      value={guestMessage}
+                      onChange={(e) => setGuestMessage(e.target.value)}
+                      placeholder="Any special requests or details..."
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-In Date</label>
-                    <input
-                      type="date" required value={checkInDate} onChange={(e) => setCheckInDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-medium text-neutral-300 mb-1">Check-Out Date</label>
-                    <input
-                      type="date" required value={checkOutDate} onChange={(e) => setCheckOutDate(e.target.value)}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                    />
-                  </div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowBookingModal(false)}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg text-sm transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingInquiry}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    {submittingInquiry ? 'Submitting...' : 'Submit Inquiry'}
+                  </button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 bg-neutral-950 p-3 border border-neutral-800 rounded-xl">
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Adult Occupants</label>
-                    <select
-                      value={adultsCount} onChange={(e) => setAdultsCount(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="1">1 Adult</option><option value="2">2 Adults</option><option value="3">3 Adults</option><option value="4">4 Adults</option><option value="5+">5+ Adults</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold text-neutral-400 uppercase mb-1">Children</label>
-                    <select
-                      value={childrenCount} onChange={(e) => setChildrenCount(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-white text-xs outline-none focus:border-amber-500"
-                    >
-                      <option value="0">0 Children</option><option value="1">1 Child</option><option value="2">2 Children</option><option value="3+">3+ Children</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-neutral-300 mb-1">Message to Host (Optional)</label>
-                  <textarea
-                    rows={3} placeholder="Ask about check-in time or special preferences..."
-                    value={guestMessage} onChange={(e) => setGuestMessage(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white text-xs outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <button
-                  type="submit" disabled={submittingInquiry}
-                  className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg"
-                >
-                  {submittingInquiry ? 'Submitting...' : 'Confirm & Submit Reservation Request'}
-                </button>
               </form>
             )}
-
           </div>
         </div>
       )}
-
-      <Footer />
     </main>
   )
 }
