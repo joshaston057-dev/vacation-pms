@@ -48,7 +48,7 @@ export default function HostOperationsHub() {
   const [hostWhatsApp, setHostWhatsApp] = useState('+256757386946')
   const [savingSettings, setSavingSettings] = useState(false)
 
-  // Add Property Modal State (with photos, description, amenities)
+  // Add Property Modal State
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
   const [uploadingNewImages, setUploadingNewImages] = useState(false)
   const [newProperty, setNewProperty] = useState({
@@ -61,7 +61,7 @@ export default function HostOperationsHub() {
     amenities: ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave']
   })
 
-  // Add Task Modal State (with WhatsApp & Special Notes)
+  // Add Task Modal State
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
   const [newTask, setNewTask] = useState({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff', whatsapp: '', notes: '' })
 
@@ -983,7 +983,7 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* Add Property Modal with Photos, Description, and Amenities */}
+      {/* Add Property Modal */}
       {showAddPropertyModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-4 text-xs my-8 shadow-2xl">
@@ -1091,7 +1091,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* Add Task Modal with WhatsApp & Special Notes */}
+      {/* Add Task Modal */}
       {showAddTaskModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
@@ -1188,7 +1188,7 @@ export default function HostOperationsHub() {
                 type="submit" disabled={submittingRequest}
                 className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition shadow-lg cursor-pointer"
               >
-                {submittingRequest ? 'Submitting Inquiry...' : 'Confirm & Submit Service Inquiry'}
+                {submittingRequest ? 'Submitting Inquiry...' : 'Send Inquiry to Host'}
               </button>
             </form>
           </div>
