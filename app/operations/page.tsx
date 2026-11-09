@@ -356,8 +356,63 @@ export default function OperationsPage() {
             <div>
               <h2 className="text-xl font-bold text-white mb-2">Reservations & Bookings Ledger</h2>
               <p className="text-neutral-400 text-sm mb-6">Monitor confirmed stays, guest details, and pending inquiries.</p>
-              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-                Bookings management active. View guest contact, check-in dates, and payment statuses here.
+              
+              <div className="grid grid-cols-1 gap-4">
+                {/* Sample Booking Card matching your exact structure */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-5 relative">
+                  {/* Top Row: Property & Confirmed Badge */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <span className="text-xs text-neutral-400 uppercase tracking-wider">Property Inquiry</span>
+                      <h3 className="text-white font-bold text-base mt-0.5">2 bedroom fully furnished Airbnb apartment for rent in Ntinda</h3>
+                    </div>
+                    <span className="bg-emerald-950/60 text-emerald-400 border border-emerald-900/50 text-xs px-2.5 py-1 rounded-full font-medium">
+                      Confirmed
+                    </span>
+                  </div>
+
+                  {/* Guest Details Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs text-neutral-300 my-4 bg-neutral-900/50 p-3 rounded-lg border border-neutral-800/60">
+                    <div>
+                      <span className="text-neutral-500 block">Guest Name</span>
+                      <strong className="text-white">Linton Ayebare</strong>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block">Phone / WhatsApp</span>
+                      <strong className="text-white">+256780564778</strong>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block">Guests & Demo</span>
+                      <strong className="text-white">2 Guests (Solo Business)</strong>
+                    </div>
+                    <div>
+                      <span className="text-neutral-500 block">Dates</span>
+                      <strong className="text-white">Nov 12 - Nov 19</strong>
+                    </div>
+                  </div>
+
+                  {/* Highlighted Guest Notes */}
+                  <div className="bg-neutral-900/80 border border-neutral-800 rounded-lg p-3 text-xs text-neutral-300 mb-4">
+                    <span className="text-neutral-500 block mb-1 font-medium">Guest Notes</span>
+                    Requesting early check-in around 10:00 AM if possible. Airport pickup needed.
+                  </div>
+
+                  {/* Bottom Actions */}
+                  <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-neutral-800/80">
+                    <button 
+                      onClick={() => alert('Marking booking as processed / approved')}
+                      className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white text-xs py-2 rounded-lg font-medium transition"
+                    >
+                      ✓ Mark Processed
+                    </button>
+                    <button 
+                      onClick={() => alert('Deleting booking record')}
+                      className="flex-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-900/40 text-xs py-2 rounded-lg font-medium transition"
+                    >
+                      Delete Record
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
