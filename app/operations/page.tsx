@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export default function OperationsPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  
+  const [activeTab, setActiveTab] = useState('bookings')
   // Property Form State
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
@@ -217,46 +217,138 @@ export default function OperationsPage() {
           </form>
         </div>
 
-        {/* Operations Hub Modular Command Center */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10 border-t border-neutral-800 mt-10">
+{/* Operations Hub Tab Navigation Bar */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* 1. Bookings Ledger */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex justify-between items-center mb-6">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <input 
+            type="text" 
+            placeholder="Quick search properties, guests, or tasks..." 
+            className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-700"
+          />
+        </div>
+
+        {/* Tab Buttons Row */}
+        <div className="flex flex-wrap gap-3 mb-8">
+          <button 
+            onClick={() => setActiveTab('properties')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'properties' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            🏠 Properties
+          </button>
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'bookings' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            📅 Bookings
+          </button>
+          <button 
+            onClick={() => setActiveTab('dispatch')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'dispatch' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            ⚡ Dispatch / Tasks
+          </button>
+          <button 
+            onClick={() => setActiveTab('ledger')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'ledger' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            💰 Ledger
+          </button>
+          <button 
+            onClick={() => setActiveTab('upsells')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'upsells' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            ⭐ Upsells
+          </button>
+          <button 
+            onClick={() => setActiveTab('cohosts')}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'cohosts' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
+          >
+            🤝 Co-Hosts
+          </button>
+        </div>
+
+        {/* Dynamic Tab Content Display */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl min-h-[350px]">
+          
+          {activeTab === 'properties' && (
             <div>
-              <h2 className="text-xl font-bold text-white">Reservations & Bookings Ledger</h2>
-              <p className="text-neutral-400 text-sm">Monitor confirmed stays, guest details, and pending inquiries.</p>
+              <h2 className="text-xl font-bold text-white mb-2">Property Management & Creation</h2>
+              <p className="text-neutral-400 text-sm mb-6">Use your property creation form above to add listings, or manage existing inventory.</p>
+              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                Property management view active.
+              </div>
             </div>
-            <span className="bg-emerald-950 text-emerald-400 border border-emerald-900/50 text-xs px-3 py-1 rounded-full font-medium">Live Feed</span>
-          </div>
-          <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-            No active booking records found in current view.
-          </div>
-        </div>
+          )}
 
-        {/* 2. Property Portfolio Management */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Property Portfolio</h2>
-            <p className="text-neutral-400 text-sm">Listings managed via your secure database records above.</p>
-          </div>
-        </div>
-
-        {/* 3. Operational Tasks Tracker */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-white">Operational Tasks Tracker</h2>
-            <p className="text-neutral-400 text-sm">Assign cleaning, maintenance, and check-in checklists with priority levels.</p>
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center p-3 bg-neutral-950/50 rounded-xl border border-neutral-800/60 text-sm">
-              <span className="text-neutral-200">Deep cleaning scheduled for upcoming turnover</span>
-              <span className="text-amber-400 bg-amber-950/40 px-2.5 py-1 rounded-md text-xs border border-amber-900/40">High Priority</span>
+          {activeTab === 'bookings' && (
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Reservations & Bookings Ledger</h2>
+              <p className="text-neutral-400 text-sm mb-6">Monitor confirmed stays, guest details, and pending inquiries.</p>
+              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                Bookings management active.
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'dispatch' && (
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Operational Tasks & Dispatch</h2>
+              <p className="text-neutral-400 text-sm mb-6">Assign cleaning, maintenance, and check-in checklists with priority levels.</p>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-3 bg-neutral-950/50 rounded-xl border border-neutral-800/60 text-sm">
+                  <span className="text-neutral-200">Deep cleaning scheduled for upcoming turnover</span>
+                  <span className="text-amber-400 bg-amber-950/40 px-2.5 py-1 rounded-md text-xs border border-amber-900/40">High Priority</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ledger' && (
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Financial Ledger & Expenses</h2>
+              <p className="text-neutral-400 text-sm mb-6">Track monthly earnings, utility bills, rent, and operational costs.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                  <span className="text-xs text-neutral-400">Total Revenue (MTD)</span>
+                  <p className="text-2xl font-bold text-white mt-1">$4,850</p>
+                </div>
+                <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                  <span className="text-xs text-neutral-400">Operational Bills (Rent/Gas)</span>
+                  <p className="text-2xl font-bold text-rose-400 mt-1">$1,200</p>
+                </div>
+                <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                  <span className="text-xs text-neutral-400">Net Profit</span>
+                  <p className="text-2xl font-bold text-emerald-400 mt-1">$3,650</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'upsells' && (
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Guest Upsells & Services</h2>
+              <p className="text-neutral-400 text-sm mb-6">Configure airport pickups, private chef bookings, and extra guest services.</p>
+              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                Upsells configuration active.
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'cohosts' && (
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Co-Host & Property Marketing Services</h2>
+              <p className="text-neutral-400 text-sm mb-6">Manage external client property listings, landing page requests, and co-hosting agreements.</p>
+              <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                Co-hosting pipelines active.
+              </div>
+            </div>
+          )}
+
         </div>
 
-        {/* 4. Financial Ledger & Expenses */}
+      </div>
         <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
           <div className="mb-6">
             <h2 className="text-xl font-bold text-white">Financial Ledger & Expenses</h2>
