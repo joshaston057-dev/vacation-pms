@@ -48,9 +48,18 @@ export default function HostOperationsHub() {
   const [hostWhatsApp, setHostWhatsApp] = useState('+256757386946')
   const [savingSettings, setSavingSettings] = useState(false)
 
-  // Add Property Modal State
+  // Add Property Modal State (with photos, description, amenities)
   const [showAddPropertyModal, setShowAddPropertyModal] = useState(false)
-  const [newProperty, setNewProperty] = useState({ title: '', price: '', location: '', category: 'Apartment' })
+  const [uploadingNewImages, setUploadingNewImages] = useState(false)
+  const [newProperty, setNewProperty] = useState({
+    title: '',
+    price: '',
+    location: '',
+    category: 'Apartment',
+    description: '',
+    images: [] as string[],
+    amenities: ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave']
+  })
 
   // Add Task Modal State
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
@@ -77,6 +86,7 @@ export default function HostOperationsHub() {
     price: '',
     location: '',
     category: 'Apartment',
+    description: '',
     images: [],
     amenities: []
   })
@@ -173,6 +183,54 @@ export default function HostOperationsHub() {
     }
   }
 
+  const handleNewPropertyFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setUploadingNewImages(true)
+    try {
+      const updatedImages = [...newProperty.images]
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        const fileExt = file.name.split('.').pop()
+        const randomStr = Math.random().toString(36).substring(2)
+        const fileName = `pms-${randomStr}-${Date.now()}.${fileExt}`
+        const filePath = `listings/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrlData } = supabase.storage
+          .from('property-images')
+          .getPublicUrl(filePath)
+
+        if (publicUrlData?.publicUrl) {
+          updatedImages.push(publicUrlData.publicUrl)
+        }
+      }
+
+      setNewProperty({ ...newProperty, images: updatedImages })
+      alert('✅ Photos uploaded successfully!')
+    } catch (err: any) {
+      alert('Upload Error: ' + err.message)
+    } finally {
+      setUploadingNewImages(false)
+    }
+  }
+
+  const handleToggleNewAmenity = (amenityName: string) => {
+    const current = newProperty.amenities
+    if (current.includes(amenityName)) {
+      setNewProperty({ ...newProperty, amenities: current.filter(a => a !== amenityName) })
+    } else {
+      setNewProperty({ ...newProperty, amenities: [...current, amenityName] })
+    }
+  }
+
   const handleCreatePropertySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -186,6 +244,10 @@ export default function HostOperationsHub() {
           price: parseFloat(newProperty.price) || 0,
           location: newProperty.location,
           category: newProperty.category,
+          description: newProperty.description,
+          images: newProperty.images,
+          image_url: newProperty.images[0] || null,
+          amenities: newProperty.amenities,
           host_id: user.id,
           status: 'AVAILABLE'
         }
@@ -194,7 +256,7 @@ export default function HostOperationsHub() {
       if (error) throw error
       alert('✅ Property added successfully!')
       setShowAddPropertyModal(false)
-      setNewProperty({ title: '', price: '', location: '', category: 'Apartment' })
+      setNewProperty({ title: '', price: '', location: '', category: 'Apartment', description: '', images: [], amenities: ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave'] })
       fetchHostData()
     } catch (err: any) {
       alert('Error: ' + err.message)
@@ -303,6 +365,7 @@ export default function HostOperationsHub() {
       price: property.price || '',
       location: property.location || '',
       category: property.category || 'Apartment',
+      description: property.description || '',
       images: imgArray,
       amenities: amenitiesArray
     })
@@ -382,6 +445,7 @@ export default function HostOperationsHub() {
           price: parseFloat(editingProperty.price) || 0,
           location: editingProperty.location,
           category: editingProperty.category,
+          description: editingProperty.description,
           images: editingProperty.images,
           image_url: editingProperty.images[0] || null,
           amenities: editingProperty.amenities,
@@ -889,24 +953,108 @@ export default function HostOperationsHub() {
         </div>
       </div>
 
-      {/* Add Property Modal */}
+      {/* Add Property Modal with Photos, Description, and Amenities */}
       {showAddPropertyModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
-            <h3 className="text-sm font-black text-white">Add New Property</h3>
-            <form onSubmit={handleCreatePropertySubmit} className="space-y-3">
-              <input type="text" required placeholder="Property Title (e.g. Kisaasi 2-Bedroom)" value={newProperty.title} onChange={(e) => setNewProperty({ ...newProperty, title: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
-              <input type="number" required placeholder="Price per Night ($)" value={newProperty.price} onChange={(e) => setNewProperty({ ...newProperty, price: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-amber-400 font-bold" />
-              <input type="text" required placeholder="Location (e.g. Kisaasi, Kampala)" value={newProperty.location} onChange={(e) => setNewProperty({ ...newProperty, location: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
-              <select value={newProperty.category} onChange={(e) => setNewProperty({ ...newProperty, category: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold">
-                <option value="Apartment">Apartment</option>
-                <option value="Standalone House">Standalone House</option>
-                <option value="Villa">Villa</option>
-                <option value="Mansion">Mansion</option>
-              </select>
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddPropertyModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Save Property</button>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-4 text-xs my-8 shadow-2xl">
+            <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+              <h3 className="text-sm font-black text-white">Add New Property (Photos, Description & Amenities)</h3>
+              <button onClick={() => setShowAddPropertyModal(false)} className="text-neutral-400 hover:text-white cursor-pointer">✕</button>
+            </div>
+
+            <form onSubmit={handleCreatePropertySubmit} className="space-y-4">
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Title / Layout</label>
+                <input
+                  type="text" required placeholder="e.g. Kisaasi 2-Bedroom Luxury Suite"
+                  value={newProperty.title} onChange={(e) => setNewProperty({ ...newProperty, title: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Price ($/night)</label>
+                  <input
+                    type="number" required placeholder="120"
+                    value={newProperty.price} onChange={(e) => setNewProperty({ ...newProperty, price: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-amber-400 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-neutral-400 font-bold mb-1">Location</label>
+                  <input
+                    type="text" required placeholder="e.g. Kisaasi, Kampala"
+                    value={newProperty.location} onChange={(e) => setNewProperty({ ...newProperty, location: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Category</label>
+                <select
+                  value={newProperty.category} onChange={(e) => setNewProperty({ ...newProperty, category: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold"
+                >
+                  <option value="Apartment">Apartment</option>
+                  <option value="Standalone House">Standalone House</option>
+                  <option value="Villa">Villa</option>
+                  <option value="Mansion">Mansion</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Description</label>
+                <textarea
+                  rows={3} placeholder="Describe the space, view, bedding arrangement, etc..."
+                  value={newProperty.description} onChange={(e) => setNewProperty({ ...newProperty, description: e.target.value })}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-neutral-400 font-bold">Property Photos (Upload from Device)</label>
+                <input
+                  type="file" multiple accept="image/*"
+                  onChange={handleNewPropertyFileUpload}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-300 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
+                />
+                {uploadingNewImages && <p className="text-amber-400 font-bold animate-pulse">Uploading photos...</p>}
+
+                <div className="grid grid-cols-4 gap-2 pt-2">
+                  {newProperty.images.map((url: string, idx: number) => (
+                    <div key={idx} className="relative aspect-square bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800">
+                      <img src={url} alt="preview" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-neutral-800">
+                <label className="block text-neutral-400 font-bold">Property Amenities</label>
+                <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
+                  {COMMON_AMENITIES.map((amenity) => {
+                    const isChecked = newProperty.amenities.includes(amenity)
+                    return (
+                      <label
+                        key={amenity}
+                        onClick={() => handleToggleNewAmenity(amenity)}
+                        className={`flex items-center gap-2 p-2 rounded-xl border transition cursor-pointer text-xs ${
+                          isChecked ? 'bg-amber-500/10 border-amber-500 text-white font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
+                        }`}
+                      >
+                        <input type="checkbox" checked={isChecked} onChange={() => {}} className="rounded text-amber-500" />
+                        {amenity}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-800">
+                <button type="button" onClick={() => setShowAddPropertyModal(false)} className="px-4 py-2 bg-neutral-800 text-white font-bold rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl cursor-pointer">Save & Publish Property</button>
               </div>
             </form>
           </div>
@@ -1019,7 +1167,7 @@ export default function HostOperationsHub() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full p-6 space-y-5 text-xs my-8 shadow-2xl">
             <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
-              <h3 className="text-sm font-black text-white">Edit Listing, Device Photos & Amenities</h3>
+              <h3 className="text-sm font-black text-white">Edit Listing, Photos & Amenities</h3>
               <button onClick={() => setShowEditListingModal(false)} className="text-neutral-400 hover:text-white">✕</button>
             </div>
 
@@ -1040,24 +1188,26 @@ export default function HostOperationsHub() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-neutral-400 font-bold mb-1">Property Description</label>
+                <textarea rows={3} value={editingProperty.description} onChange={(e) => setEditingProperty({ ...editingProperty, description: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              </div>
+
               <div className="space-y-2">
                 <label className="block text-neutral-400 font-bold">Property Photos (Upload from Device)</label>
                 <input
-                  type="file"
-                  multiple
-                  accept="image/*"
+                  type="file" multiple accept="image/*"
                   onChange={handleDeviceFileUpload}
                   className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2 text-neutral-300 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-amber-500 file:text-black hover:file:bg-amber-400 cursor-pointer"
                 />
-                {uploadingImages && <p className="text-amber-400 font-bold animate-pulse">Uploading photos to Supabase Storage...</p>}
+                {uploadingImages && <p className="text-amber-400 font-bold animate-pulse">Uploading photos...</p>}
 
                 <div className="grid grid-cols-4 gap-2 pt-2">
                   {editingProperty.images.map((url: string, idx: number) => (
                     <div key={idx} className="relative aspect-square bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800">
-                      <img src={url} alt="listing preview" className="w-full h-full object-cover" />
+                      <img src={url} alt="preview" className="w-full h-full object-cover" />
                       <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
+                        type="button" onClick={() => handleRemoveImage(idx)}
                         className="absolute top-1 right-1 bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] cursor-pointer shadow"
                       >
                         ✕
@@ -1068,7 +1218,7 @@ export default function HostOperationsHub() {
               </div>
 
               <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <label className="block text-neutral-400 font-bold">Property Amenities (Select applicable)</label>
+                <label className="block text-neutral-400 font-bold">Property Amenities</label>
                 <div className="grid grid-cols-2 gap-2 bg-neutral-950 p-3 rounded-2xl border border-neutral-800">
                   {COMMON_AMENITIES.map((amenity) => {
                     const isChecked = (editingProperty.amenities || []).includes(amenity)
@@ -1080,12 +1230,7 @@ export default function HostOperationsHub() {
                           isChecked ? 'bg-amber-500/10 border-amber-500 text-white font-bold' : 'bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-white'
                         }`}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="rounded border-neutral-800 text-amber-500 focus:ring-amber-500"
-                        />
+                        <input type="checkbox" checked={isChecked} onChange={() => {}} className="rounded text-amber-500" />
                         {amenity}
                       </label>
                     )
