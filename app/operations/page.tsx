@@ -12,7 +12,8 @@ export default function OperationsPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('bookings')
 
-  // Property Form State
+  // Property Form State (Add / Edit)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [location, setLocation] = useState('')
   const [pricePerNight, setPricePerNight] = useState('')
@@ -34,6 +35,39 @@ export default function OperationsPage() {
       console.error('Error fetching properties:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEditClick = (property: any) => {
+    setEditingId(property.id)
+    setTitle(property.title || '')
+    setLocation(property.location || '')
+    setPricePerNight(property.price_per_night?.toString() || '')
+    setCategory(property.category || 'Apartment')
+    setDescription(property.description || '')
+    setSelectedFile(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setTitle('')
+    setLocation('')
+    setPricePerNight('')
+    setCategory('Apartment')
+    setDescription('')
+    setSelectedFile(null)
+  }
+
+  const handleDeleteProperty = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this property?')) return
+    try {
+      const { error } = await supabase.from('properties').delete().eq('id', id)
+      if (error) throw error
+      alert('Property deleted successfully!')
+      fetchProperties()
+    } catch (error: any) {
+      alert('Error deleting property: ' + error.message)
     }
   }
 
@@ -62,29 +96,48 @@ export default function OperationsPage() {
         imageUrl = publicURLData.publicUrl
       }
 
-      const { error: insertError } = await supabase.from('properties').insert([
-        {
+      if (editingId) {
+        // Update existing property
+        const updateData: any = {
           title,
           location,
           price_per_night: parseFloat(pricePerNight),
           category,
           description,
-          image_url: imageUrl,
-        },
-      ])
+        }
+        if (imageUrl) updateData.image_url = imageUrl
 
-      if (insertError) throw insertError
+        const { error: updateError } = await supabase
+          .from('properties')
+          .update(updateData)
+          .eq('id', editingId)
 
-      alert('Property added successfully!')
-      setTitle('')
-      setLocation('')
-      setPricePerNight('')
-      setDescription('')
-      setSelectedFile(null)
+        if (updateError) throw updateError
+
+        alert('Property updated successfully!')
+      } else {
+        // Insert new property
+        const { error: insertError } = await supabase.from('properties').insert([
+          {
+            title,
+            location,
+            price_per_night: parseFloat(pricePerNight),
+            category,
+            description,
+            image_url: imageUrl,
+          },
+        ])
+
+        if (insertError) throw insertError
+
+        alert('Property added successfully!')
+      }
+
+      handleCancelEdit()
       fetchProperties()
     } catch (error: any) {
-      console.error('Error adding property:', error.message)
-      alert('Error adding property: ' + error.message)
+      console.error('Error saving property:', error.message)
+      alert('Error saving property: ' + error.message)
     } finally {
       setUploading(false)
     }
@@ -93,11 +146,9 @@ export default function OperationsPage() {
   return (
     <main className="min-h-screen bg-neutral-950 text-white pb-16">
       {/* Compact Header */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Operations Hub</h1>
-          <p className="text-neutral-400 text-sm mt-1">Manage your properties, bookings, tasks, and financials from one command center.</p>
-        </div>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-white">Operations Hub</h1>
+        <p className="text-neutral-400 text-sm mt-1">Manage your properties, bookings, tasks, and financials from one command center.</p>
       </div>
 
       {/* Operations Hub Tab Navigation Bar & Search */}
@@ -157,9 +208,23 @@ export default function OperationsPage() {
           
           {activeTab === 'properties' && (
             <div className="space-y-8">
-              {/* Add Property Form tucked neatly inside the Properties Tab */}
+              {/* Add / Edit Property Form */}
               <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-6">
-                <h2 className="text-lg font-bold text-white mb-4">Add New Property Listing</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-bold text-white">
+                    {editingId ? 'Edit Property Details' : 'Add New Property Listing'}
+                  </h2>
+                  {editingId && (
+                    <button 
+                      type="button" 
+                      onClick={handleCancelEdit}
+                      className="text-xs text-neutral-400 hover:text-white underline"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+
                 <form onSubmit={handlePropertySubmit} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
@@ -225,7 +290,7 @@ export default function OperationsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-neutral-400 mb-1">Property Image</label>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Property Image {editingId && '(Leave blank to keep existing)'}</label>
                     <input 
                       type="file" 
                       onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
@@ -238,15 +303,15 @@ export default function OperationsPage() {
                     disabled={uploading} 
                     className="w-full bg-white text-black font-medium py-2.5 rounded-xl text-sm hover:bg-neutral-200 transition"
                   >
-                    {uploading ? 'Publishing Property...' : 'Publish Property Listing'}
+                    {uploading ? 'Saving Property...' : editingId ? 'Update Property Details' : 'Publish Property Listing'}
                   </button>
                 </form>
               </div>
 
-              {/* Property Inventory Display */}
+              {/* Property Inventory Display with Edit & Delete Actions */}
               <div>
                 <h2 className="text-xl font-bold text-white mb-2">Live Property Portfolio</h2>
-                <p className="text-neutral-400 text-sm mb-6">Review your active listings loaded from Supabase.</p>
+                <p className="text-neutral-400 text-sm mb-6">Review, edit, or remove your active listings loaded from Supabase.</p>
                 {loading ? (
                   <p className="text-neutral-500 text-sm">Loading properties...</p>
                 ) : properties.length === 0 ? (
@@ -256,13 +321,29 @@ export default function OperationsPage() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {properties.map((property) => (
-                      <div key={property.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                        {property.image_url && (
-                          <img src={property.image_url} alt={property.title} className="w-full h-36 object-cover rounded-lg mb-3" />
-                        )}
-                        <h3 className="font-bold text-white text-sm">{property.title}</h3>
-                        <p className="text-neutral-400 text-xs mt-1">{property.location}</p>
-                        <p className="text-emerald-400 font-semibold text-xs mt-2">${property.price_per_night} / night</p>
+                      <div key={property.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                          {property.image_url && (
+                            <img src={property.image_url} alt={property.title} className="w-full h-36 object-cover rounded-lg mb-3" />
+                          )}
+                          <h3 className="font-bold text-white text-sm">{property.title}</h3>
+                          <p className="text-neutral-400 text-xs mt-1">{property.location}</p>
+                          <p className="text-emerald-400 font-semibold text-xs mt-2">${property.price_per_night} / night</p>
+                        </div>
+                        <div className="flex gap-2 mt-4 pt-3 border-t border-neutral-800">
+                          <button 
+                            onClick={() => handleEditClick(property)}
+                            className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-white text-xs py-1.5 rounded-lg font-medium transition"
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProperty(property.id)}
+                            className="flex-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 border border-rose-900/40 text-xs py-1.5 rounded-lg font-medium transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
