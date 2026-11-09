@@ -217,46 +217,84 @@ export default function OperationsPage() {
           </form>
         </div>
 
-        {/* Portfolio Listing Grid */}
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold tracking-tight">Active Property Portfolio ({properties.length})</h2>
-          
-          {loading ? (
-            <div className="text-neutral-500 text-center py-20">Loading portfolio properties...</div>
-          ) : properties.length === 0 ? (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center text-neutral-400">
-              No properties listed yet. Use the form above to add your first property.
+        {/* Operations Hub Modular Command Center */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10 border-t border-neutral-800 mt-10">
+        
+        {/* 1. Bookings Ledger */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-white">Reservations & Bookings Ledger</h2>
+              <p className="text-neutral-400 text-sm">Monitor confirmed stays, guest details, and pending inquiries.</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map((prop) => (
-                <div key={prop.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col justify-between shadow-lg">
-                  <div>
-                    {prop.image_url ? (
-                      <img src={prop.image_url} alt={prop.title} className="w-full h-48 object-cover" />
-                    ) : (
-                      <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-500 text-sm">No Image Available</div>
-                    )}
-                    <div className="p-5">
-                      <span className="text-xs uppercase tracking-wider text-emerald-400 font-semibold">{prop.category || 'Property'}</span>
-                      <h3 className="text-lg font-bold mt-1 text-white">{prop.title}</h3>
-                      <p className="text-neutral-400 text-xs mt-1">{prop.location}</p>
-                      <p className="text-emerald-400 font-bold mt-4">${prop.price_per_night} <span className="text-xs text-neutral-400 font-normal">/ night</span></p>
-                    </div>
-                  </div>
-                  <div className="p-5 pt-0">
-                    <button
-                      onClick={() => handleDeleteProperty(prop.id)}
-                      className="w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 font-medium py-2 rounded-lg text-xs transition"
-                    >
-                      Delete Property
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            <span className="bg-emerald-950 text-emerald-400 border border-emerald-900/50 text-xs px-3 py-1 rounded-full font-medium">Live Feed</span>
+          </div>
+          <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+            No active booking records found in current view.
+          </div>
         </div>
+
+        {/* 2. Property Portfolio Management */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Property Portfolio</h2>
+            <p className="text-neutral-400 text-sm">Listings managed via your secure database records above.</p>
+          </div>
+        </div>
+
+        {/* 3. Operational Tasks Tracker */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Operational Tasks Tracker</h2>
+            <p className="text-neutral-400 text-sm">Assign cleaning, maintenance, and check-in checklists with priority levels.</p>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 bg-neutral-950/50 rounded-xl border border-neutral-800/60 text-sm">
+              <span className="text-neutral-200">Deep cleaning scheduled for upcoming turnover</span>
+              <span className="text-amber-400 bg-amber-950/40 px-2.5 py-1 rounded-md text-xs border border-amber-900/40">High Priority</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Financial Ledger & Expenses */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Financial Ledger & Expenses</h2>
+            <p className="text-neutral-400 text-sm">Track monthly earnings, utility bills, rent, and operational costs.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+              <span className="text-xs text-neutral-400">Total Revenue (MTD)</span>
+              <p className="text-2xl font-bold text-white mt-1">$4,850</p>
+            </div>
+            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+              <span className="text-xs text-neutral-400">Operational Bills (Rent/Gas)</span>
+              <p className="text-2xl font-bold text-rose-400 mt-1">$1,200</p>
+            </div>
+            <div className="p-4 bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+              <span className="text-xs text-neutral-400">Net Profit</span>
+              <p className="text-2xl font-bold text-emerald-400 mt-1">$3,650</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Guest Upsells & Services */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Guest Upsells & Services</h2>
+            <p className="text-neutral-400 text-sm">Configure airport pickups, private chef bookings, and extra guest services.</p>
+          </div>
+        </div>
+
+        {/* 6. Co-Host & Property Marketing Services */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">Co-Host & Property Marketing Services</h2>
+            <p className="text-neutral-400 text-sm">Manage external client property listings, landing page requests, and co-hosting agreements.</p>
+          </div>
+        </div>
+
+      </div>
         {/* Reservations & Operational Ledger Module */}
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 border-t border-neutral-800 mt-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
