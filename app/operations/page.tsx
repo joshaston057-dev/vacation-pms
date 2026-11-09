@@ -257,6 +257,22 @@ export default function OperationsPage() {
             </div>
           )}
         </div>
+        {/* Reservations & Operational Ledger Module */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 border-t border-neutral-800 mt-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight text-white">Reservations & Operational Ledger</h2>
+            <p className="text-neutral-400 text-sm mt-1">Track guest bookings, status updates, and operational tasks.</p>
+          </div>
+        </div>
+
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+          <h3 className="text-lg font-semibold mb-4 text-emerald-400">Incoming & Confirmed Bookings</h3>
+          <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+            Booking tracking ledger active. View guest contact, check-in dates, and payment statuses here.
+          </div>
+        </div>
+      </div>
 
       </div>
     </main>
