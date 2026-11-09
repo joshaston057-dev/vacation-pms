@@ -28,9 +28,9 @@ const DEFAULT_UPSELLS = [
 ]
 
 const DEFAULT_TASKS = [
-  { id: 1, title: 'Pre-arrival Deep Cleaning', property_title: 'Executive Apartment', priority: 'High', status: 'Pending', assignee: 'Cleaning Team' },
-  { id: 2, title: 'AC Filter & Gas Check', property_title: 'Entebbe Villa', priority: 'Medium', status: 'Scheduled', assignee: 'Maintenance' },
-  { id: 3, title: 'Key Handover & Wi-Fi Setup', property_title: 'Kisaasi 1-Bedroom', priority: 'High', status: 'Completed', assignee: 'Co-Host' }
+  { id: 1, title: 'Pre-arrival Deep Cleaning', property_title: 'Executive Apartment', priority: 'High', status: 'Pending', assignee: 'Cleaning Team', whatsapp: '+256757386946', notes: 'Ensure fresh towels and kitchen sanitized.' },
+  { id: 2, title: 'AC Filter & Gas Check', property_title: 'Entebbe Villa', priority: 'Medium', status: 'Scheduled', assignee: 'Maintenance', whatsapp: '+256780564778', notes: 'Check gas cylinder levels before guest arrival.' },
+  { id: 3, title: 'Key Handover & Wi-Fi Setup', property_title: 'Kisaasi 1-Bedroom', priority: 'High', status: 'Completed', assignee: 'Co-Host', whatsapp: '+256757386946', notes: 'Test router speed and verify spare keys.' }
 ]
 
 export default function HostOperationsHub() {
@@ -61,9 +61,9 @@ export default function HostOperationsHub() {
     amenities: ['High-Speed WiFi', 'Air Conditioning', 'Smart TV', 'Kitchen / Microwave']
   })
 
-  // Add Task Modal State
+  // Add Task Modal State (with WhatsApp & Special Notes)
   const [showAddTaskModal, setShowAddTaskModal] = useState(false)
-  const [newTask, setNewTask] = useState({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff' })
+  const [newTask, setNewTask] = useState({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff', whatsapp: '', notes: '' })
 
   // Add Expense Modal State
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false)
@@ -280,7 +280,7 @@ export default function HostOperationsHub() {
       if (error) throw error
       alert('✅ Task dispatched!')
       setShowAddTaskModal(false)
-      setNewTask({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff' })
+      setNewTask({ title: '', property_title: '', priority: 'Medium', assignee: 'Staff', whatsapp: '', notes: '' })
       fetchHostData()
     } catch (err: any) {
       alert('Error: ' + err.message)
@@ -789,19 +789,49 @@ export default function HostOperationsHub() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {tasks.map((t) => (
-                      <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-3 shadow-xl flex flex-col justify-between">
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded border border-amber-500/20">{t.priority || 'Medium'} Priority</span>
-                            <span className="text-xs text-neutral-400 font-bold">{t.status || 'Pending'}</span>
+                    {tasks.map((t) => {
+                      const assigneePhone = t.whatsapp || hostWhatsApp
+                      const taskWhatsAppText = encodeURIComponent(
+                        `Hello ${t.assignee || 'Team'}! 👋 Regarding task *${t.title}* at *${t.property_title || 'Property'}*:\n\n` +
+                        `📌 *Special Notes:* ${t.notes || 'None'}\n\n` +
+                        `Please confirm when started or completed!`
+                      )
+
+                      return (
+                        <div key={t.id} className="bg-neutral-900 border border-neutral-800 p-5 rounded-2xl space-y-4 shadow-xl flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded border border-amber-500/20">{t.priority || 'Medium'} Priority</span>
+                              <span className="text-xs text-neutral-400 font-bold">{t.status || 'Pending'}</span>
+                            </div>
+
+                            <h4 className="font-extrabold text-white text-sm">{t.title}</h4>
+
+                            <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-1.5 text-xs">
+                              <p className="text-neutral-300">🏠 Property: <strong className="text-white">{t.property_title || 'General'}</strong></p>
+                              <p className="text-neutral-300">👤 Assignee: <strong className="text-emerald-400">{t.assignee || 'Staff'}</strong></p>
+                              <p className="text-neutral-300">💬 WhatsApp: <strong className="text-amber-400">{assigneePhone}</strong></p>
+                            </div>
+
+                            <div className="bg-neutral-950 p-3 rounded-xl border border-neutral-800">
+                              <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider block mb-0.5">Special Notes:</span>
+                              <p className="text-xs text-neutral-300">{t.notes || 'No special instructions.'}</p>
+                            </div>
                           </div>
-                          <h4 className="font-extrabold text-white text-sm">{t.title}</h4>
-                          <p className="text-xs text-neutral-400">🏠 Property: <strong className="text-white">{t.property_title || 'General'}</strong></p>
-                          <p className="text-xs text-neutral-400">👤 Assignee: <strong className="text-emerald-400">{t.assignee || 'Staff'}</strong></p>
+
+                          <div className="pt-2 border-t border-neutral-800">
+                            <a
+                              href={`https://api.whatsapp.com/send?phone=${assigneePhone.replace(/[^0-9]/g, '')}&text=${taskWhatsAppText}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5 text-center cursor-pointer"
+                            >
+                              💬 Contact Assignee via WhatsApp
+                            </a>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               )}
@@ -1061,7 +1091,7 @@ export default function HostOperationsHub() {
         </div>
       )}
 
-      {/* Add Task Modal */}
+      {/* Add Task Modal with WhatsApp & Special Notes */}
       {showAddTaskModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-md w-full p-6 space-y-4 text-xs shadow-2xl">
@@ -1075,6 +1105,8 @@ export default function HostOperationsHub() {
                 <option value="Low">Low Priority</option>
               </select>
               <input type="text" required placeholder="Assignee (e.g. Cleaning Team)" value={newTask.assignee} onChange={(e) => setNewTask({ ...newTask, assignee: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
+              <input type="text" required placeholder="Assignee WhatsApp Number (+256...)" value={newTask.whatsapp} onChange={(e) => setNewTask({ ...newTask, whatsapp: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white font-bold" />
+              <textarea rows={2} placeholder="Special Notes / Instructions..." value={newTask.notes} onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-white" />
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowAddTaskModal(false)} className="px-4 py-2 bg-neutral-800 text-white rounded-xl">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-amber-500 text-black font-black rounded-xl">Dispatch Task</button>
