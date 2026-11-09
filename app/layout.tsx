@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Navbar from './Navbar' // Adjust path if Navbar.tsx is located in a components folder
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.className} bg-neutral-950 text-neutral-100 antialiased`}>
+        <Navbar />
         {children}
       </body>
     </html>
