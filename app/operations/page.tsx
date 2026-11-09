@@ -13,11 +13,11 @@ export default function OperationsPage() {
   
   // Property Form State
   const [title, setTitle] = useState('')
-  const [location,setLocation] = useState('')
+  const [location, setLocation] = useState('')
   const [pricePerNight, setPricePerNight] = useState('')
   const [category, setCategory] = useState('Apartment')
   const [description, setDescription] = useState('')
-  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
@@ -43,16 +43,15 @@ export default function OperationsPage() {
     try {
       let imageUrl = ''
 
-      // Handle photo upload to Supabase storage if files selected
-      if (selectedFiles && selectedFiles.length > 0) {
-        const file = selectedFiles[0]
-        const fileExt = file.name.split('.').pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+      // Handle photo upload to Supabase storage bucket 'property-images'
+      if (selectedFile) {
+        const fileExt = selectedFile.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36.substring(2)}.${fileExt}`
         const filePath = `${fileName}`
 
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(filePath, file)
+          .upload(filePath, selectedFile, { upsert: true })
 
         if (uploadError) {
           throw new Error('Upload Error: ' + uploadError.message)
@@ -78,12 +77,12 @@ export default function OperationsPage() {
 
       if (insertError) throw insertError
 
-      alert('Property created successfully!')
+      alert('Property published successfully!')
       setTitle('')
       setLocation('')
       setPricePerNight('')
       setDescription('')
-      setSelectedFiles(null)
+      setSelectedFile(null)
       fetchProperties()
     } catch (err: any) {
       console.error('Error creating property:', err)
@@ -93,28 +92,40 @@ export default function OperationsPage() {
     }
   }
 
-  return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 w-full px-4 sm:px-6 lg:px-8 py-8">
-      <div className="max-w-7xl mx-auto w-full space-y-8">
-        
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-neutral-800 pb-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Operations Hub</h1>
-            <p className="text-neutral-400 text-sm mt-1">Manage your properties, review bookings, and oversee operations.</p>
-          </div>
-          <a
-            href="/stays"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg text-sm transition"
-          >
-            View Public Stays ↗
-          </a>
-        </div>
+  const handleDeleteProperty = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this property?')) return
+    try {
+      const { error } = await supabase.from('properties').delete().eq('id', id)
+      if (error) throw error
+      fetchProperties()
+    } catch (err: any) {
+      alert('Error deleting property: ' + err.message)
+    }
+  }
 
-        {/* Add Property Form Card */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 w-full shadow-xl">
+  return (
+    <main className="min-h-screen bg-neutral-950 text-neutral-100 w-full flex flex-col justify-between">
+      {/* Top Header */}
+      <div className="bg-neutral-900 border-b border-neutral-800 py-6 px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Operations Hub</h1>
+          <p className="text-neutral-400 text-sm mt-1">Manage your properties, listings, and portfolio overview.</p>
+        </div>
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg text-sm transition"
+        >
+          View Public Stays ↗
+        </a>
+      </div>
+
+      {/* Main Full-Screen Content Area */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow space-y-10">
+        
+        {/* Add Property Card */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 md:p-8 w-full shadow-2xl">
           <h2 className="text-xl font-bold mb-6 text-emerald-400">Add New Property Listing</h2>
           
           <form onSubmit={handleCreateProperty} className="space-y-6 w-full">
@@ -189,7 +200,7 @@ export default function OperationsPage() {
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setSelectedFiles(e.target.files)}
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-neutral-400 text-sm file:mr-4 file:py-1.5 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer"
               />
             </div>
@@ -200,37 +211,46 @@ export default function OperationsPage() {
                 disabled={uploading}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-8 py-3 rounded-lg text-sm transition disabled:opacity-50 shadow-lg"
               >
-                {uploading ? 'Uploading & Saving...' : 'Publish Property'}
+                {uploading ? 'Uploading & Publishing...' : 'Publish Property'}
               </button>
             </div>
           </form>
         </div>
 
-        {/* Existing Portfolio Section */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Property Portfolio ({properties.length})</h2>
+        {/* Portfolio Listing Grid */}
+        <div className="space-y-6">
+          <h2 className="text-2xl font-bold tracking-tight">Active Property Portfolio ({properties.length})</h2>
+          
           {loading ? (
-            <div className="text-neutral-500 text-sm py-8 text-center">Loading properties...</div>
+            <div className="text-neutral-500 text-center py-20">Loading portfolio properties...</div>
           ) : properties.length === 0 ? (
-            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-8 text-center text-neutral-400">
-              No properties added yet. Use the form above to add your first listing.
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-12 text-center text-neutral-400">
+              No properties listed yet. Use the form above to add your first property.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {properties.map((prop) => (
-                <div key={prop.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col justify-between">
+                <div key={prop.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden flex flex-col justify-between shadow-lg">
                   <div>
                     {prop.image_url ? (
                       <img src={prop.image_url} alt={prop.title} className="w-full h-48 object-cover" />
                     ) : (
-                      <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-500 text-sm">No Image</div>
+                      <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-500 text-sm">No Image Available</div>
                     )}
                     <div className="p-5">
-                      <span className="text-xs uppercase tracking-wider text-emerald-400 font-semibold">{prop.category}</span>
-                      <h3 className="text-lg font-bold mt-1">{prop.title}</h3>
+                      <span className="text-xs uppercase tracking-wider text-emerald-400 font-semibold">{prop.category || 'Property'}</span>
+                      <h3 className="text-lg font-bold mt-1 text-white">{prop.title}</h3>
                       <p className="text-neutral-400 text-xs mt-1">{prop.location}</p>
-                      <p className="text-emerald-400 font-bold mt-3">${prop.price_per_night} <span className="text-xs text-neutral-400 font-normal">/ night</span></p>
+                      <p className="text-emerald-400 font-bold mt-4">${prop.price_per_night} <span className="text-xs text-neutral-400 font-normal">/ night</span></p>
                     </div>
+                  </div>
+                  <div className="p-5 pt-0">
+                    <button
+                      onClick={() => handleDeleteProperty(prop.id)}
+                      className="w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 font-medium py-2 rounded-lg text-xs transition"
+                    >
+                      Delete Property
+                    </button>
                   </div>
                 </div>
               ))}
