@@ -91,103 +91,17 @@ export default function OperationsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white">
-      {/* Header Anchor */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-        <h1 className="text-3xl font-bold tracking-tight text-white">Operations Hub</h1>
-        <p className="text-neutral-400 text-sm mt-1">Manage your properties, bookings, tasks, and financials from one central command center.</p>
-      </div>
-
-      {/* Property Creation Form Anchor (Primary Functional Anchor) */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
-          <h2 className="text-xl font-bold text-white mb-4">Add New Property Listing</h2>
-          <form onSubmit={handlePropertySubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">Property Title</label>
-                <input 
-                  type="text" 
-                  value={title} 
-                  onChange={(e) => setTitle(e.target.value)} 
-                  placeholder="e.g. Luxury Entebbe Villa" 
-                  required 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">Location</label>
-                <input 
-                  type="text" 
-                  value={location} 
-                  onChange={(e) => setLocation(e.target.value)} 
-                  placeholder="e.g. Entebbe, Uganda" 
-                  required 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">Price Per Night ($)</label>
-                <input 
-                  type="number" 
-                  value={pricePerNight} 
-                  onChange={(e) => setPricePerNight(e.target.value)} 
-                  placeholder="150" 
-                  required 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-400 mb-1">Category</label>
-                <select 
-                  value={category} 
-                  onChange={(e) => setCategory(e.target.value)} 
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
-                >
-                  <option value="Apartment">Apartment</option>
-                  <option value="House">House</option>
-                  <option value="Villa">Villa</option>
-                  <option value="Mansion">Mansion</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1">Description</label>
-              <textarea 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)} 
-                placeholder="Describe the property highlights, amenities, and features..." 
-                rows={3} 
-                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-neutral-400 mb-1">Property Image</label>
-              <input 
-                type="file" 
-                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
-                className="w-full text-xs text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-white hover:file:bg-neutral-700"
-              />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={uploading} 
-              className="w-full bg-white text-black font-medium py-2.5 rounded-xl text-sm hover:bg-neutral-200 transition"
-            >
-              {uploading ? 'Publishing Property...' : 'Publish Property Listing'}
-            </button>
-          </form>
+    <main className="min-h-screen bg-neutral-950 text-white pb-16">
+      {/* Compact Header */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-white">Operations Hub</h1>
+          <p className="text-neutral-400 text-sm mt-1">Manage your properties, bookings, tasks, and financials from one command center.</p>
         </div>
       </div>
 
-      {/* Operations Hub Tab Navigation Bar */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Operations Hub Tab Navigation Bar & Search */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         
         {/* Search Bar */}
         <div className="mb-6">
@@ -199,7 +113,7 @@ export default function OperationsPage() {
         </div>
 
         {/* Tab Buttons Row */}
-        <div className="flex flex-wrap gap-3 mb-8">
+        <div className="flex flex-wrap gap-3 mb-6">
           <button 
             onClick={() => setActiveTab('properties')}
             className={`px-4 py-2 rounded-xl text-sm font-medium transition flex items-center gap-2 border ${activeTab === 'properties' ? 'bg-neutral-800 text-white border-neutral-700 shadow-lg' : 'bg-neutral-900/60 text-neutral-400 border-neutral-800 hover:bg-neutral-900'}`}
@@ -239,32 +153,121 @@ export default function OperationsPage() {
         </div>
 
         {/* Dynamic Tab Content Display */}
-        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl min-h-[350px]">
+        <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl min-h-[400px]">
           
           {activeTab === 'properties' && (
-            <div>
-              <h2 className="text-xl font-bold text-white mb-2">Property Management & Inventory</h2>
-              <p className="text-neutral-400 text-sm mb-6">Review your live property portfolio loaded from Supabase.</p>
-              {loading ? (
-                <p className="text-neutral-500 text-sm">Loading properties...</p>
-              ) : properties.length === 0 ? (
-                <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
-                  No properties added yet. Use the form above to add your first listing.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {properties.map((property) => (
-                    <div key={property.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
-                      {property.image_url && (
-                        <img src={property.image_url} alt={property.title} className="w-full h-36 object-cover rounded-lg mb-3" />
-                      )}
-                      <h3 className="font-bold text-white text-sm">{property.title}</h3>
-                      <p className="text-neutral-400 text-xs mt-1">{property.location}</p>
-                      <p className="text-emerald-400 font-semibold text-xs mt-2">${property.price_per_night} / night</p>
+            <div className="space-y-8">
+              {/* Add Property Form tucked neatly inside the Properties Tab */}
+              <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-6">
+                <h2 className="text-lg font-bold text-white mb-4">Add New Property Listing</h2>
+                <form onSubmit={handlePropertySubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Property Title</label>
+                      <input 
+                        type="text" 
+                        value={title} 
+                        onChange={(e) => setTitle(e.target.value)} 
+                        placeholder="e.g. Luxury Entebbe Villa" 
+                        required 
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
+                      />
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Location</label>
+                      <input 
+                        type="text" 
+                        value={location} 
+                        onChange={(e) => setLocation(e.target.value)} 
+                        placeholder="e.g. Entebbe, Uganda" 
+                        required 
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Price Per Night ($)</label>
+                      <input 
+                        type="number" 
+                        value={pricePerNight} 
+                        onChange={(e) => setPricePerNight(e.target.value)} 
+                        placeholder="150" 
+                        required 
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-400 mb-1">Category</label>
+                      <select 
+                        value={category} 
+                        onChange={(e) => setCategory(e.target.value)} 
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
+                      >
+                        <option value="Apartment">Apartment</option>
+                        <option value="House">House</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Mansion">Mansion</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Description</label>
+                    <textarea 
+                      value={description} 
+                      onChange={(e) => setDescription(e.target.value)} 
+                      placeholder="Describe the property highlights, amenities, and features..." 
+                      rows={3} 
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-neutral-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-400 mb-1">Property Image</label>
+                    <input 
+                      type="file" 
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} 
+                      className="w-full text-xs text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-neutral-800 file:text-white hover:file:bg-neutral-700"
+                    />
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={uploading} 
+                    className="w-full bg-white text-black font-medium py-2.5 rounded-xl text-sm hover:bg-neutral-200 transition"
+                  >
+                    {uploading ? 'Publishing Property...' : 'Publish Property Listing'}
+                  </button>
+                </form>
+              </div>
+
+              {/* Property Inventory Display */}
+              <div>
+                <h2 className="text-xl font-bold text-white mb-2">Live Property Portfolio</h2>
+                <p className="text-neutral-400 text-sm mb-6">Review your active listings loaded from Supabase.</p>
+                {loading ? (
+                  <p className="text-neutral-500 text-sm">Loading properties...</p>
+                ) : properties.length === 0 ? (
+                  <div className="text-neutral-400 text-sm py-8 text-center bg-neutral-950/50 rounded-xl border border-neutral-800/60">
+                    No properties added yet. Use the form above to add your first listing.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {properties.map((property) => (
+                      <div key={property.id} className="bg-neutral-950 border border-neutral-800 rounded-xl p-4">
+                        {property.image_url && (
+                          <img src={property.image_url} alt={property.title} className="w-full h-36 object-cover rounded-lg mb-3" />
+                        )}
+                        <h3 className="font-bold text-white text-sm">{property.title}</h3>
+                        <p className="text-neutral-400 text-xs mt-1">{property.location}</p>
+                        <p className="text-emerald-400 font-semibold text-xs mt-2">${property.price_per_night} / night</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
