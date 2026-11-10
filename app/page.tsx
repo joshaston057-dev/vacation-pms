@@ -1,10 +1,12 @@
 'use client'
 
+'use client'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Footer from '@/components/Footer'
-import UpsellMotionsSlider from '@/components/UpsellMotionsSlider'
-import { supabase } from '@/lib/supabase'
+import Footer from './components/Footer'
+import UpsellMotionsSlider from './components/UpsellMotionsSlider'
+import { supabase } from '../lib/supabase'
 
 interface Property {
   id: string
