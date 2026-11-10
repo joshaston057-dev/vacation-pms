@@ -1,229 +1,233 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client safely
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface Property {
   id: string
-  name: string
-  type: string
+  title: string
+  category: 'Apartment' | 'Villa' | 'Mansion' | 'House'
   location: string
   price: number
-  description: string
-  amenities: string[]
-  photoUrl: string
+  bedrooms: number
+  bathrooms: number
+  image_url: string
+  whatsapp: string
+  desc: string
 }
 
-export default function PropertiesPage() {
-  const [properties, setProperties] = useState<Property[]>([
-    {
-      id: '1',
-      name: 'Entebbe Lakeside Villa',
-      type: 'Villa',
-      location: 'Entebbe',
-      price: 250,
-      description: 'Stunning luxury villa overlooking the lake.',
-      amenities: ['Pool', 'WiFi', 'Kitchen', 'AC'],
-      photoUrl: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80'
-    },
-    {
-      id: '2',
-      name: 'Kisaasi Executive Suite',
-      type: 'Apartment',
-      location: 'Kisaasi',
-      price: 80,
-      description: 'Modern, secure 1-bedroom apartment in a prime neighborhood.',
-      amenities: ['Security', 'WiFi', 'Parking', 'Smart TV'],
-      photoUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'
-    }
-  ])
+export default function FreshLaEstanciaLanding() {
+  const [properties, setProperties] = useState<Property[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Properties')
+  const [loading, setLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'Apartment',
-    location: '',
-    price: 100,
-    description: '',
-    amenities: 'WiFi, AC, Kitchen',
-    photoUrl: ''
-  })
+  useEffect(() => {
+    fetchProperties()
+  }, [])
 
-  const handleAddProperty = (e: React.FormEvent) => {
-    e.preventDefault()
-    const newProperty: Property = {
-      id: Date.now().toString(),
-      name: formData.name,
-      type: formData.type,
-      location: formData.location,
-      price: Number(formData.price),
-      description: formData.description,
-      amenities: formData.amenities.split(',').map(a => a.trim()),
-      photoUrl: formData.photoUrl || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
+  async function fetchProperties() {
+    try {
+      const { data, error } = await supabase.from('properties').select('*')
+      if (error) throw error
+      if (data) setProperties(data)
+    } catch (err) {
+      console.error('Error fetching properties:', err)
+    } finally {
+      setLoading(false)
     }
-    setProperties([newProperty, ...properties])
-    setIsModalOpen(false)
-    setFormData({ name: '', type: 'Apartment', location: '', price: 100, description: '', amenities: '', photoUrl: '' })
   }
 
-  const handleDelete = (id: string) => {
-    setProperties(properties.filter(p => p.id !== id))
-  }
+  const filteredProperties = selectedCategory === 'All Properties'
+    ? properties
+    : properties.filter(p => p.category?.toLowerCase() === selectedCategory.toLowerCase())
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Properties Management</h1>
-            <p className="text-neutral-400 text-sm mt-1">Manage your villas, mansions, and apartments.</p>
+    <main className="min-h-screen bg-neutral-950 text-white flex flex-col font-sans">
+      {/* Navigation Header */}
+      <header className="sticky top-0 z-50 bg-neutral-950/90 backdrop-blur-md border-b border-neutral-800">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <Link href="/" className="text-xl font-extrabold tracking-wider text-amber-400">
+            LA ESTANCIA
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-neutral-300">
+            <Link href="/" className="hover:text-amber-400 transition-colors">Home</Link>
+            <Link href="#properties-section" className="hover:text-amber-400 transition-colors">Properties</Link>
+            <Link href="#upsell-section" className="hover:text-amber-400 transition-colors">Upsell Services</Link>
+          </nav>
+
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="p-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-200 hover:text-amber-400 focus:outline-none transition-colors"
+              aria-label="Toggle Menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {menuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium transition"
-          >
-            + Add Property
-          </button>
         </div>
 
-        {/* Properties Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {properties.map(property => (
-            <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
-              <img src={property.photoUrl} alt={property.name} className="h-48 w-full object-cover" />
-              <div className="p-5 flex-1 flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs uppercase tracking-wider bg-neutral-800 text-emerald-400 px-2.5 py-1 rounded-md font-semibold">
-                      {property.type}
-                    </span>
-                    <span className="text-lg font-bold text-emerald-400">${property.price} <span className="text-xs text-neutral-400 font-normal">/ night</span></span>
-                  </div>
-                  <h3 className="text-xl font-bold">{property.name}</h3>
-                  <p className="text-sm text-neutral-400 mb-3">{property.location}</p>
-                  <p className="text-sm text-neutral-300 mb-4 line-clamp-2">{property.description}</p>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {property.amenities.map((amenity, idx) => (
-                      <span key={idx} className="bg-neutral-800 text-neutral-300 text-xs px-2 py-0.5 rounded">
-                        {amenity}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2 pt-4 border-t border-neutral-800">
-                  <button onClick={() => handleDelete(property.id)} className="text-red-400 hover:text-red-300 text-sm font-medium">
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Add Modal */}
-        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-            <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-lg w-full p-6">
-              <h2 className="text-xl font-bold mb-4">Add New Property</h2>
-              <form onSubmit={handleAddProperty} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-1">Property Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="e.g. Munyonyo Luxury Mansion"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-1">Type</label>
-                    <select
-                      value={formData.type}
-                      onChange={e => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                    >
-                      <option value="Apartment">Apartment</option>
-                      <option value="House">House</option>
-                      <option value="Villa">Villa</option>
-                      <option value="Mansion">Mansion</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-1">Location</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.location}
-                      onChange={e => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                      placeholder="e.g. Entebbe"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-1">Price per Night ($)</label>
-                    <input
-                      type="number"
-                      required
-                      value={formData.price}
-                      onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-300 mb-1">Photo URL</label>
-                    <input
-                      type="text"
-                      value={formData.photoUrl}
-                      onChange={e => setFormData({ ...formData, photoUrl: e.target.value })}
-                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                      placeholder="https://..."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-1">Description</label>
-                  <textarea
-                    rows={3}
-                    value={formData.description}
-                    onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="Describe the property highlights..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-300 mb-1">Amenities (comma separated)</label>
-                  <input
-                    type="text"
-                    value={formData.amenities}
-                    onChange={e => setFormData({ ...formData, amenities: e.target.value })}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
-                    placeholder="Pool, WiFi, AC"
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg font-medium transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium transition"
-                  >
-                    Save Property
-                  </button>
-                </div>
-              </form>
-            </div>
+        {menuOpen && (
+          <div className="absolute top-20 right-6 w-64 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-2 z-50">
+            <Link 
+              href="/login" 
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-neutral-200 hover:bg-amber-500/10 hover:text-amber-400 transition-colors"
+            >
+              🔑 Log in as Host
+            </Link>
+            <Link 
+              href="/about" 
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-neutral-200 hover:bg-neutral-800 transition-colors"
+            >
+              ℹ️ About Us
+            </Link>
+            <Link 
+              href="/contact" 
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-neutral-200 hover:bg-neutral-800 transition-colors"
+            >
+              📞 Contact Us
+            </Link>
           </div>
         )}
-      </div>
-    </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative px-6 pt-16 pb-20 text-center max-w-5xl mx-auto flex flex-col items-center">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold mb-6">
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          La Estancia Vacation Homes
+        </div>
+
+        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6">
+          Global Short-Stay <span className="text-amber-400">Vacation Homes</span>
+        </h1>
+        
+        <p className="text-neutral-400 text-lg max-w-2xl mb-10 leading-relaxed">
+          Curated apartments, villas, mansions, and stand-alone houses available for international travelers.
+        </p>
+
+        {/* Category Filters */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {['All Properties', 'Apartment', 'Villa', 'Mansion', 'House'].map((category) => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+                selectedCategory === category
+                  ? 'bg-amber-500 text-neutral-950 font-semibold shadow-lg shadow-amber-500/20'
+                  : 'bg-neutral-900 text-neutral-300 border border-neutral-800 hover:bg-neutral-800 hover:text-white'
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Properties Section */}
+      <section id="properties-section" className="px-6 pb-24 max-w-7xl mx-auto w-full flex-1">
+        <div className="flex items-center justify-between mb-8 border-b border-neutral-800 pb-4">
+          <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            🏡 {selectedCategory.toUpperCase()} ({filteredProperties.length})
+          </h2>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-20 text-neutral-500 text-sm animate-pulse">
+            Loading listings...
+          </div>
+        ) : filteredProperties.length === 0 ? (
+          <div className="text-center py-20 bg-neutral-900/50 rounded-2xl border border-neutral-800/80">
+            <p className="text-neutral-400 text-base font-medium">No properties found in this category.</p>
+            <p className="text-neutral-600 text-sm mt-1">Check back soon or explore our other collections.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredProperties.map((property) => (
+              <div 
+                key={property.id} 
+                className="bg-neutral-900 rounded-2xl border border-neutral-800 overflow-hidden flex flex-col transition-all hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/5"
+              >
+                <div className="relative h-60 w-full bg-neutral-800 overflow-hidden">
+                  <img 
+                    src={property.image_url || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800&q=80'} 
+                    alt={property.title}
+                    className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                  />
+                  <div className="absolute top-4 right-4 bg-neutral-950/80 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-amber-400 border border-amber-500/20">
+                    {property.category}
+                  </div>
+                </div>
+
+                <div className="p-6 flex flex-col flex-1 justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-1">{property.title}</h3>
+                    <p className="text-xs text-neutral-400 mt-1">{property.location}</p>
+                    <p className="text-xs text-neutral-300 mt-3 line-clamp-2 leading-relaxed">{property.desc}</p>
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
+                    <span className="text-xs text-emerald-400 font-medium">✔ Verified Host</span>
+                    <a
+                      href={`https://wa.me/256757386946?text=Hello,%20I%20would%20like%20to%20inquire%20about%20${encodeURIComponent(property.title)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
+                    >
+                      Inquire on WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Upsell Services Section */}
+      <section id="upsell-section" className="px-6 py-16 bg-neutral-900/40 border-t border-neutral-800">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Exclusive Upsell Services</h2>
+          <p className="text-neutral-400 text-sm max-w-xl mx-auto mb-8">
+            Enhance your stay with our curated hospitality add-ons, airport transfers, chef services, and guided tours.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">🚗 Airport Transfers</h3>
+              <p className="text-xs text-neutral-400">Seamless VIP pickup and drop-off directly to your vacation home.</p>
+            </div>
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">👨‍🍳 Private Chef</h3>
+              <p className="text-xs text-neutral-400">Enjoy custom gourmet meals prepared right in your villa kitchen.</p>
+            </div>
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">🗺️ Guided Tours</h3>
+              <p className="text-xs text-neutral-400">Explore local attractions with experienced professional guides.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-neutral-950 border-t border-neutral-800 py-12 px-6 text-center text-xs text-neutral-500">
+        <p>© {new Date().getFullYear()} La Estancia Vacation Homes. All rights reserved.</p>
+      </footer>
+    </main>
   )
 }
