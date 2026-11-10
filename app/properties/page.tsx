@@ -1,357 +1,229 @@
 'use client'
 
-export const dynamic = 'force-dynamic'
+import { useState } from 'react'
 
-import { useState, useEffect } from 'react'
-import HeaderNav from '../components/HeaderNav'
-import Footer from '../components/Footer'
-import { supabase } from '@/lib/supabase'
+interface Property {
+  id: string
+  name: string
+  type: string
+  location: string
+  price: number
+  description: string
+  amenities: string[]
+  photoUrl: string
+}
 
-export default function PublicPropertiesPage() {
-  const [properties, setProperties] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+export default function PropertiesPage() {
+  const [properties, setProperties] = useState<Property[]>([
+    {
+      id: '1',
+      name: 'Entebbe Lakeside Villa',
+      type: 'Villa',
+      location: 'Entebbe',
+      price: 250,
+      description: 'Stunning luxury villa overlooking the lake.',
+      amenities: ['Pool', 'WiFi', 'Kitchen', 'AC'],
+      photoUrl: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80'
+    },
+    {
+      id: '2',
+      name: 'Kisaasi Executive Suite',
+      type: 'Apartment',
+      location: 'Kisaasi',
+      price: 80,
+      description: 'Modern, secure 1-bedroom apartment in a prime neighborhood.',
+      amenities: ['Security', 'WiFi', 'Parking', 'Smart TV'],
+      photoUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'
+    }
+  ])
 
-  const [unlockedAmenities, setUnlockedAmenities] = useState<{ [key: number]: boolean }>({})
-  const [unlockedDescriptions, setUnlockedDescriptions] = useState<{ [key: number]: boolean }>({})
-  const [activeGallery, setActiveGallery] = useState<{ images: string[]; currentIndex: number; title: string } | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'Apartment',
+    location: '',
+    price: 100,
+    description: '',
+    amenities: 'WiFi, AC, Kitchen',
+    photoUrl: ''
+  })
 
-  const [selectedProperty, setSelectedProperty] = useState<any | null>(null)
-
-  const [guestName, setGuestName] = useState('')
-  const [guestContact, setGuestContact] = useState('')
-  const [demographics, setDemographics] = useState('Couple with Kids')
-  const [guestCount, setGuestCount] = useState('2')
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [specialRequests, setSpecialRequests] = useState('')
-  const [bookingSubmitted, setBookingSubmitted] = useState(false)
-
-  useEffect(() => {
-    fetchProperties()
-  }, [])
-
-  const fetchProperties = async () => {
-    setLoading(true)
-    const { data } = await supabase.from('properties').select('*').order('id', { ascending: false })
-    if (data) setProperties(data)
-    setLoading(false)
-  }
-
-  const toggleAmenitiesView = (id: number) => {
-    setUnlockedAmenities(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  const toggleDescriptionView = (id: number) => {
-    setUnlockedDescriptions(prev => ({ ...prev, [id]: !prev[id] }))
-  }
-
-  const openGalleryModal = (images: string[], index: number, title: string) => {
-    if (images.length === 0) return
-    setActiveGallery({ images, currentIndex: index, title })
-  }
-
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleAddProperty = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedProperty) return
-
-    setLoading(true)
-
-    const packedPayload = {
-      guest_name: `Prop: [${selectedProperty.title}] | Guest: ${guestName} | Ph: ${guestContact} | Demo: ${demographics} | Guests: ${guestCount} | In: ${checkIn} | Out: ${checkOut} | Notes: ${specialRequests || 'None'}`
+    const newProperty: Property = {
+      id: Date.now().toString(),
+      name: formData.name,
+      type: formData.type,
+      location: formData.location,
+      price: Number(formData.price),
+      description: formData.description,
+      amenities: formData.amenities.split(',').map(a => a.trim()),
+      photoUrl: formData.photoUrl || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80'
     }
+    setProperties([newProperty, ...properties])
+    setIsModalOpen(false)
+    setFormData({ name: '', type: 'Apartment', location: '', price: 100, description: '', amenities: '', photoUrl: '' })
+  }
 
-    let { error } = await supabase.from('bookings').insert([packedPayload])
-
-    if (error) {
-      alert('Error submitting reservation: ' + error.message)
-    } else {
-      setBookingSubmitted(true)
-      setTimeout(() => {
-        setSelectedProperty(null)
-        setBookingSubmitted(false)
-        setGuestName('')
-        setGuestContact('')
-        setCheckIn('')
-        setCheckOut('')
-        setSpecialRequests('')
-      }, 2500)
-    }
-    setLoading(false)
+  const handleDelete = (id: string) => {
+    setProperties(properties.filter(p => p.id !== id))
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col justify-between">
-      <div>
-        <HeaderNav />
+    <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Properties Management</h1>
+            <p className="text-neutral-400 text-sm mt-1">Manage your villas, mansions, and apartments.</p>
+          </div>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium transition"
+          >
+            + Add Property
+          </button>
+        </div>
 
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-4 text-center space-y-3">
-          <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-            Exclusive Short-Stay Properties in Uganda
-          </h1>
-          <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl mx-auto">
-            Apartments, standalone houses, mansions, and villas with private booking.
-          </p>
-        </section>
-
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-          {loading && properties.length === 0 ? (
-            <div className="text-center py-20 text-neutral-500 text-sm font-bold animate-pulse">Loading properties...</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {properties.map(property => {
-                let imageList: string[] = []
-                let amenitiesList: string[] = []
-                try { imageList = typeof property.images === 'string' ? JSON.parse(property.images) : (property.images || []) } catch (e) { imageList = [] }
-                try { 
-                  if (Array.isArray(property.amenities)) {
-                    amenitiesList = property.amenities
-                  } else if (typeof property.amenities === 'string') {
-                    if (property.amenities.startsWith('{') && property.amenities.endsWith('}')) {
-                      amenitiesList = property.amenities.slice(1, -1).split(',').map(s => s.replace(/^"(.*)"$/, '$1').trim()).filter(Boolean)
-                    } else if (property.amenities.startsWith('[')) {
-                      amenitiesList = JSON.parse(property.amenities)
-                    } else {
-                      amenitiesList = property.amenities.split(',').map(s => s.trim()).filter(Boolean)
-                    }
-                  }
-                } catch (e) { 
-                  amenitiesList = [] 
-                }
-
-                const mainImage = imageList.length > 0 ? imageList[0] : null
-                const displayPrice = property.price_per_night || property.nightly_price || property.price || 0
-                const isAmenitiesUnlocked = unlockedAmenities[property.id] || false
-                const isDescUnlocked = unlockedDescriptions[property.id] || false
-
-                return (
-                  <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col justify-between">
-                    <div>
-                      <div 
-                        onClick={() => openGalleryModal(imageList, 0, property.title)}
-                        className="relative w-full bg-neutral-950 min-h-[224px] cursor-pointer group overflow-hidden"
-                      >
-                        {mainImage ? (
-                          <img src={mainImage} alt={property.title} className="w-full h-56 object-cover group-hover:scale-105 transition duration-300" />
-                        ) : (
-                          <div className="w-full h-56 bg-neutral-950 flex items-center justify-center text-neutral-600 text-xs font-bold">📷 No Photos</div>
-                        )}
-                        <div className="absolute top-3 right-3 bg-amber-500 text-black font-extrabold text-xs px-3 py-1.5 rounded-full shadow-md z-10">
-                          ${displayPrice} / night
-                        </div>
-                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-[10px] font-bold px-2 py-1 rounded-md backdrop-blur-sm">
-                          🔍 View Photos ({imageList.length})
-                        </div>
-                      </div>
-
-                      <div className="p-5 space-y-3">
-                        <h3 className="font-extrabold text-white text-base leading-snug">{property.title}</h3>
-                        <p className="text-xs text-neutral-400">📍 {property.location || 'Kampala, Uganda'}</p>
-
-                        {property.description && (
-                          <div className="space-y-1.5 pt-1">
-                            <button
-                              onClick={() => toggleDescriptionView(property.id)}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
-                                isDescUnlocked ? 'bg-neutral-800 border-neutral-700 text-white' : 'bg-neutral-950 border-neutral-800 text-neutral-300 hover:text-white'
-                              }`}
-                            >
-                              <span>📖 {isDescUnlocked ? 'Hide Description' : 'View Description'}</span>
-                              <span>{isDescUnlocked ? '▲' : '▼'}</span>
-                            </button>
-
-                            {isDescUnlocked && (
-                              <div className="p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl text-xs text-neutral-300 leading-relaxed">
-                                {property.description}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {amenitiesList.length > 0 && (
-                          <div className="space-y-1.5">
-                            <button
-                              onClick={() => toggleAmenitiesView(property.id)}
-                              className={`w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer border ${
-                                isAmenitiesUnlocked ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' : 'bg-neutral-950 border-neutral-800 text-amber-400 hover:border-amber-500/50'
-                              }`}
-                            >
-                              <span>✨ {isAmenitiesUnlocked ? 'Hide Amenities' : `View Amenities (${amenitiesList.length})`}</span>
-                              <span>{isAmenitiesUnlocked ? '▲' : '▼'}</span>
-                            </button>
-
-                            {isAmenitiesUnlocked && (
-                              <div className="grid grid-cols-2 gap-1.5 p-3 bg-neutral-950/90 border border-neutral-800 rounded-xl">
-                                {amenitiesList.map((amenity, idx) => (
-                                  <span key={idx} className="text-[10px] text-neutral-300 flex items-center gap-1 font-semibold">
-                                    ✓ {amenity}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-5 pt-0">
-                      <button
-                        onClick={() => setSelectedProperty(property)}
-                        className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer"
-                      >
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* PHOTO GALLERY LIGHTBOX MODAL */}
-        {activeGallery && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <div className="relative max-w-4xl w-full bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div className="flex justify-between items-center p-4 border-b border-neutral-800">
+        {/* Properties Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {properties.map(property => (
+            <div key={property.id} className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden shadow-lg flex flex-col">
+              <img src={property.photoUrl} alt={property.name} className="h-48 w-full object-cover" />
+              <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
-                  <h3 className="font-extrabold text-white text-sm sm:text-base line-clamp-1">{activeGallery.title}</h3>
-                  <p className="text-xs text-neutral-400">Photo {activeGallery.currentIndex + 1} of {activeGallery.images.length}</p>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs uppercase tracking-wider bg-neutral-800 text-emerald-400 px-2.5 py-1 rounded-md font-semibold">
+                      {property.type}
+                    </span>
+                    <span className="text-lg font-bold text-emerald-400">${property.price} <span className="text-xs text-neutral-400 font-normal">/ night</span></span>
+                  </div>
+                  <h3 className="text-xl font-bold">{property.name}</h3>
+                  <p className="text-sm text-neutral-400 mb-3">{property.location}</p>
+                  <p className="text-sm text-neutral-300 mb-4 line-clamp-2">{property.description}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {property.amenities.map((amenity, idx) => (
+                      <span key={idx} className="bg-neutral-800 text-neutral-300 text-xs px-2 py-0.5 rounded">
+                        {amenity}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setActiveGallery(null)} 
-                  className="bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded-xl text-xs cursor-pointer transition"
-                >
-                  ✕ Close
-                </button>
+                <div className="flex justify-end gap-2 pt-4 border-t border-neutral-800">
+                  <button onClick={() => handleDelete(property.id)} className="text-red-400 hover:text-red-300 text-sm font-medium">
+                    Delete
+                  </button>
+                </div>
               </div>
+            </div>
+          ))}
+        </div>
 
-              <div className="relative flex-1 bg-black flex items-center justify-center min-h-[350px] sm:min-h-[500px]">
-                <img 
-                  src={activeGallery.images[activeGallery.currentIndex]} 
-                  alt="Gallery Preview" 
-                  className="max-h-[70vh] max-w-full object-contain"
-                />
-
-                {activeGallery.images.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length } : null)}
-                      className="absolute left-3 bg-black/70 hover:bg-black text-white font-bold w-10 h-10 rounded-full flex items-center justify-center text-lg border border-neutral-700 transition cursor-pointer"
+        {/* Add Modal */}
+        {isModalOpen && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-xl max-w-lg w-full p-6">
+              <h2 className="text-xl font-bold mb-4">Add New Property</h2>
+              <form onSubmit={handleAddProperty} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-1">Property Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="e.g. Munyonyo Luxury Mansion"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-300 mb-1">Type</label>
+                    <select
+                      value={formData.type}
+                      onChange={e => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
                     >
-                      ‹
-                    </button>
-                    <button
-                      onClick={() => setActiveGallery(prev => prev ? { ...prev, currentIndex: (prev.currentIndex + 1) % prev.images.length } : null)}
-                      className="absolute right-3 bg-black/70 hover:bg-black text-white font-bold w-10 h-10 rounded-full flex items-center justify-center text-lg border border-neutral-700 transition cursor-pointer"
-                    >
-                      ›
-                    </button>
-                  </>
-                )}
-              </div>
+                      <option value="Apartment">Apartment</option>
+                      <option value="House">House</option>
+                      <option value="Villa">Villa</option>
+                      <option value="Mansion">Mansion</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-300 mb-1">Location</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.location}
+                      onChange={e => setFormData({ ...formData, location: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="e.g. Entebbe"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-300 mb-1">Price per Night ($)</label>
+                    <input
+                      type="number"
+                      required
+                      value={formData.price}
+                      onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-300 mb-1">Photo URL</label>
+                    <input
+                      type="text"
+                      value={formData.photoUrl}
+                      onChange={e => setFormData({ ...formData, photoUrl: e.target.value })}
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                      placeholder="https://..."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="Describe the property highlights..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-1">Amenities (comma separated)</label>
+                  <input
+                    type="text"
+                    value={formData.amenities}
+                    onChange={e => setFormData({ ...formData, amenities: e.target.value })}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-white focus:outline-none focus:border-emerald-500"
+                    placeholder="Pool, WiFi, AC"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded-lg font-medium transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-medium transition"
+                  >
+                    Save Property
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
-
-        {/* BOOKING MODAL WITH UPFRONT DEMOGRAPHICS (NO HIDDEN TOGGLES) */}
-        {selectedProperty && (() => {
-          let modalAmenities: string[] = []
-          try {
-            if (Array.isArray(selectedProperty.amenities)) {
-              modalAmenities = selectedProperty.amenities
-            } else if (typeof selectedProperty.amenities === 'string') {
-              if (selectedProperty.amenities.startsWith('{') && selectedProperty.amenities.endsWith('}')) {
-                modalAmenities = selectedProperty.amenities.slice(1, -1).split(',').map(s => s.replace(/^"(.*)"$/, '$1').trim()).filter(Boolean)
-              } else if (selectedProperty.amenities.startsWith('[')) {
-                modalAmenities = JSON.parse(selectedProperty.amenities)
-              } else {
-                modalAmenities = selectedProperty.amenities.split(',').map(s => s.trim()).filter(Boolean)
-              }
-            }
-          } catch (e) {
-            modalAmenities = []
-          }
-
-          const displayPrice = selectedProperty.price_per_night || selectedProperty.nightly_price || selectedProperty.price || 0
-
-          return (
-            <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-              <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-5 space-y-4 my-auto shadow-2xl max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-start border-b border-neutral-800 pb-3">
-                  <div>
-                    <h3 className="font-extrabold text-white text-base leading-tight">{selectedProperty.title}</h3>
-                    <p className="text-xs text-amber-500 font-bold mt-0.5">📍 {selectedProperty.location || 'Uganda'} • ${displayPrice} / night</p>
-                  </div>
-                  <button onClick={() => setSelectedProperty(null)} className="text-neutral-400 hover:text-white font-bold text-base cursor-pointer p-1">✕</button>
-                </div>
-
-                {bookingSubmitted ? (
-                  <div className="py-8 text-center space-y-2">
-                    <span className="text-4xl">✅</span>
-                    <h4 className="font-extrabold text-white text-base">Reservation Submitted!</h4>
-                    <p className="text-xs text-neutral-400">Our host team will review your stay details and contact you via WhatsApp.</p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleBookingSubmit} className="space-y-3.5">
-                    <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Reserve Your Stay</h4>
-
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">YOUR FULL NAME</label>
-                      <input type="text" required value={guestName} onChange={e => setGuestName(e.target.value)} placeholder="John Doe" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-amber-400 font-extrabold block mb-1">WHATSAPP NUMBER</label>
-                      <input type="tel" required value={guestContact} onChange={e => setGuestContact(e.target.value)} placeholder="+256 700 000 000" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 font-bold" />
-                    </div>
-
-                    {/* DEMOGRAPHICS & GUEST COUNT VISIBLE IMMEDIATELY */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">GUEST DEMOGRAPHIC</label>
-                        <select value={demographics} onChange={e => setDemographics(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 cursor-pointer">
-                          <option value="Couple with Kids">👨‍👩‍👧‍👦 Couple with Kids</option>
-                          <option value="Couple Only">👩‍❤️‍👨 Couple Only</option>
-                          <option value="Solo Business Traveler">💼 Solo Business</option>
-                          <option value="Group of Friends">🥳 Group Friends</option>
-                          <option value="Family Relocation">🏠 Relocation</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">TOTAL GUESTS</label>
-                        <input type="number" min="1" required value={guestCount} onChange={e => setGuestCount(e.target.value)} placeholder="2" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-IN DATE</label>
-                        <input type="date" required value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] text-neutral-400 font-bold block mb-1">CHECK-OUT DATE</label>
-                        <input type="date" required value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500" />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-[10px] text-neutral-400 font-bold block mb-1">SPECIAL REQUESTS / NOTES</label>
-                      <textarea rows={2} value={specialRequests} onChange={e => setSpecialRequests(e.target.value)} placeholder="e.g. Need baby cot, airport pickup setup..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-amber-500 resize-none" />
-                    </div>
-
-                    <button type="submit" disabled={loading} className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl transition cursor-pointer mt-2 shadow-lg">
-                      {loading ? 'Submitting Reservation...' : 'Submit Private Reservation Request'}
-                    </button>
-                  </form>
-                )}
-              </div>
-            </div>
-          )
-        })()}
-
       </div>
-      <Footer />
-    </main>
+    </div>
   )
 }
