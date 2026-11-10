@@ -2,9 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Footer from './components/Footer'
-import UpsellMotionsSlider from './components/UpsellMotionsSlider'
-import { supabase } from '../lib/supabase'
+import { createClient } from '@supabase/supabase-js'
+
+// Initialize Supabase client safely
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 interface Property {
   id: string
@@ -43,7 +46,7 @@ export default function PublicHome() {
 
   const filteredProperties = selectedCategory === 'All Properties'
     ? properties
-    : properties.filter(p => p.category.toLowerCase() === selectedCategory.toLowerCase())
+    : properties.filter(p => p.category?.toLowerCase() === selectedCategory.toLowerCase())
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col">
@@ -82,7 +85,7 @@ export default function PublicHome() {
 
         {/* Hamburger Dropdown Menu */}
         {menuOpen && (
-          <div className="absolute top-20 right-6 w-64 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2 z-50">
+          <div className="absolute top-20 right-6 w-64 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-2 z-50">
             <Link 
               href="/login" 
               onClick={() => setMenuOpen(false)}
@@ -202,12 +205,33 @@ export default function PublicHome() {
       </section>
 
       {/* Upsell Hospitality Services Section */}
-      <div id="upsell-section">
-        <UpsellMotionsSlider />
-      </div>
+      <section id="upsell-section" className="px-6 py-16 bg-neutral-900/40 border-t border-neutral-800">
+        <div className="max-w-7xl mx-auto text-center">
+          <h2 className="text-2xl font-bold text-white mb-4">Exclusive Upsell Services</h2>
+          <p className="text-neutral-400 text-sm max-w-xl mx-auto mb-8">
+            Enhance your stay with our curated hospitality add-ons, airport transfers, chef services, and guided tours.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">🚗 Airport Transfers</h3>
+              <p className="text-xs text-neutral-400">Seamless VIP pickup and drop-off directly to your vacation home.</p>
+            </div>
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">👨‍🍳 Private Chef</h3>
+              <p className="text-xs text-neutral-400">Enjoy custom gourmet meals prepared right in your villa kitchen.</p>
+            </div>
+            <div className="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+              <h3 className="font-bold text-amber-400 mb-2">🗺️ Guided Tours</h3>
+              <p className="text-xs text-neutral-400">Explore local attractions with experienced professional guides.</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
-      <Footer />
+      <footer className="bg-neutral-950 border-t border-neutral-800 py-12 px-6 text-center text-xs text-neutral-500">
+        <p>© {new Date().getFullYear()} La Estancia Vacation Homes. All rights reserved.</p>
+      </footer>
     </main>
   )
 }
