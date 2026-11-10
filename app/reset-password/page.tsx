@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import HeaderNav from '../components/HeaderNav'
+import Navbar from '../components/Navbar';
 import Footer from '../components/Footer'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
