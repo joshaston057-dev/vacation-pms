@@ -15,15 +15,22 @@ interface Property {
   location: string
   price: number
   image_url: string
-  desc: string
+  description: string
 }
+
+const UPSELL_OPTIONS = [
+  { id: 'transfer', name: '🚗 Airport VIP Transfer', price: 50 },
+  { id: 'chef', name: '👨‍🍳 Private Chef Service', price: 80 },
+  { id: 'tours', name: '🗺️ Guided City Tour', price: 100 },
+  { id: 'grocery', name: '🛒 Welcome Grocery Stocking', price: 40 },
+]
 
 export default function FreshLaEstanciaLanding() {
   const [properties, setProperties] = useState<Property[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>('All Properties')
   const [loading, setLoading] = useState(true)
 
-  // Booking Modal States
+  // Accommodation Booking Modal States
   const [activeProperty, setActiveProperty] = useState<Property | null>(null)
   const [travelerName, setTravelerName] = useState('')
   const [isCouple, setIsCouple] = useState(false)
@@ -34,7 +41,15 @@ export default function FreshLaEstanciaLanding() {
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [originRegion, setOriginRegion] = useState('USA')
+  const [selectedUpsells, setSelectedUpsells] = useState<string[]>([])
   const [bookingSubmitted, setBookingSubmitted] = useState(false)
+
+  // Standalone Upsell Modal States
+  const [showStandaloneUpsellModal, setShowStandaloneUpsellModal] = useState(false)
+  const [upsellClientName, setUpsellClientName] = useState('')
+  const [upsellClientPhone, setUpsellClientPhone] = useState('')
+  const [standaloneSelected, setStandaloneSelected] = useState<string[]>([])
+  const [upsellSubmitted, setUpsellSubmitted] = useState(false)
 
   useEffect(() => {
     fetchProperties()
@@ -52,7 +67,7 @@ export default function FreshLaEstanciaLanding() {
     }
   }
 
-  // Calculate nights and total cost dynamically
+  // Accommodation Calculation
   const calculateNights = () => {
     if (!checkIn || !checkOut) return 1
     const start = new Date(checkIn)
@@ -64,7 +79,32 @@ export default function FreshLaEstanciaLanding() {
 
   const nights = calculateNights()
   const nightlyRate = activeProperty ? activeProperty.price : 0
-  const totalCost = nights * nightlyRate
+  const accommodationCost = nights * nightlyRate
+
+  const upsellsTotal = selectedUpsells.reduce((sum, id) => {
+    const item = UPSELL_OPTIONS.find(u => u.id === id)
+    return sum + (item ? item.price : 0)
+  }, 0)
+
+  const grandTotal = accommodationCost + upsellsTotal
+
+  // Standalone Upsell Total Calculation
+  const standaloneTotal = standaloneSelected.reduce((sum, id) => {
+    const item = UPSELL_OPTIONS.find(u => u.id === id)
+    return sum + (item ? item.price : 0)
+  }, 0)
+
+  const toggleUpsell = (id: string, isStandalone = false) => {
+    if (isStandalone) {
+      setStandaloneSelected(prev => 
+        prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      )
+    } else {
+      setSelectedUpsells(prev => 
+        prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      )
+    }
+  }
 
   async function handleBookingSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -84,7 +124,8 @@ export default function FreshLaEstanciaLanding() {
           check_in: checkIn,
           check_out: checkOut,
           origin_region: originRegion,
-          total_cost: totalCost,
+          upsells_chosen: selectedUpsells.join(', '),
+          total_cost: grandTotal,
           status: 'Confirmed',
           created_at: new Date().toISOString()
         }
@@ -95,6 +136,29 @@ export default function FreshLaEstanciaLanding() {
     } catch (err) {
       console.error('Error creating booking:', err)
       alert('Error submitting booking. Please try again.')
+    }
+  }
+
+  async function handleStandaloneUpsellSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    try {
+      const { error } = await supabase.from('bookings').insert([
+        {
+          property_title: 'STANDALONE UPSELL SERVICE',
+          traveler_name: upsellClientName,
+          traveler_phone: upsellClientPhone,
+          upsells_chosen: standaloneSelected.join(', '),
+          total_cost: standaloneTotal,
+          status: 'Upsell Only',
+          created_at: new Date().toISOString()
+        }
+      ])
+
+      if (error) throw error
+      setUpsellSubmitted(true)
+    } catch (err) {
+      console.error('Error submitting standalone upsell:', err)
+      alert('Error submitting upsell order. Please try again.')
     }
   }
 
@@ -110,12 +174,25 @@ export default function FreshLaEstanciaLanding() {
           <Link href="/" className="text-xl font-extrabold tracking-wider text-amber-400">
             LA ESTANCIA
           </Link>
-          <Link 
-            href="/portal"
-            className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors"
-          >
-            Host Portal
-          </Link>
+          
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => {
+                setShowStandaloneUpsellModal(true)
+                setStandaloneSelected([])
+                setUpsellSubmitted(false)
+              }}
+              className="px-4 py-2 rounded-xl bg-neutral-900 border border-neutral-800 text-neutral-200 text-xs font-semibold hover:border-amber-500 hover:text-amber-400 transition-colors"
+            >
+              ✨ Book Upsells Only
+            </button>
+            <Link 
+              href="/portal"
+              className="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors"
+            >
+              Host Portal
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -164,12 +241,14 @@ export default function FreshLaEstanciaLanding() {
                   <div>
                     <h3 className="text-lg font-bold text-white mb-1">{property.title}</h3>
                     <p className="text-xs text-neutral-400">{property.location}</p>
+                    <p className="text-xs text-neutral-300 mt-2 line-clamp-2">{property.description}</p>
                   </div>
                   <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
                     <span className="text-xs text-amber-400 font-semibold">${property.price} / night</span>
                     <button
                       onClick={() => {
                         setActiveProperty(property)
+                        setSelectedUpsells([])
                         setBookingSubmitted(false)
                       }}
                       className="bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold px-4 py-2.5 rounded-xl transition-colors"
@@ -184,7 +263,82 @@ export default function FreshLaEstanciaLanding() {
         )}
       </section>
 
-      {/* Detailed Booking Modal */}
+      {/* Standalone Upsell Booking Modal */}
+      {showStandaloneUpsellModal && (
+        <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-lg w-full p-8 relative shadow-2xl my-8">
+            <button 
+              onClick={() => setShowStandaloneUpsellModal(false)}
+              className="absolute top-6 right-6 text-neutral-400 hover:text-white text-lg font-bold"
+            >
+              ✕
+            </button>
+
+            {upsellSubmitted ? (
+              <div className="text-center py-8">
+                <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
+                <h3 className="text-xl font-bold text-white mb-2">Upsell Order Created!</h3>
+                <p className="text-xs text-neutral-400 mb-6">Your standalone service request has been sent to the Host Portal.</p>
+                <button onClick={() => setShowStandaloneUpsellModal(false)} className="bg-neutral-800 text-white text-xs font-semibold px-6 py-2.5 rounded-xl">Close</button>
+              </div>
+            ) : (
+              <form onSubmit={handleStandaloneUpsellSubmit} className="space-y-4">
+                <h3 className="text-lg font-bold text-white mb-1">Book Standalone Upsell Services</h3>
+                <p className="text-xs text-neutral-400 mb-4">Request VIP transfers, chefs, or tours without booking accommodation.</p>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Your Name</label>
+                  <input type="text" required value={upsellClientName} onChange={(e) => setUpsellClientName(e.target.value)} placeholder="Full Name" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-neutral-300 mb-1">Phone Number / WhatsApp</label>
+                  <input type="text" required value={upsellClientPhone} onChange={(e) => setUpsellClientPhone(e.target.value)} placeholder="+256..." className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white" />
+                </div>
+
+                <div className="pt-2 border-t border-neutral-800">
+                  <label className="block text-xs font-bold text-amber-400 mb-2">✨ Select Services</label>
+                  <div className="space-y-2">
+                    {UPSELL_OPTIONS.map((upsell) => (
+                      <div 
+                        key={upsell.id}
+                        onClick={() => toggleUpsell(upsell.id, true)}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          standaloneSelected.includes(upsell.id)
+                            ? 'bg-amber-500/10 border-amber-500 text-white'
+                            : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 text-xs font-medium">
+                          <input 
+                            type="checkbox" 
+                            checked={standaloneSelected.includes(upsell.id)} 
+                            onChange={() => {}} 
+                            className="rounded bg-neutral-950 border-neutral-800 text-amber-500" 
+                          />
+                          {upsell.name}
+                        </div>
+                        <span className="text-xs font-bold text-amber-400">+${upsell.price}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 flex items-center justify-between">
+                  <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Total Service Cost</span>
+                  <span className="text-xl font-extrabold text-white">${standaloneTotal}</span>
+                </div>
+
+                <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20">
+                  Submit Upsell Request
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Accommodation Booking Modal (With Integrated Upsells) */}
       {activeProperty && (
         <div className="fixed inset-0 z-50 bg-neutral-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-xl w-full p-8 relative shadow-2xl my-8">
@@ -199,21 +353,19 @@ export default function FreshLaEstanciaLanding() {
               <div className="text-center py-8">
                 <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✓</div>
                 <h3 className="text-xl font-bold text-white mb-2">Booking Card Created!</h3>
-                <p className="text-xs text-neutral-400 mb-6">Successfully sent to the Host Portal bookings ledger.</p>
+                <p className="text-xs text-neutral-400 mb-6">Successfully sent to the Host Portal bookings ledger with chosen upsells.</p>
                 <button onClick={() => setActiveProperty(null)} className="bg-neutral-800 text-white text-xs font-semibold px-6 py-2.5 rounded-xl">Close</button>
               </div>
             ) : (
               <form onSubmit={handleBookingSubmit} className="space-y-4">
-                <h3 className="text-lg font-bold text-white mb-1">Book Stay</h3>
+                <h3 className="text-lg font-bold text-white mb-1">Book Stay & Select Upsells</h3>
                 <p className="text-xs text-amber-400 font-semibold mb-4">{activeProperty.title} (${activeProperty.price}/night)</p>
 
-                {/* Traveler Name */}
                 <div>
                   <label className="block text-xs font-medium text-neutral-300 mb-1">Traveler Name</label>
                   <input type="text" required value={travelerName} onChange={(e) => setTravelerName(e.target.value)} placeholder="Full Name" className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white" />
                 </div>
 
-                {/* Place of Origin */}
                 <div>
                   <label className="block text-xs font-medium text-neutral-300 mb-1">Place of Origin</label>
                   <select value={originRegion} onChange={(e) => setOriginRegion(e.target.value)} className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-white">
@@ -225,7 +377,6 @@ export default function FreshLaEstanciaLanding() {
                   </select>
                 </div>
 
-                {/* Dates */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-neutral-300 mb-1">Check-In</label>
@@ -237,7 +388,6 @@ export default function FreshLaEstanciaLanding() {
                   </div>
                 </div>
 
-                {/* Guest Count & Details */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-neutral-300 mb-1">Total Travelers</label>
@@ -253,8 +403,7 @@ export default function FreshLaEstanciaLanding() {
                   </div>
                 </div>
 
-                {/* Couple & Kids Checkboxes */}
-                <div className="flex items-center gap-6 py-2">
+                <div className="flex items-center gap-6 py-1">
                   <label className="flex items-center gap-2 text-xs text-neutral-300 cursor-pointer">
                     <input type="checkbox" checked={isCouple} onChange={(e) => setIsCouple(e.target.checked)} className="rounded bg-neutral-950 border-neutral-800 text-amber-500" />
                     Traveling as a Couple
@@ -272,20 +421,53 @@ export default function FreshLaEstanciaLanding() {
                   </div>
                 )}
 
-                {/* Live Cost Math Box */}
-                <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-neutral-400">Duration: <span className="text-white font-bold">{nights} night(s)</span></p>
-                    <p className="text-xs text-neutral-400">Rate: <span className="text-white">${nightlyRate} / night</span></p>
+                <div className="pt-2 border-t border-neutral-800">
+                  <label className="block text-xs font-bold text-amber-400 mb-2">✨ Choose Add-On Upsell Services</label>
+                  <div className="space-y-2">
+                    {UPSELL_OPTIONS.map((upsell) => (
+                      <div 
+                        key={upsell.id}
+                        onClick={() => toggleUpsell(upsell.id, false)}
+                        className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${
+                          selectedUpsells.includes(upsell.id)
+                            ? 'bg-amber-500/10 border-amber-500 text-white'
+                            : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 text-xs font-medium">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedUpsells.includes(upsell.id)} 
+                            onChange={() => {}} 
+                            className="rounded bg-neutral-950 border-neutral-800 text-amber-500" 
+                          />
+                          {upsell.name}
+                        </div>
+                        <span className="text-xs font-bold text-amber-400">+${upsell.price}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Total Cost</p>
-                    <p className="text-xl font-extrabold text-white">${totalCost}</p>
+                </div>
+
+                <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 space-y-1">
+                  <div className="flex justify-between text-xs text-neutral-400">
+                    <span>Stay ({nights} nights @ ${nightlyRate}/n):</span>
+                    <span>${accommodationCost}</span>
+                  </div>
+                  {upsellsTotal > 0 && (
+                    <div className="flex justify-between text-xs text-neutral-400">
+                      <span>Upsell Add-ons:</span>
+                      <span>${upsellsTotal}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t border-neutral-800/80">
+                    <span className="text-xs text-amber-400 font-semibold uppercase tracking-wider">Grand Total Cost</span>
+                    <span className="text-xl font-extrabold text-white">${grandTotal}</span>
                   </div>
                 </div>
 
                 <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 text-xs font-bold py-3 rounded-xl transition-colors shadow-lg shadow-amber-500/20">
-                  Submit Booking & Create Card
+                  Confirm Booking & Create Card
                 </button>
               </form>
             )}
