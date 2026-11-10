@@ -29,7 +29,7 @@ export default function Navbar() {
     window.location.href = '/'
   }
 
-  const isPrivateDashboard = pathname === '/operations'
+  const isPrivateDashboard = ['/properties', '/bookings', '/financials', '/co-hosting', '/upsells', '/tasks'].some(route => pathname?.startsWith(route))
 
   return (
     <header className="bg-neutral-900 border-b border-neutral-800 sticky top-0 z-50">

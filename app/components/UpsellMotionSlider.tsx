@@ -36,7 +36,7 @@ const portalAds = [
     title: 'Automated Housekeeping',
     headline: 'Zero-stress turnover cleaning workflows.',
     description: 'Assign cleaning and maintenance tasks instantly to your team on WhatsApp as soon as check-out is confirmed.',
-    badge: '🧹 Operations',
+    
     image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80',
   },
   {
@@ -113,7 +113,7 @@ export default function UpsellMotionSlider() {
                     </p>
 
                     <a
-                      href="/operations"
+                      
                       className="inline-block py-2.5 px-5 bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs rounded-xl shadow-lg transition cursor-pointer text-center"
                     >
                       Access Host Operations →
