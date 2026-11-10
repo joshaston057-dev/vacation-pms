@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
-import UpsellMotionsSlider from '@/components/UpsellMotionsSlider'
-import { supabase } from '@/lib/supabase'
+import Navbar from '../components/Navbar'
+import Footer from '../components/Footer'
+import UpsellMotionsSlider from '../components/UpsellMotionsSlider'
+import { supabase } from '../lib/supabase'
 
 interface Property {
   id: string
