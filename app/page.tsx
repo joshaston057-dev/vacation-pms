@@ -189,7 +189,7 @@ export default function PublicHome() {
                   <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
   <span className="text-xs text-emerald-400 font-medium">✓ Verified Host</span>
   <Link
-    href={`/book/${property.id}`}
+  href={/book/${property.id}`}
     className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs px-4 py-2 rounded-lg transition"
   >
     Book Now
