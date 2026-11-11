@@ -187,15 +187,14 @@ export default function PublicHome() {
                   </div>
 
                   <div className="mt-6 pt-4 border-t border-neutral-800 flex items-center justify-between">
-                    <span className="text-xs text-emerald-400 font-medium">✔ Verified Host</span>
-                    <a
-                      href={`https://wa.me/${property.whatsapp?.replace('+', '')}?text=Hello,%20I%20would%20like%20to%20inquire%20about%20${encodeURIComponent(property.title)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors shadow-lg shadow-emerald-600/20"
-                    >
-                      Inquire on WhatsApp
-                    </a>
+  <span className="text-xs text-emerald-400 font-medium">✓ Verified Host</span>
+  <Link
+    href={`/book/${property.id}`}
+    className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs px-4 py-2 rounded-lg transition"
+  >
+    Book Now
+  </Link>
+</div>
                   </div>
                 </div>
               </div>
