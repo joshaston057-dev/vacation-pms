@@ -28,40 +28,76 @@ interface Booking {
   owner_id?: string;
 }
 
+interface PropertyOption {
+  id: string;
+  title: string;
+  price_per_night: number;
+}
+
 export default function BookingsPortalPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
-  const fetchBookings = async () => {
+  // Manual Booking Modal States
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [manualPropertyName, setManualPropertyName] = useState("");
+  const [manualGuestName, setManualGuestName] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualCheckIn, setManualCheckIn] = useState("");
+  const [manualCheckOut, setManualCheckOut] = useState("");
+  const [manualNationality, setManualNationality] = useState("Ugandan");
+  const [manualAgeGroup, setManualAgeGroup] = useState("25-34");
+  const [manualPurpose, setManualPurpose] = useState("Vacation / Leisure");
+  const [manualAdults, setManualAdults] = useState(1);
+  const [manualChildren, setManualChildren] = useState(0);
+  const [manualChildAge, setManualChildAge] = useState("None / No Children");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSubmitting, setManualSubmitting] = useState(false);
+
+  const fetchBookingsAndProperties = async () => {
     setLoading(true);
     if (!supabase) {
       setLoading(false);
       return;
     }
 
-    // 1. Get the currently logged-in owner session
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoading(false);
       return;
     }
 
-    // 2. Fetch ONLY bookings belonging to this specific logged-in owner account
-    const { data, error } = await supabase
+    // 1. Fetch bookings belonging to this owner
+    const { data: bookingsData, error: bookingsError } = await supabase
       .from("bookings")
       .select("*")
       .eq("owner_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (!error && data) {
-      setBookings(data);
+    if (!bookingsError && bookingsData) {
+      setBookings(bookingsData);
     }
+
+    // 2. Fetch properties belonging to this owner for manual booking dropdown
+    const { data: propsData, error: propsError } = await supabase
+      .from("properties")
+      .select("id, title, price_per_night")
+      .eq("owner_id", user.id);
+
+    if (!propsError && propsData) {
+      setProperties(propsData);
+      if (propsData.length > 0 && !manualPropertyName) {
+        setManualPropertyName(propsData[0].title);
+      }
+    }
+
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchBookings();
+    fetchBookingsAndProperties();
   }, []);
 
   const calculateStayDetails = (checkIn: string, checkOut: string, rate: number = 100) => {
@@ -72,6 +108,56 @@ export default function BookingsPortalPage() {
     const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     const total = nights * rate;
     return { nights, total, deposit: Math.round(total * 0.3) };
+  };
+
+  const handleManualBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase) return;
+    setManualSubmitting(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      alert("You must be logged in.");
+      setManualSubmitting(false);
+      return;
+    }
+
+    const totalGuests = Number(manualAdults) + Number(manualChildren);
+    const childInfo = Number(manualChildren) > 0 ? ` | Children Age: ${manualChildAge}` : "";
+
+    const newManualBooking = {
+      id: crypto.randomUUID(),
+      property_name: manualPropertyName,
+      guest_name: manualGuestName,
+      phone: manualPhone,
+      nationality: manualNationality,
+      age_group: manualAgeGroup,
+      purpose_of_stay: `${manualPurpose}${childInfo}`,
+      check_in: manualCheckIn,
+      check_out: manualCheckOut,
+      guests_count: totalGuests,
+      adults_count: Number(manualAdults),
+      children_count: Number(manualChildren),
+      special_requests: manualNotes || "Manual entry from host portal",
+      status: "Pending",
+      owner_id: user.id,
+    };
+
+    const { error } = await supabase.from("bookings").insert([newManualBooking]);
+
+    if (!error) {
+      alert("Manual booking successfully logged into the portal!");
+      setShowManualModal(false);
+      setManualGuestName("");
+      setManualPhone("");
+      setManualCheckIn("");
+      setManualCheckOut("");
+      setManualNotes("");
+      fetchBookingsAndProperties();
+    } else {
+      alert("Failed to insert manual booking: " + error.message);
+    }
+    setManualSubmitting(false);
   };
 
   const handleApprovePayment = async (booking: Booking) => {
@@ -105,7 +191,7 @@ export default function BookingsPortalPage() {
       return;
     }
 
-    // 2. Automatically dispatch the turnover cleaning task linked to this owner
+    // 2. Automatically dispatch the turnover cleaning task linked to this owner (without unsupported category column)
     const checkoutTime = new Date(booking.check_out).getTime();
     const hoursUntilCheckout = (checkoutTime - Date.now()) / (1000 * 60 * 60);
     const autoUrgency = hoursUntilCheckout <= 48 ? "Critical" : "High";
@@ -115,7 +201,6 @@ export default function BookingsPortalPage() {
       title: `Turnover Cleaning (Guest: ${booking.guest_name})`,
       property_name: booking.property_name || "La Estancia Property",
       task_type: "Auto-Booking",
-      category: "Cleaning",
       operator_name: "Sarah Namukasa",
       operator_whatsapp: "+256780564778",
       scheduled_date: booking.check_out,
@@ -124,7 +209,7 @@ export default function BookingsPortalPage() {
       urgency: autoUrgency,
       status: "Pending",
       notes: `Auto-dispatched upon booking confirmation (#${booking.id}). Check-in: ${booking.check_in} | Check-out: ${booking.check_out}. Full turnover clean & fresh linens required.`,
-      owner_id: user.id, // Ties dispatch task to logged-in owner
+      owner_id: user.id,
     };
 
     const { error: dispatchError } = await supabase
@@ -159,7 +244,7 @@ export default function BookingsPortalPage() {
       amount: stay.total,
       transaction_date: new Date().toISOString().split("T")[0],
       description: `Direct booking revenue for guest ${booking.guest_name} (${stay.nights} nights)`,
-      owner_id: user.id, // Ties financial record to logged-in owner
+      owner_id: user.id,
     };
 
     const { error: financeError } = await supabase
@@ -194,26 +279,225 @@ export default function BookingsPortalPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto py-2 px-4 sm:px-8">
-      <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
         <div>
           <h1 className="text-xl font-bold text-white">Bookings & Reservations</h1>
           <p className="text-xs text-neutral-400 mt-0.5">
             Incoming direct reservations and guest demographic profiles.
           </p>
         </div>
-        <button
-          onClick={fetchBookings}
-          className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
-        >
-          🔄 Refresh Bookings
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowManualModal(true)}
+            className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs px-4 py-2.5 rounded-xl transition cursor-pointer shadow-lg shadow-amber-500/10"
+          >
+            + Manual Booking Entry
+          </button>
+          <button
+            onClick={fetchBookingsAndProperties}
+            className="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 text-xs px-3.5 py-2.5 rounded-xl transition cursor-pointer"
+          >
+            🔄 Refresh
+          </button>
+        </div>
       </div>
+
+      {/* MANUAL BOOKING MODAL */}
+      {showManualModal && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 relative shadow-2xl">
+            <button
+              onClick={() => setShowManualModal(false)}
+              className="absolute top-5 right-5 bg-neutral-800 hover:bg-neutral-700 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block">
+                OFFLINE / EXTERNAL RESERVATION
+              </span>
+              <h2 className="text-lg font-bold text-white">Log Manual Booking</h2>
+              <p className="text-xs text-neutral-400">
+                Add a booking from WhatsApp, phone calls, or walk-ins to integrate it into your portal workflow.
+              </p>
+            </div>
+
+            <form onSubmit={handleManualBookingSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-400 mb-1">Select Property</label>
+                <select
+                  value={manualPropertyName}
+                  onChange={(e) => setManualPropertyName(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                >
+                  {properties.map((p) => (
+                    <option key={p.id} value={p.title}>
+                      {p.title} (${p.price_per_night}/nt)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={manualGuestName}
+                    onChange={(e) => setManualGuestName(e.target.value)}
+                    placeholder="e.g. David Mugisha"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">WhatsApp / Phone Number</label>
+                  <input
+                    type="text"
+                    required
+                    value={manualPhone}
+                    onChange={(e) => setManualPhone(e.target.value)}
+                    placeholder="+256..."
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-in Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={manualCheckIn}
+                    onChange={(e) => setManualCheckIn(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-out Date</label>
+                  <input
+                    type="date"
+                    required
+                    value={manualCheckOut}
+                    onChange={(e) => setManualCheckOut(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
+                  <select
+                    value={manualNationality}
+                    onChange={(e) => setManualNationality(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Ugandan">Ugandan</option>
+                    <option value="Kenyan">Kenyan</option>
+                    <option value="Tanzanian">Tanzanian</option>
+                    <option value="Rwandan">Rwandan</option>
+                    <option value="British">British</option>
+                    <option value="American">American</option>
+                    <option value="European">European</option>
+                    <option value="Other International">Other International</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Age Bracket</label>
+                  <select
+                    value={manualAgeGroup}
+                    onChange={(e) => setManualAgeGroup(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="18-24">18 - 24 Years</option>
+                    <option value="25-34">25 - 34 Years</option>
+                    <option value="35-44">35 - 44 Years</option>
+                    <option value="45-54">45 - 54 Years</option>
+                    <option value="55+">55+ Years</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
+                  <select
+                    value={manualPurpose}
+                    onChange={(e) => setManualPurpose(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="Vacation / Leisure">Vacation / Leisure</option>
+                    <option value="Business Trip">Business Trip</option>
+                    <option value="Family Stay">Family Stay</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={manualAdults}
+                    onChange={(e) => setManualAdults(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={manualChildren}
+                    onChange={(e) => setManualChildren(Number(e.target.value))}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
+                  <select
+                    value={manualChildAge}
+                    onChange={(e) => setManualChildAge(e.target.value)}
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="None / No Children">None / No Children</option>
+                    <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
+                    <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
+                    <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
+                <textarea
+                  rows={2}
+                  value={manualNotes}
+                  onChange={(e) => setManualNotes(e.target.value)}
+                  placeholder="Any special requests or arrival notes..."
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={manualSubmitting}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
+              >
+                {manualSubmitting ? "Logging Booking..." : "Save Manual Booking"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-16 text-neutral-400 text-xs">Loading bookings...</div>
       ) : bookings.length === 0 ? (
         <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-2xl p-12 text-center text-neutral-400 text-xs">
-          No bookings received yet for your account portfolio. When travelers submit inquiries on your website, cards will appear here instantly.
+          No bookings received yet for your account portfolio. When travelers submit inquiries on your website, or when you add manual bookings, cards will appear here instantly.
         </div>
       ) : (
         <div className="space-y-6">
