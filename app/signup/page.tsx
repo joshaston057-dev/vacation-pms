@@ -10,6 +10,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -22,11 +23,13 @@ export default function SignUpPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setSuccessMsg(null)
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${window.location.origin}/portal`,
         data: {
           full_name: fullName,
         },
@@ -36,8 +39,13 @@ export default function SignUpPage() {
     if (signUpError) {
       setError(signUpError.message)
       setLoading(false)
+    } else if (!data.session) {
+      setSuccessMsg(
+        `Account created! We've sent a confirmation link to ${email}. Please check your inbox and verify your email before logging in.`
+      )
+      setLoading(false)
     } else {
-      router.push('/properties')
+      router.push('/portal')
     }
   }
 
@@ -57,55 +65,71 @@ export default function SignUpPage() {
           </div>
         )}
 
-        <form onSubmit={handleSignUp} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Full Name</label>
-            <input
-              type="text"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
-              placeholder="e.g. Moses K."
-            />
+        {successMsg ? (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-lg text-sm space-y-3">
+            <p className="font-semibold">✓ Verify Your Email Address</p>
+            <p>{successMsg}</p>
+            <div className="pt-2">
+              <Link
+                href="/portal/login"
+                className="inline-block w-full text-center bg-black text-white font-medium rounded-lg py-2 hover:bg-gray-800 transition"
+              >
+                Go to Login
+              </Link>
+            </div>
           </div>
+        ) : (
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Full Name</label>
+              <input
+                type="text"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
+                placeholder="e.g. Moses K."
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email Address</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
-              placeholder="moses@example.com"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email Address</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
+                placeholder="moses@example.com"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
-              placeholder="••••••••"
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 w-full border border-gray-300 rounded-lg p-2.5 text-sm text-black focus:ring-2 focus:ring-black focus:outline-none"
+                placeholder="••••••••"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-black text-white font-medium rounded-lg p-2.5 hover:bg-gray-800 transition disabled:opacity-50"
-          >
-            {loading ? 'Creating Account...' : 'Sign Up'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-black text-white font-medium rounded-lg p-2.5 hover:bg-gray-800 transition disabled:opacity-50"
+            >
+              {loading ? 'Creating Account...' : 'Sign Up'}
+            </button>
+          </form>
+        )}
 
         <p className="text-center text-sm text-gray-600">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link href="/portal/login" className="text-blue-600 hover:underline">
             Log In
           </Link>
         </p>
