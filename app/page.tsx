@@ -117,7 +117,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
-      {/* Public Header (iCal Sync Removed) */}
+      {/* Single Unified Header */}
       <header className="border-b border-neutral-900 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">

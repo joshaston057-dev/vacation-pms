@@ -33,6 +33,7 @@ export default function PortalPropertiesPage() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [activeIcalProperty, setActiveIcalProperty] = useState<Property | null>(null);
 
   // Form state for add/edit
   const [formTitle, setFormTitle] = useState("");
@@ -229,6 +230,8 @@ export default function PortalPropertiesPage() {
     }
   };
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto py-2 px-4 sm:px-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
@@ -301,18 +304,26 @@ export default function PortalPropertiesPage() {
                 </div>
               </div>
 
-              <div className="p-5 pt-0 flex items-center gap-2">
+              <div className="p-5 pt-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenEdit(prop)}
+                    className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold py-2 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Edit Property
+                  </button>
+                  <button
+                    onClick={() => handleDelete(prop.id)}
+                    className="bg-red-950/30 hover:bg-red-900/50 text-red-400 border border-red-900/40 px-3 py-2 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    🗑️
+                  </button>
+                </div>
                 <button
-                  onClick={() => handleOpenEdit(prop)}
-                  className="flex-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold py-2 rounded-xl text-xs transition cursor-pointer"
+                  onClick={() => setActiveIcalProperty(prop)}
+                  className="w-full bg-neutral-950 hover:bg-neutral-800 text-amber-400 border border-neutral-800 font-semibold py-2 rounded-xl text-xs transition flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  Edit Property
-                </button>
-                <button
-                  onClick={() => handleDelete(prop.id)}
-                  className="bg-red-950/30 hover:bg-red-900/50 text-red-400 border border-red-900/40 px-3 py-2 rounded-xl text-xs transition cursor-pointer"
-                >
-                  🗑️
+                  <span>📅</span> iCal Sync & Feed
                 </button>
               </div>
             </div>
@@ -550,6 +561,49 @@ export default function PortalPropertiesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* iCal Modal */}
+      {activeIcalProperty && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-lg w-full p-6 space-y-5 relative shadow-2xl">
+            <button
+              onClick={() => setActiveIcalProperty(null)}
+              className="absolute top-4 right-4 text-neutral-400 hover:text-white text-xs font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="space-y-1">
+              <h2 className="text-base font-bold text-white">iCal Channel Sync</h2>
+              <p className="text-xs text-neutral-400">
+                Sync availability for <span className="text-white font-semibold">{activeIcalProperty.title}</span> with Airbnb, Booking.com, and VRBO.
+              </p>
+            </div>
+            <div className="space-y-3 bg-neutral-950 p-4 rounded-2xl border border-neutral-800">
+              <label className="block text-xs font-semibold text-neutral-300">Export iCal Link (.ics)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${origin}/api/ical/export/${activeIcalProperty.id}`}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-[11px] text-amber-400 font-mono select-all"
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${origin}/api/ical/export/${activeIcalProperty.id}`);
+                    alert("iCal link copied to clipboard!");
+                  }}
+                  className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold px-3 py-2.5 rounded-lg text-xs transition whitespace-nowrap cursor-pointer"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-[10px] text-neutral-500 leading-relaxed">
+                Paste this link into Airbnb, Booking.com, or any other calendar platform under "Import Calendar" to automatically block out reserved dates.
+              </p>
+            </div>
           </div>
         </div>
       )}
