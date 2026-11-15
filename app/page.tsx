@@ -1,689 +1,351 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 interface Property {
   id: string;
   title: string;
   category: string;
-  price?: number;
-  nightly_rate?: number;
-  rate?: number;
   location: string;
+  price_per_night: number;
+  images: string[];
   bedrooms: number;
   bathrooms: number;
-  guests?: number;
-  image_url: string;
-  images?: string[];
-  description?: string;
-  amenities?: string[] | string;
-  is_active: boolean;
+  amenities: string[];
 }
 
-export default function HomePage() {
+interface Review {
+  id: string;
+  guest_name: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export default function PublicHomePage() {
   const [properties, setProperties] = useState<Property[]>([]);
+  const [filteredCategory, setFilteredCategory] = useState("All");
   const [loading, setLoading] = useState(true);
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
 
-  const [cardImageIndexes, setCardImageIndexes] = useState<Record<string, number>>({});
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [infoModal, setInfoModal] = useState<"about" | "blog" | null>(null);
-
-  const [activeProperty, setActiveProperty] = useState<Property | null>(null);
-
+  // Review states for the selected property modal
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [guestName, setGuestName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [nationality, setNationality] = useState("");
-  const [gender, setGender] = useState("");
-  const [ageGroup, setAgeGroup] = useState("");
-  const [purposeOfStay, setPurposeOfStay] = useState("Leisure / Vacation");
-  const [checkIn, setCheckIn] = useState("");
-  const [checkOut, setCheckOut] = useState("");
-  const [adultsCount, setAdultsCount] = useState(1);
-  const [childrenCount, setChildrenCount] = useState(0);
-  const [specialRequests, setSpecialRequests] = useState("");
-
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [bookingSubmitted, setBookingSubmitted] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
-    const fetchLiveProperties = async () => {
-      if (!supabase) {
-        setLoading(false);
-        return;
-      }
-      const { data, error } = await supabase.from("properties").select("*");
-
-      if (!error && data) {
-        const liveOnly = data.filter((p: any) => p.is_active !== false);
-        setProperties(liveOnly);
-      }
-      setLoading(false);
-    };
-
-    fetchLiveProperties();
+    fetchProperties();
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setActiveProperty(null);
-        setInfoModal(null);
-        setMenuOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  const getPropertyImages = (prop: Property): string[] => {
-    if (Array.isArray(prop.images) && prop.images.length > 0) {
-      return prop.images;
+    if (selectedProperty) {
+      fetchReviews(selectedProperty.id);
     }
-    if (prop.image_url) {
-      return [prop.image_url];
+  }, [selectedProperty]);
+
+  const fetchProperties = async () => {
+    const { data, error } = await supabase.from("properties").select("*");
+    if (!error && data) {
+      setProperties(data);
     }
-    return ["https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1000&q=80"];
+    setLoading(false);
   };
 
-  const getPropertyPrice = (prop: Property): number => {
-    return Number(prop.price ?? prop.nightly_rate ?? prop.rate ?? 100);
-  };
+  const fetchReviews = async (propertyId: string) => {
+    setReviewsLoading(true);
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("*")
+      .eq("property_id", propertyId)
+      .order("created_at", { ascending: false });
 
-  const getAmenitiesList = (prop: Property): string[] => {
-    if (Array.isArray(prop.amenities)) return prop.amenities;
-    if (typeof prop.amenities === "string" && prop.amenities.trim().length > 0) {
-      return prop.amenities.split(",").map((a) => a.trim());
+    if (!error && data) {
+      setReviews(data);
     }
-    return ["WiFi", "Kitchen", "Security", "Hot Shower", "Free Parking"];
+    setReviewsLoading(false);
   };
 
-  const handleCycleCardImage = (e: React.MouseEvent, propId: string, total: number, dir: number) => {
-    e.stopPropagation();
-    setCardImageIndexes((prev) => {
-      const current = prev[propId] || 0;
-      const next = (current + dir + total) % total;
-      return { ...prev, [propId]: next };
-    });
-  };
-
-  const openBookingModal = (prop: Property) => {
-    setActiveProperty(prop);
-    setBookingSubmitted(false);
-  };
-
-  const calculateStayDetails = (startStr: string, endStr: string, rate: number) => {
-    if (!startStr || !endStr) return { nights: 1, total: rate };
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-    return { nights, total: nights * rate };
-  };
-
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeProperty) return;
+    if (!selectedProperty) return;
     setSubmitting(true);
+    setSuccessMsg("");
 
-    const rate = getPropertyPrice(activeProperty);
-    const stay = calculateStayDetails(checkIn, checkOut, rate);
-    const totalGuests = Number(adultsCount) + Number(childrenCount);
+    const { error } = await supabase.from("reviews").insert([
+      {
+        property_id: selectedProperty.id,
+        guest_name: guestName,
+        rating: Number(rating),
+        comment,
+      },
+    ]);
 
-    const bookingPayload = {
-      id: crypto.randomUUID(),
-      property_name: activeProperty.title,
-      guest_name: guestName,
-      phone: phone,
-      nationality: nationality || "Standard",
-      gender: gender || null,
-      age_group: ageGroup || null,
-      purpose_of_stay: purposeOfStay || "Leisure / Vacation",
-      check_in: checkIn,
-      check_out: checkOut,
-      guests_count: totalGuests > 0 ? totalGuests : 1,
-      adults_count: Number(adultsCount) || 1,
-      children_count: Number(childrenCount) || 0,
-      special_requests: specialRequests || "",
-      status: "Pending",
-      total_amount: stay.total,
-    };
-
-    if (supabase) {
-      const { error } = await supabase.from("bookings").insert([bookingPayload]);
-      if (error) {
-        alert("Booking submission error: " + error.message);
-        setSubmitting(false);
-        return;
-      }
+    if (!error) {
+      setGuestName("");
+      setRating(5);
+      setComment("");
+      setSuccessMsg("Thank you! Your review has been posted successfully.");
+      fetchReviews(selectedProperty.id);
     }
-
     setSubmitting(false);
-    setBookingSubmitted(true);
   };
 
-  const handleWhatsAppConfirm = () => {
-    if (!activeProperty) return;
-    const rate = getPropertyPrice(activeProperty);
-    const stay = calculateStayDetails(checkIn, checkOut, rate);
-    const totalGuests = Number(adultsCount) + Number(childrenCount);
-    const helplineNumber = "256757386946";
-    const message = encodeURIComponent(
-      `New Direct Booking Inquiry:\n\n*${activeProperty.title}*\n📍 Location: ${activeProperty.location}\n💰 Rate: $${rate}/night (${stay.nights} nights — Total: $${stay.total})\n\n👤 *Guest Profile*:\nName: ${guestName}\nWhatsApp: ${phone}\nNationality: ${nationality || "N/A"}\nGender: ${gender || "N/A"} | Age: ${ageGroup || "N/A"}\nPurpose: ${purposeOfStay || "Leisure / Vacation"}\nGuests: ${totalGuests} (${adultsCount} Adults, ${childrenCount} Kids)\n\n📅 *Dates*:\nCheck-in: ${checkIn}\nCheck-out: ${checkOut}\nNotes: ${specialRequests || "None"}`
-    );
-    window.open(`https://wa.me/${helplineNumber}?text=${message}`, "_blank");
-  };
+  const categories = ["All", "Apartment", "Stand-Alone House", "Mansions", "Villas"];
 
   const filteredProperties =
-    selectedCategory === "All"
+    filteredCategory === "All"
       ? properties
-      : properties.filter((p) => p.category === selectedCategory);
+      : properties.filter(
+          (p) => p.category?.toLowerCase() === filteredCategory.toLowerCase()
+        );
+
+  const avgRating =
+    reviews.length > 0
+      ? (reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)
+      : "No reviews yet";
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 font-sans">
-      <div className="border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500 text-neutral-950 font-black flex items-center justify-center text-sm shadow-md shadow-amber-500/20">
+    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
+      {/* Public Header (iCal Sync Removed) */}
+      <header className="border-b border-neutral-900 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold">
               LE
             </div>
-            <div className="leading-tight">
-              <span className="text-sm font-black tracking-wider text-white">LA ESTANCIA</span>
-              <span className="block text-[9px] text-amber-400 font-semibold tracking-widest uppercase">
-                Vacation Homes
-              </span>
+            <div>
+              <span className="font-bold text-white text-base tracking-tight block">LA ESTANCIA</span>
+              <span className="text-xs text-amber-500 font-semibold tracking-wider uppercase">Vacation Homes</span>
             </div>
-          </a>
+          </div>
 
-          <div className="flex items-center gap-5 relative">
-            <a
-              href="/api/ical"
-              target="_blank"
-              className="text-xs font-medium text-neutral-300 hover:text-amber-400 transition flex items-center gap-1.5"
+          <div className="flex items-center gap-4">
+            <Link
+              href="/portal"
+              className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer"
             >
-              <span>📅</span> iCal Sync
-            </a>
-            <a
-              href="#upsells"
-              className="text-xs font-medium text-neutral-300 hover:text-amber-400 transition"
-            >
-              Upsell Services
-            </a>
-
-            <button
-              type="button"
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="bg-neutral-900 border border-neutral-800 text-amber-400 p-2.5 rounded-xl cursor-pointer hover:bg-neutral-800 transition"
-              aria-label="Menu"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {menuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-
-            {menuOpen && (
-              <div className="absolute right-0 top-14 w-52 bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl py-2 z-40 text-xs">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInfoModal("about");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-neutral-200 hover:bg-neutral-800 hover:text-amber-400 transition cursor-pointer flex items-center gap-2"
-                >
-                  <span>🏛️</span> About Us
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInfoModal("blog");
-                    setMenuOpen(false);
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-neutral-200 hover:bg-neutral-800 hover:text-amber-400 transition cursor-pointer flex items-center gap-2"
-                >
-                  <span>📰</span> Blog
-                </button>
-              </div>
-            )}
+              Host Portal →
+            </Link>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="border-b border-neutral-900 py-5 text-center px-4 bg-gradient-to-b from-neutral-900/40 to-transparent">
-        <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl mx-auto">
-          Explore our curated portfolio of short-stay apartments, standalone houses, mansions, and villas across Uganda. Swipe through property photos and book directly.
+      {/* Hero Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 py-12 text-center space-y-4">
+        <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white">
+          Curated Luxury & Comfort in Uganda
+        </h1>
+        <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto">
+          Explore our curated portfolio of short-stay apartments, standalone houses, mansions, and villas across Uganda. Click any property to view details and guest reviews.
         </p>
-      </div>
+      </section>
 
-      <main id="properties" className="max-w-7xl mx-auto px-4 sm:px-8 py-10 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">Featured Properties</h1>
-            <p className="text-xs text-neutral-400 mt-1">
-              Swipe or tap arrows on each card to view all property images.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {["All", "Apartment", "Stand-Alone House", "Mansion", "Villa"].map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`text-xs px-3 py-1.5 rounded-xl transition cursor-pointer ${
-                  selectedCategory === cat
-                    ? "bg-amber-500 text-neutral-950 font-bold shadow-md shadow-amber-500/20"
-                    : "bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white"
-                }`}
-              >
-                {cat === "All" ? "All Categories" : `${cat}s`}
-              </button>
-            ))}
-          </div>
+      {/* Category Filters */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 pb-8">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setFilteredCategory(cat)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                filteredCategory === cat
+                  ? "bg-amber-500 text-neutral-950 font-bold"
+                  : "bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800"
+              }`}
+            >
+              {cat === "All" ? "All Categories" : cat}
+            </button>
+          ))}
         </div>
+      </section>
 
+      {/* Property Grid */}
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-8 pb-20 flex-1">
         {loading ? (
-          <div className="text-center py-24 text-xs text-neutral-400">Loading available properties...</div>
+          <div className="text-center py-20 text-neutral-500 text-xs">Loading available properties...</div>
         ) : filteredProperties.length === 0 ? (
-          <div className="text-center py-24 text-xs text-neutral-400 bg-neutral-900/40 rounded-2xl border border-neutral-800">
-            No live properties available in this category right now.
-          </div>
+          <div className="text-center py-20 text-neutral-500 text-xs">No properties found in this category.</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProperties.map((prop) => {
-              const imgs = getPropertyImages(prop);
-              const currentIdx = cardImageIndexes[prop.id] || 0;
-              const rate = getPropertyPrice(prop);
-              const amenities = getAmenitiesList(prop);
+            {filteredProperties.map((property) => (
+              <div
+                key={property.id}
+                onClick={() => setSelectedProperty(property)}
+                className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl hover:border-amber-500/40 transition group cursor-pointer"
+              >
+                <div className="h-48 bg-neutral-800 relative overflow-hidden">
+                  {property.images && property.images.length > 0 ? (
+                    <img
+                      src={property.images[0]}
+                      alt={property.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">
+                      No Image Available
+                    </div>
+                  )}
+                  <span className="absolute top-3 left-3 bg-neutral-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                    {property.category || "Property"}
+                  </span>
+                </div>
 
-              return (
-                <div
-                  key={prop.id}
-                  className="bg-neutral-900/90 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-amber-500/40 transition group"
-                >
+                <div className="p-5 space-y-4">
                   <div>
-                    <div className="relative h-60 w-full bg-neutral-950 overflow-hidden">
-                      <img
-                        src={imgs[currentIdx]}
-                        alt={prop.title}
-                        className="w-full h-full object-cover transition-all duration-300"
-                      />
-
-                      <span className="absolute top-3 left-3 bg-neutral-950/85 backdrop-blur-md text-amber-400 border border-neutral-800 text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                        {prop.category}
-                      </span>
-
-                      <span className="absolute top-3 right-3 bg-neutral-950/85 backdrop-blur-md text-neutral-200 border border-neutral-800 text-[10px] font-medium px-2.5 py-1 rounded-lg">
-                        📷 {currentIdx + 1} / {imgs.length}
-                      </span>
-
-                      {imgs.length > 1 && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={(e) => handleCycleCardImage(e, prop.id, imgs.length, -1)}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-8 h-8 rounded-full flex items-center justify-center text-xs transition cursor-pointer shadow-lg"
-                            aria-label="Previous photo"
-                          >
-                            ‹
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleCycleCardImage(e, prop.id, imgs.length, 1)}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black text-white w-8 h-8 rounded-full flex items-center justify-center text-xs transition cursor-pointer shadow-lg"
-                            aria-label="Next photo"
-                          >
-                            ›
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="p-5 space-y-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="text-sm font-bold text-white leading-snug line-clamp-2">{prop.title}</h2>
-                        <div className="text-right shrink-0">
-                          <span className="text-sm font-black text-amber-400">${rate}</span>
-                          <span className="text-[11px] text-neutral-400">/nt</span>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-neutral-400">📍 {prop.location || "Kampala, Uganda"}</p>
-
-                      <div className="flex items-center gap-3 text-[11px] text-neutral-400 pt-1">
-                        <span>🛏️ {prop.bedrooms || 1} Beds</span>
-                        <span>🚿 {prop.bathrooms || 1} Baths</span>
-                        <span>👥 {prop.guests || (prop.bedrooms || 1) * 2} Guests</span>
-                      </div>
-
-                      <div className="flex flex-wrap gap-1.5 pt-2">
-                        {amenities.slice(0, 4).map((amenity, idx) => (
-                          <span
-                            key={idx}
-                            className="bg-neutral-950 border border-neutral-800 text-[10px] text-neutral-300 px-2 py-0.5 rounded-md"
-                          >
-                            ✓ {amenity}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    <h3 className="text-sm font-bold text-white group-hover:text-amber-400 transition">
+                      {property.title}
+                    </h3>
+                    <p className="text-xs text-neutral-400 mt-1">📍 {property.location}</p>
                   </div>
 
-                  <div className="px-5 pb-5">
-                    <button
-                      type="button"
-                      onClick={() => openBookingModal(prop)}
-                      className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs py-3 rounded-xl transition cursor-pointer shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2"
-                    >
-                      <span>✨</span> Book Now
-                    </button>
+                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs text-neutral-300">
+                    <span>🛏️ {property.bedrooms || 1} Beds</span>
+                    <span>🚿 {property.bathrooms || 1} Baths</span>
+                    <span className="text-amber-400 font-bold text-sm">${property.price_per_night}/nt</span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </main>
 
-      {/* Upsell Services Section */}
-      <section id="upsells" className="border-t border-neutral-900 bg-neutral-900/30 py-16 px-4 sm:px-8 mt-16">
-        <div className="max-w-7xl mx-auto space-y-6 text-center">
-          <h2 className="text-xl sm:text-2xl font-bold text-white">Standalone Upsell Services</h2>
-          <p className="text-xs text-neutral-400 max-w-xl mx-auto">
-            Enhance your stay with La Estancia's auxiliary services, available upon request during your reservation.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 text-left">
-            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-2">
-              <div className="text-amber-400 text-lg">🚗</div>
-              <div className="text-xs font-bold text-white">Airport Transfers</div>
-              <p className="text-[11px] text-neutral-400">Reliable airport pickups and drop-offs directly to your property.</p>
-            </div>
-            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-2">
-              <div className="text-amber-400 text-lg">🧹</div>
-              <div className="text-xs font-bold text-white">Daily Housekeeping</div>
-              <p className="text-[11px] text-neutral-400">Professional cleaning and linen refresh services during your stay.</p>
-            </div>
-            <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl space-y-2">
-              <div className="text-amber-400 text-lg">🍳</div>
-              <div className="text-xs font-bold text-white">Private Chef & Catering</div>
-              <p className="text-[11px] text-neutral-400">Custom meal preparation by professional local chefs in your kitchen.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Property Details & Reviews Modal */}
+      {selectedProperty && (
+        <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 relative shadow-2xl">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedProperty(null)}
+              className="absolute top-5 right-5 bg-neutral-800 hover:bg-neutral-700 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer"
+            >
+              ✕
+            </button>
 
-      {/* About Us & Blog Modal */}
-      {infoModal && (
-        <div
-          onClick={() => setInfoModal(null)}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-5 shadow-2xl"
-          >
-            <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
-              <h2 className="text-lg font-bold text-white">
-                {infoModal === "about" ? "About La Estancia Vacation Homes" : "La Estancia Travel & Stay Blog"}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setInfoModal(null)}
-                className="bg-neutral-800 hover:bg-amber-500 hover:text-neutral-950 text-neutral-200 text-xs font-semibold px-3.5 py-1.5 rounded-xl transition cursor-pointer"
-              >
-                ✕ Close
-              </button>
+            {/* Modal Header */}
+            <div className="space-y-2">
+              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                {selectedProperty.category}
+              </span>
+              <h2 className="text-xl sm:text-2xl font-bold text-white">{selectedProperty.title}</h2>
+              <p className="text-xs text-neutral-400">📍 {selectedProperty.location}</p>
             </div>
 
-            {infoModal === "about" ? (
-              <div className="space-y-4 text-xs text-neutral-300 leading-relaxed">
-                <p>
-                  <strong className="text-amber-400">La Estancia Vacation Homes</strong> is an independent short-stay property agency and co-hosting management company operating across Kampala, Entebbe, Munyonyo, Kira, and surrounding prime neighborhoods in Uganda.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4 text-xs text-neutral-300">
-                <div className="bg-neutral-950 border border-neutral-800 p-4 rounded-2xl space-y-1.5">
-                  <span className="text-[10px] text-amber-400 font-bold uppercase">City Guide</span>
-                  <h3 className="text-sm font-bold text-white">Top Neighborhoods for Short Stays in Kampala & Entebbe</h3>
-                  <p className="text-neutral-400 leading-relaxed">
-                    From lakeside mansions in Munyonyo and Entebbe to modern apartments in Kira and Kisaasi.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Booking Modal */}
-      {activeProperty && (
-        <div
-          onClick={() => setActiveProperty(null)}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm overflow-y-auto flex items-start justify-center p-3 sm:p-6"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl my-auto"
-          >
-            <div className="sticky top-0 z-20 bg-neutral-900/95 backdrop-blur-md border-b border-neutral-800 px-5 py-4 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">
-                  {activeProperty.category} &bull; 📍 {activeProperty.location}
-                </span>
-                <h2 className="text-sm font-bold text-white truncate">
-                  {activeProperty.title} (${getPropertyPrice(activeProperty)}/night)
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveProperty(null)}
-                className="shrink-0 bg-neutral-800 hover:bg-amber-500 hover:text-neutral-950 text-neutral-200 font-semibold text-xs px-3 py-1.5 rounded-xl transition cursor-pointer"
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {bookingSubmitted ? (
-                <div className="bg-neutral-950 border border-neutral-800 rounded-2xl p-6 space-y-5 text-xs text-center">
-                  <div className="text-3xl">🎉</div>
-                  <h3 className="text-sm font-bold text-white">Reservation & Guest Profile Logged!</h3>
-                  <p className="text-neutral-400 text-xs leading-relaxed max-w-md mx-auto">
-                    Thank you, <strong className="text-white">{guestName}</strong>. Your booking and check-in profile have been recorded. Tap below to send your confirmation straight to our WhatsApp concierge.
-                  </p>
-
-                  <div className="space-y-2.5 pt-3">
-                    <button
-                      type="button"
-                      onClick={handleWhatsAppConfirm}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition cursor-pointer text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
-                    >
-                      <span>Confirm via WhatsApp →</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveProperty(null)}
-                      className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold py-3 rounded-xl transition cursor-pointer text-xs"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
+            {/* Image Preview */}
+            <div className="h-64 rounded-2xl overflow-hidden bg-neutral-800">
+              {selectedProperty.images && selectedProperty.images.length > 0 ? (
+                <img src={selectedProperty.images[0]} alt={selectedProperty.title} className="w-full h-full object-cover" />
               ) : (
-                <form
-                  onSubmit={handleBookingSubmit}
-                  className="bg-neutral-950 border border-neutral-800 rounded-2xl p-4 space-y-3 text-xs"
-                >
-                  <div className="font-bold text-white text-sm border-b border-neutral-800 pb-2">
-                    📝 Traveler Demographic & Reservation Form
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Guest Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Full Name"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Phone Number *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="+256..."
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Nationality</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Ugandan"
-                        value={nationality}
-                        onChange={(e) => setNationality(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Gender</label>
-                      <select
-                        value={gender}
-                        onChange={(e) => setGender(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      >
-                        <option value="">Select</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Age Group</label>
-                      <select
-                        value={ageGroup}
-                        onChange={(e) => setAgeGroup(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      >
-                        <option value="">Select</option>
-                        <option value="18-25">18-25</option>
-                        <option value="26-35">26-35</option>
-                        <option value="36-50">36-50</option>
-                        <option value="51+">51+</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Purpose of Stay</label>
-                      <select
-                        value={purposeOfStay}
-                        onChange={(e) => setPurposeOfStay(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      >
-                        <option value="Leisure / Vacation">Leisure / Vacation</option>
-                        <option value="Business / Work">Business / Work</option>
-                        <option value="Family Visit">Family Visit</option>
-                        <option value="Medical">Medical</option>
-                        <option value="Relocation / Long Stay">Relocation / Long Stay</option>
-                        <option value="Event / Wedding">Event / Wedding</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Adults *</label>
-                      <input
-                        type="number"
-                        min={1}
-                        required
-                        value={adultsCount}
-                        onChange={(e) => setAdultsCount(Number(e.target.value))}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Children</label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={childrenCount}
-                        onChange={(e) => setChildrenCount(Number(e.target.value))}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Check-in Date *</label>
-                      <input
-                        type="date"
-                        required
-                        value={checkIn}
-                        onChange={(e) => setCheckIn(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-neutral-400 block mb-1">Check-out Date *</label>
-                      <input
-                        type="date"
-                        required
-                        value={checkOut}
-                        onChange={(e) => setCheckOut(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-neutral-400 block mb-1">Special Requests</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Airport pickup, extra bedding"
-                      value={specialRequests}
-                      onChange={(e) => setSpecialRequests(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-2 text-white"
-                    />
-                  </div>
-
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setActiveProperty(null)}
-                      className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold px-4 py-2.5 rounded-xl transition cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-xl transition cursor-pointer disabled:opacity-50"
-                    >
-                      {submitting ? "Logging Reservation..." : "Submit Booking & Continue →"}
-                    </button>
-                  </div>
-                </form>
+                <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs">No image</div>
               )}
+            </div>
+
+            {/* Property Specs */}
+            <div className="grid grid-cols-3 gap-4 bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800 text-center text-xs">
+              <div>
+                <span className="text-neutral-400 block mb-1">Bedrooms</span>
+                <span className="font-bold text-white">{selectedProperty.bedrooms || 1}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block mb-1">Bathrooms</span>
+                <span className="font-bold text-white">{selectedProperty.bathrooms || 1}</span>
+              </div>
+              <div>
+                <span className="text-neutral-400 block mb-1">Price / Night</span>
+                <span className="font-bold text-amber-400">${selectedProperty.price_per_night}</span>
+              </div>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="space-y-6 border-t border-neutral-800 pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-bold text-white">Guest Reviews & Ratings</h3>
+                  <p className="text-xs text-neutral-400 mt-0.5">
+                    {reviews.length} review{reviews.length === 1 ? "" : "s"} • Rating:{" "}
+                    <span className="text-amber-400 font-bold">{avgRating} ★</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Review Feed */}
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                {reviewsLoading ? (
+                  <p className="text-xs text-neutral-500">Loading reviews...</p>
+                ) : reviews.length === 0 ? (
+                  <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
+                ) : (
+                  reviews.map((rev) => (
+                    <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
+                        <span className="text-amber-400 text-[11px] font-bold">
+                          {"★".repeat(rev.rating)}
+                          {"☆".repeat(5 - rev.rating)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-neutral-300">{rev.comment}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Submit Review Form */}
+              <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
+                {successMsg && (
+                  <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
+                    {successMsg}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Your Name (e.g. Sarah M.)"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  />
+                  <select
+                    value={rating}
+                    onChange={(e) => setRating(Number(e.target.value))}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                  >
+                    <option value={5}>5 Stars - Exceptional</option>
+                    <option value={4}>4 Stars - Great</option>
+                    <option value={3}>3 Stars - Good</option>
+                    <option value={2}>2 Stars - Fair</option>
+                    <option value={1}>1 Star - Poor</option>
+                  </select>
+                </div>
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="How was your experience?"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                >
+                  {submitting ? "Submitting..." : "Submit Review"}
+                </button>
+              </form>
             </div>
           </div>
         </div>
