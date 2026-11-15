@@ -61,16 +61,33 @@ export default function PortalLayout({
     };
   }, [pathname, isPublicAuthRoute, router]);
 
-  // Fetch counts when authenticated
+  // Fetch counts scoped strictly to the logged-in host
   useEffect(() => {
     if (isPublicAuthRoute || checkingAuth) return;
 
     const fetchCounts = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
       const [propsRes, bookingsRes, dispatchRes, cohostRes] = await Promise.all([
-        supabase.from("properties").select("*", { count: "exact", head: true }),
-        supabase.from("bookings").select("*", { count: "exact", head: true }),
-        supabase.from("tasks").select("*", { count: "exact", head: true }),
-        supabase.from("cohosts").select("*", { count: "exact", head: true }),
+        supabase
+          .from("properties")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("bookings")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("tasks")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
+        supabase
+          .from("cohosts")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", user.id),
       ]);
 
       setCounts({
