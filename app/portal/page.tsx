@@ -1,129 +1,65 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { createClient } from "@supabase/supabase-js"; // Adjust if you use a custom @/lib/supabase client
 
-// Initialize Supabase (or import your existing supabase client)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default function PortalLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const [counts, setCounts] = useState({
-    properties: 0,
-    bookings: 0,
-    dispatch: 0,
-    cohosting: 0,
-  });
-
-  useEffect(() => {
-    const fetchCounts = async () => {
-      const [propsRes, bookingsRes, dispatchRes, cohostRes] = await Promise.all([
-        supabase.from("properties").select("*", { count: "exact", head: true }),
-        supabase.from("bookings").select("*", { count: "exact", head: true }),
-        supabase.from("tasks").select("*", { count: "exact", head: true }), // Change "tasks" if your dispatch table has a different name
-        supabase.from("cohosts").select("*", { count: "exact", head: true }), // Change "cohosts" if your table has a different name
-      ]);
-
-      setCounts({
-        properties: propsRes.count || 0,
-        bookings: bookingsRes.count || 0,
-        dispatch: dispatchRes.count || 0,
-        cohosting: cohostRes.count || 0,
-      });
-    };
-
-    fetchCounts();
-  }, [pathname]); // Automatically refreshes counts when you switch tabs
-
-  const navItems = [
-    { name: "Properties", href: "/portal/properties", icon: "🏠", count: counts.properties },
-    { name: "Bookings", href: "/portal/bookings", icon: "📅", count: counts.bookings },
-    { name: "Dispatch", href: "/portal/dispatch", icon: "🧹", count: counts.dispatch },
-    { name: "Ledger", href: "/portal/financials", icon: "💰", count: null },
-    { name: "Upsells", href: "/portal/upsells", icon: "✨", count: null },
-    { name: "Co-Hosts", href: "/portal/cohosting", icon: "🤝", count: counts.cohosting },
+export default function PortalDashboardPage() {
+  const quickActions = [
+    {
+      title: "Manage Properties",
+      desc: "Add listings, update rates, and sync external iCal calendars.",
+      href: "/portal/properties",
+      icon: "🏠",
+    },
+    {
+      title: "Reservations & Bookings",
+      desc: "Review incoming inquiries, guest notes, and check-in dates.",
+      href: "/portal/bookings",
+      icon: "📅",
+    },
+    {
+      title: "Housekeeping & Dispatch",
+      desc: "Assign turnover cleaning and property maintenance tasks.",
+      href: "/portal/dispatch",
+      icon: "🧹",
+    },
+    {
+      title: "Financial Ledger",
+      desc: "Track rental payouts, expenses, and co-host commissions.",
+      href: "/portal/financials",
+      icon: "💰",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
-      {/* Top Header */}
-      <header className="border-b border-neutral-900 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-white text-xl tracking-tight">La Estancia</span>
-            <span className="font-bold text-amber-500 text-xl tracking-tight">Vacation Homes</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-neutral-400 font-medium">Host Portal</span>
-            <Link
-              href="/"
-              className="bg-neutral-900 hover:bg-neutral-800 text-neutral-200 border border-neutral-800 font-semibold px-4 py-2 rounded-lg text-xs transition"
-            >
-              Log Out
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Search Bar & Module Pills Container */}
-      <div className="max-w-7xl w-full mx-auto px-8 pt-8 pb-6 space-y-5">
-        <div className="relative">
-          <span className="absolute inset-y-0 left-4 flex items-center text-neutral-400 text-sm">
-            🔍
-          </span>
-          <input
-            type="text"
-            placeholder="Quick search properties, guests, or tasks..."
-            className="w-full bg-neutral-900/70 border border-neutral-800/80 rounded-xl pl-11 pr-4 py-3 text-xs text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-amber-500/50 transition"
-          />
-        </div>
-
-        {/* Sleek Navigation Pills */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar py-1">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`whitespace-nowrap px-4 py-2.5 rounded-xl text-xs font-semibold transition flex items-center gap-2.5 cursor-pointer ${
-                  isActive
-                    ? "bg-amber-500 text-neutral-950 font-bold shadow-lg shadow-amber-500/10"
-                    : "bg-neutral-900 hover:bg-neutral-800 text-neutral-300 border border-neutral-800/80"
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
-                {item.count !== null && item.count > 0 && (
-                  <span
-                    className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${
-                      isActive
-                        ? "bg-neutral-950/20 text-neutral-950"
-                        : "bg-neutral-800 text-amber-400 border border-neutral-700/50"
-                    }`}
-                  >
-                    {item.count}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+    <div className="space-y-6">
+      <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 shadow-xl">
+        <h1 className="text-lg font-bold text-white">Host Operations Overview</h1>
+        <p className="text-xs text-neutral-400 mt-1">
+          Welcome back to La Estancia Vacation Homes. Select a module below or use the top navigation bar to manage daily operations.
+        </p>
       </div>
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl w-full mx-auto px-8 pb-12 flex-1">
-        {children}
-      </main>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {quickActions.map((card) => (
+          <Link
+            key={card.title}
+            href={card.href}
+            className="bg-neutral-900/70 hover:bg-neutral-900 border border-neutral-800 hover:border-amber-500/40 rounded-2xl p-5 transition flex items-start gap-4 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-neutral-800 group-hover:bg-amber-500/10 flex items-center justify-center text-lg shrink-0">
+              {card.icon}
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-white group-hover:text-amber-400 transition">
+                {card.title}
+              </h2>
+              <p className="text-xs text-neutral-400 mt-1 leading-relaxed">
+                {card.desc}
+              </p>
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

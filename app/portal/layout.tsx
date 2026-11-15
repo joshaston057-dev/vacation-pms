@@ -25,9 +25,15 @@ export default function PortalLayout({
     cohosting: 0,
   });
 
+  // Public auth routes inside /portal that shouldn't require a logged-in session
+  const isPublicAuthRoute =
+    pathname === "/portal/login" ||
+    pathname === "/portal/forgot-password" ||
+    pathname === "/portal/reset-password";
+
   // Real-time Auth Guard & Listener
   useEffect(() => {
-    if (pathname === "/portal/login") {
+    if (isPublicAuthRoute) {
       setCheckingAuth(false);
       return;
     }
@@ -42,7 +48,9 @@ export default function PortalLayout({
     });
 
     // 2. Listen for sign-out or session expiration in real time
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) {
         router.replace("/portal/login");
       }
@@ -51,11 +59,11 @@ export default function PortalLayout({
     return () => {
       subscription.unsubscribe();
     };
-  }, [pathname, router]);
+  }, [pathname, isPublicAuthRoute, router]);
 
   // Fetch counts when authenticated
   useEffect(() => {
-    if (pathname === "/portal/login") return;
+    if (isPublicAuthRoute || checkingAuth) return;
 
     const fetchCounts = async () => {
       const [propsRes, bookingsRes, dispatchRes, cohostRes] = await Promise.all([
@@ -74,7 +82,7 @@ export default function PortalLayout({
     };
 
     fetchCounts();
-  }, [pathname]);
+  }, [pathname, isPublicAuthRoute, checkingAuth]);
 
   // Secure Lock / Log Out Handler
   const handleLogout = async () => {
@@ -82,7 +90,7 @@ export default function PortalLayout({
     router.replace("/portal/login");
   };
 
-  if (pathname === "/portal/login") {
+  if (isPublicAuthRoute) {
     return <>{children}</>;
   }
 
@@ -108,10 +116,10 @@ export default function PortalLayout({
       {/* Top Header */}
       <header className="border-b border-neutral-900 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link href="/portal" className="flex items-center gap-2">
             <span className="font-bold text-white text-xl tracking-tight">La Estancia</span>
             <span className="font-bold text-amber-500 text-xl tracking-tight">Vacation Homes</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
             <span className="text-xs text-neutral-400 font-medium">Host Portal</span>
             <button
