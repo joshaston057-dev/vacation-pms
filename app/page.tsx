@@ -18,7 +18,9 @@ interface Property {
   images: string[];
   bedrooms: number;
   bathrooms: number;
-  amenities: string[];
+  amenities?: string[];
+  description?: string;
+  owner_id?: string;
 }
 
 interface Review {
@@ -34,15 +36,32 @@ export default function PublicHomePage() {
   const [filteredCategory, setFilteredCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
 
-  // Review states for the selected property modal
+  // Modal tab: "booking" or "reviews"
+  const [modalTab, setModalTab] = useState<"booking" | "reviews">("booking");
+
+  // Comprehensive Booking Form States
+  const [guestName, setGuestName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [adultsCount, setAdultsCount] = useState(1);
+  const [childrenCount, setChildrenCount] = useState(0);
+  const [purposeOfStay, setPurposeOfStay] = useState("Vacation / Leisure");
+  const [specialRequests, setSpecialRequests] = useState("");
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState("");
+
+  // Review states
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [guestName, setGuestName] = useState("");
+  const [reviewName, setReviewName] = useState("");
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState("");
 
   useEffect(() => {
     fetchProperties();
@@ -76,29 +95,76 @@ export default function PublicHomePage() {
     setReviewsLoading(false);
   };
 
+  const handleBookingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProperty) return;
+    setBookingSubmitting(true);
+    setBookingSuccess("");
+
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const nights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+    const nightlyRate = selectedProperty.price_per_night || 100;
+    const totalPrice = nights * nightlyRate;
+    const totalGuests = adultsCount + childrenCount;
+
+    const newBooking = {
+      property_name: selectedProperty.title,
+      guest_name: guestName,
+      phone: phone,
+      purpose_of_stay: purposeOfStay,
+      check_in: checkIn,
+      check_out: checkOut,
+      guests_count: totalGuests,
+      adults_count: adultsCount,
+      children_count: childrenCount,
+      special_requests: specialRequests,
+      status: "Pending",
+      nightly_rate: nightlyRate,
+      total_amount: totalPrice,
+      owner_id: selectedProperty.owner_id || null,
+    };
+
+    const { error } = await supabase.from("bookings").insert([newBooking]);
+
+    if (!error) {
+      setBookingSuccess(`Booking request submitted successfully! Total: $${totalPrice} for ${nights} night(s). Our host team will contact you via WhatsApp shortly.`);
+      setGuestName("");
+      setPhone("");
+      setCheckIn("");
+      setCheckOut("");
+      setAdultsCount(1);
+      setChildrenCount(0);
+      setSpecialRequests("");
+    } else {
+      alert("Failed to submit booking: " + error.message);
+    }
+    setBookingSubmitting(false);
+  };
+
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProperty) return;
-    setSubmitting(true);
-    setSuccessMsg("");
+    setReviewSubmitting(true);
+    setReviewSuccess("");
 
     const { error } = await supabase.from("reviews").insert([
       {
         property_id: selectedProperty.id,
-        guest_name: guestName,
+        guest_name: reviewName,
         rating: Number(rating),
         comment,
       },
     ]);
 
     if (!error) {
-      setGuestName("");
+      setReviewName("");
       setRating(5);
       setComment("");
-      setSuccessMsg("Thank you! Your review has been posted successfully.");
+      setReviewSuccess("Thank you! Your review has been posted successfully.");
       fetchReviews(selectedProperty.id);
     }
-    setSubmitting(false);
+    setReviewSubmitting(false);
   };
 
   const categories = ["All", "Apartment", "Stand-Alone House", "Mansions", "Villas"];
@@ -117,7 +183,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white flex flex-col">
-      {/* Single Unified Header */}
+      {/* Header with Host Portal Button + Mobile Hamburger */}
       <header className="border-b border-neutral-900 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -130,7 +196,11 @@ export default function PublicHomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Desktop Nav */}
+          <div className="hidden sm:flex items-center gap-6">
+            <a href="#about" className="text-xs text-neutral-300 hover:text-amber-400 transition">About Us</a>
+            <a href="#blog" className="text-xs text-neutral-300 hover:text-amber-400 transition">Blog</a>
+            <a href="#contact" className="text-xs text-neutral-300 hover:text-amber-400 transition">Contact Us</a>
             <Link
               href="/portal"
               className="bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer"
@@ -138,7 +208,50 @@ export default function PublicHomePage() {
               Host Portal →
             </Link>
           </div>
+
+          {/* Mobile Right Side: Host Portal Button + Hamburger */}
+          <div className="flex sm:hidden items-center gap-2">
+            <Link
+              href="/portal"
+              className="bg-amber-500 text-neutral-950 font-bold px-3 py-2 rounded-xl text-[11px]"
+            >
+              Portal →
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="bg-neutral-900 border border-neutral-800 text-white p-2.5 rounded-xl text-sm font-bold cursor-pointer"
+            >
+              {mobileMenuOpen ? "✕" : "☰"}
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Dropdown Menu (Only Page Links: About Us, Blog, Contact Us) */}
+        {mobileMenuOpen && (
+          <div className="sm:hidden bg-neutral-900 border-b border-neutral-800 px-4 py-4 space-y-1 text-center text-xs shadow-2xl">
+            <a
+              href="#about"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800/50 rounded-lg transition"
+            >
+              About Us
+            </a>
+            <a
+              href="#blog"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800/50 rounded-lg transition"
+            >
+              Blog
+            </a>
+            <a
+              href="#contact"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800/50 rounded-lg transition"
+            >
+              Contact Us
+            </a>
+          </div>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -147,7 +260,7 @@ export default function PublicHomePage() {
           Curated Luxury & Comfort in Uganda
         </h1>
         <p className="text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto">
-          Explore our curated portfolio of short-stay apartments, standalone houses, mansions, and villas across Uganda. Click any property to view details and guest reviews.
+          Explore our curated portfolio of short-stay apartments, standalone houses, mansions, and villas across Uganda. Book your stay or read guest reviews below.
         </p>
       </section>
 
@@ -181,39 +294,88 @@ export default function PublicHomePage() {
             {filteredProperties.map((property) => (
               <div
                 key={property.id}
-                onClick={() => setSelectedProperty(property)}
-                className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl hover:border-amber-500/40 transition group cursor-pointer"
+                className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between"
               >
-                <div className="h-48 bg-neutral-800 relative overflow-hidden">
-                  {property.images && property.images.length > 0 ? (
-                    <img
-                      src={property.images[0]}
-                      alt={property.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">
-                      No Image Available
+                <div>
+                  <div className="h-48 bg-neutral-800 relative overflow-hidden">
+                    {property.images && property.images.length > 0 ? (
+                      <img
+                        src={property.images[0]}
+                        alt={property.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">
+                        No Image Available
+                      </div>
+                    )}
+                    <span className="absolute top-3 left-3 bg-neutral-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                      {property.category || "Property"}
+                    </span>
+                  </div>
+
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-bold text-white">{property.title}</h3>
+                      <span className="text-amber-400 font-black text-sm shrink-0">${property.price_per_night}/nt</span>
                     </div>
-                  )}
-                  <span className="absolute top-3 left-3 bg-neutral-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                    {property.category || "Property"}
-                  </span>
+                    <p className="text-xs text-neutral-400">📍 {property.location}</p>
+
+                    <div className="flex gap-3 text-[11px] text-neutral-300 pt-1">
+                      <span>🛏️ {property.bedrooms || 1} Beds</span>
+                      <span>🚿 {property.bathrooms || 1} Baths</span>
+                    </div>
+
+                    {/* Amenities List */}
+                    {Array.isArray(property.amenities) && property.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {property.amenities.map((am, i) => (
+                          <span key={i} className="bg-neutral-950 border border-neutral-800 text-[10px] text-neutral-300 px-2 py-0.5 rounded-md">
+                            ✓ {am}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Description Toggle */}
+                    {property.description && (
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedDescId(expandedDescId === property.id ? null : property.id)}
+                          className="text-[11px] text-amber-400 hover:underline font-medium cursor-pointer"
+                        >
+                          {expandedDescId === property.id ? "▲ Hide Description" : "▼ Show Description"}
+                        </button>
+                        {expandedDescId === property.id && (
+                          <p className="text-[11px] text-neutral-300 bg-neutral-950 p-3 rounded-xl border border-neutral-800 mt-2 leading-relaxed">
+                            {property.description}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                  <div>
-                    <h3 className="text-sm font-bold text-white group-hover:text-amber-400 transition">
-                      {property.title}
-                    </h3>
-                    <p className="text-xs text-neutral-400 mt-1">📍 {property.location}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800 text-xs text-neutral-300">
-                    <span>🛏️ {property.bedrooms || 1} Beds</span>
-                    <span>🚿 {property.bathrooms || 1} Baths</span>
-                    <span className="text-amber-400 font-bold text-sm">${property.price_per_night}/nt</span>
-                  </div>
+                <div className="p-5 pt-0 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setModalTab("reviews");
+                      setSelectedProperty(property);
+                    }}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 font-semibold py-2.5 px-3 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Reviews
+                  </button>
+                  <button
+                    onClick={() => {
+                      setModalTab("booking");
+                      setSelectedProperty(property);
+                    }}
+                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer shadow-lg shadow-amber-500/10"
+                  >
+                    Book Now
+                  </button>
                 </div>
               </div>
             ))}
@@ -221,7 +383,56 @@ export default function PublicHomePage() {
         )}
       </main>
 
-      {/* Property Details & Reviews Modal */}
+      {/* About Us Section */}
+      <section id="about" className="bg-neutral-900/50 border-t border-neutral-900 py-16 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <h2 className="text-2xl font-bold text-white">About La Estancia Vacation Homes</h2>
+          <p className="text-sm text-neutral-400 leading-relaxed">
+            La Estancia is a premier short-stay property agency and co-hosting platform based in Uganda. We manage and market a handpicked portfolio of luxury apartments, standalone houses, mansions, and villas, offering travelers unmatched comfort and homeowners seamless property management.
+          </p>
+        </div>
+      </section>
+
+      {/* Blog Section */}
+      <section id="blog" className="border-t border-neutral-900 py-16 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <h2 className="text-2xl font-bold text-white">Host & Traveler Blog</h2>
+          <p className="text-sm text-neutral-400">
+            Discover travel tips, neighborhood guides across Kampala and beyond, and expert advice for short-stay property hosting.
+          </p>
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-xs text-neutral-400 italic">
+            New articles coming soon! Stay tuned for updates on Uganda's hospitality scene.
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Us Section */}
+      <section id="contact" className="bg-neutral-900/50 border-t border-neutral-900 py-16 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto text-center space-y-4">
+          <h2 className="text-2xl font-bold text-white">Contact Us</h2>
+          <p className="text-sm text-neutral-400">
+            Get in touch for direct bookings, co-hosting inquiries, or property viewings.
+          </p>
+          <div className="flex justify-center gap-4 pt-2 flex-wrap">
+            <a
+              href="https://wa.me/256757386946"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-3 rounded-xl transition"
+            >
+              💬 WhatsApp: +256 757 386946
+            </a>
+            <a
+              href="tel:+256780564778"
+              className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-bold px-5 py-3 rounded-xl transition"
+            >
+              📞 Call: +256 780 564778
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Property Details, Booking & Reviews Modal */}
       {selectedProperty && (
         <div className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-neutral-900 border border-neutral-800 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 relative shadow-2xl">
@@ -243,7 +454,7 @@ export default function PublicHomePage() {
             </div>
 
             {/* Image Preview */}
-            <div className="h-64 rounded-2xl overflow-hidden bg-neutral-800">
+            <div className="h-56 rounded-2xl overflow-hidden bg-neutral-800">
               {selectedProperty.images && selectedProperty.images.length > 0 ? (
                 <img src={selectedProperty.images[0]} alt={selectedProperty.title} className="w-full h-full object-cover" />
               ) : (
@@ -267,86 +478,218 @@ export default function PublicHomePage() {
               </div>
             </div>
 
-            {/* Reviews Section */}
-            <div className="space-y-6 border-t border-neutral-800 pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-white">Guest Reviews & Ratings</h3>
-                  <p className="text-xs text-neutral-400 mt-0.5">
-                    {reviews.length} review{reviews.length === 1 ? "" : "s"} • Rating:{" "}
-                    <span className="text-amber-400 font-bold">{avgRating} ★</span>
-                  </p>
-                </div>
-              </div>
+            {/* Modal Tab Switcher */}
+            <div className="flex border-b border-neutral-800">
+              <button
+                onClick={() => setModalTab("booking")}
+                className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                  modalTab === "booking" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                }`}
+              >
+                📅 Book This Property
+              </button>
+              <button
+                onClick={() => setModalTab("reviews")}
+                className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                  modalTab === "reviews" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                }`}
+              >
+                ★ Guest Reviews ({reviews.length})
+              </button>
+            </div>
 
-              {/* Review Feed */}
-              <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-                {reviewsLoading ? (
-                  <p className="text-xs text-neutral-500">Loading reviews...</p>
-                ) : reviews.length === 0 ? (
-                  <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
-                ) : (
-                  reviews.map((rev) => (
-                    <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
-                        <span className="text-amber-400 text-[11px] font-bold">
-                          {"★".repeat(rev.rating)}
-                          {"☆".repeat(5 - rev.rating)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-300">{rev.comment}</p>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Submit Review Form */}
-              <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
-                {successMsg && (
-                  <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
-                    {successMsg}
+            {/* BOOKING TAB CONTENT */}
+            {modalTab === "booking" ? (
+              <form onSubmit={handleBookingSubmit} className="space-y-4 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5">
+                <h3 className="text-sm font-bold text-white">Reserve Your Stay</h3>
+                {bookingSuccess && (
+                  <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-3 rounded-lg text-xs leading-relaxed">
+                    {bookingSuccess}
                   </div>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Your Name (e.g. Sarah M.)"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                  <select
-                    value={rating}
-                    onChange={(e) => setRating(Number(e.target.value))}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value={5}>5 Stars - Exceptional</option>
-                    <option value={4}>4 Stars - Great</option>
-                    <option value={3}>3 Stars - Good</option>
-                    <option value={2}>2 Stars - Fair</option>
-                    <option value={1}>1 Star - Poor</option>
-                  </select>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Your Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="e.g. David Mugisha"
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">WhatsApp / Phone Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+256..."
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
                 </div>
-                <textarea
-                  required
-                  rows={2}
-                  placeholder="How was your experience?"
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-in Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-out Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={adultsCount}
+                      onChange={(e) => setAdultsCount(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={childrenCount}
+                      onChange={(e) => setChildrenCount(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
+                    <select
+                      value={purposeOfStay}
+                      onChange={(e) => setPurposeOfStay(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="Vacation / Leisure">Vacation / Leisure</option>
+                      <option value="Business Trip">Business Trip</option>
+                      <option value="Family Stay">Family Stay</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
+                  <textarea
+                    rows={2}
+                    value={specialRequests}
+                    onChange={(e) => setSpecialRequests(e.target.value)}
+                    placeholder="Any special requests or arrival notes..."
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                  />
+                </div>
+
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                  disabled={bookingSubmitting}
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
                 >
-                  {submitting ? "Submitting..." : "Submit Review"}
+                  {bookingSubmitting ? "Submitting Booking..." : `Confirm Booking ($${selectedProperty.price_per_night}/night)`}
                 </button>
               </form>
-            </div>
+            ) : (
+              /* REVIEWS TAB CONTENT */
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-neutral-400">
+                      Overall Rating: <span className="text-amber-400 font-bold">{avgRating} ★</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Review Feed */}
+                <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+                  {reviewsLoading ? (
+                    <p className="text-xs text-neutral-500">Loading reviews...</p>
+                  ) : reviews.length === 0 ? (
+                    <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
+                  ) : (
+                    reviews.map((rev) => (
+                      <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
+                          <span className="text-amber-400 text-[11px] font-bold">
+                            {"★".repeat(rev.rating)}
+                            {"☆".repeat(5 - rev.rating)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-300">{rev.comment}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Submit Review Form */}
+                <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
+                  {reviewSuccess && (
+                    <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
+                      {reviewSuccess}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Your Name (e.g. Sarah M.)"
+                      value={reviewName}
+                      onChange={(e) => setReviewName(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                    <select
+                      value={rating}
+                      onChange={(e) => setRating(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value={5}>5 Stars - Exceptional</option>
+                      <option value={4}>4 Stars - Great</option>
+                      <option value={3}>3 Stars - Good</option>
+                      <option value={2}>2 Stars - Fair</option>
+                      <option value={1}>1 Star - Poor</option>
+                    </select>
+                  </div>
+                  <textarea
+                    required
+                    rows={2}
+                    placeholder="How was your experience?"
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={reviewSubmitting}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                  >
+                    {reviewSubmitting ? "Submitting..." : "Post Review"}
+                  </button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}
