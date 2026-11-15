@@ -40,6 +40,9 @@ export default function BookingsPortalPage() {
   const [loading, setLoading] = useState(true);
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
+  // Editable custom rates per booking ID during negotiation
+  const [customRates, setCustomRates] = useState<{ [key: string]: number }>({});
+
   // Manual Booking Modal States
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualPropertyName, setManualPropertyName] = useState("");
@@ -78,9 +81,15 @@ export default function BookingsPortalPage() {
 
     if (!bookingsError && bookingsData) {
       setBookings(bookingsData);
+      // Initialize custom rates default from nightly_rate or 100
+      const initialRates: { [key: string]: number } = {};
+      bookingsData.forEach((b: Booking) => {
+        initialRates[b.id] = b.nightly_rate || 100;
+      });
+      setCustomRates(initialRates);
     }
 
-    // 2. Fetch properties belonging to this owner for manual booking dropdown
+    // 2. Fetch properties for manual booking dropdown
     const { data: propsData, error: propsError } = await supabase
       .from("properties")
       .select("id, title, price_per_night")
@@ -100,7 +109,7 @@ export default function BookingsPortalPage() {
     fetchBookingsAndProperties();
   }, []);
 
-  const calculateStayDetails = (checkIn: string, checkOut: string, rate: number = 100) => {
+  const calculateStayDetails = (checkIn: string, checkOut: string, rate: number) => {
     if (!checkIn || !checkOut) return { nights: 1, total: rate, deposit: Math.round(rate * 0.3) };
     const start = new Date(checkIn);
     const end = new Date(checkOut);
@@ -108,6 +117,10 @@ export default function BookingsPortalPage() {
     const nights = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
     const total = nights * rate;
     return { nights, total, deposit: Math.round(total * 0.3) };
+  };
+
+  const handleRateChange = (bookingId: string, val: number) => {
+    setCustomRates((prev) => ({ ...prev, [bookingId]: val }));
   };
 
   const handleManualBookingSubmit = async (e: React.FormEvent) => {
@@ -173,14 +186,15 @@ export default function BookingsPortalPage() {
     }
 
     setApprovingId(booking.id);
+    const activeRate = customRates[booking.id] || booking.nightly_rate || 100;
+    const stay = calculateStayDetails(booking.check_in, booking.check_out, activeRate);
 
-    const stay = calculateStayDetails(booking.check_in, booking.check_out, booking.nightly_rate || 100);
-
-    // 1. Confirm booking and save total_amount in Supabase
+    // 1. Confirm booking, save total amount & nightly rate
     const { error } = await supabase
       .from("bookings")
       .update({ 
         status: "Confirmed",
+        nightly_rate: activeRate,
         total_amount: stay.total 
       })
       .eq("id", booking.id);
@@ -191,24 +205,16 @@ export default function BookingsPortalPage() {
       return;
     }
 
-    // 2. Automatically dispatch the turnover cleaning task linked to this owner (without unsupported category column)
-    const checkoutTime = new Date(booking.check_out).getTime();
-    const hoursUntilCheckout = (checkoutTime - Date.now()) / (1000 * 60 * 60);
-    const autoUrgency = hoursUntilCheckout <= 48 ? "Critical" : "High";
-
+    // 2. Automatically dispatch pre-arrival cleaning task anchored to the incoming guest's check-in date
     const autoTask = {
       id: crypto.randomUUID(),
-      title: `Turnover Cleaning (Guest: ${booking.guest_name})`,
+      title: `Pre-Arrival Prep & Cleaning (${booking.property_name})`,
       property_name: booking.property_name || "La Estancia Property",
-      task_type: "Auto-Booking",
-      operator_name: "Sarah Namukasa",
-      operator_whatsapp: "+256780564778",
-      scheduled_date: booking.check_out,
-      scheduled_time: "11:00",
-      recurrence: "One-Time",
-      urgency: autoUrgency,
+      cleaner_name: "Sarah Namukasa",
+      cleaner_whatsapp: "+256780564778",
+      scheduled_date: booking.check_in, // Anchored to incoming guest's check-in date
       status: "Pending",
-      notes: `Auto-dispatched upon booking confirmation (#${booking.id}). Check-in: ${booking.check_in} | Check-out: ${booking.check_out}. Full turnover clean & fresh linens required.`,
+      notes: `Pre-arrival prep for guest ${booking.guest_name}. Check-in: ${booking.check_in} | Check-out: ${booking.check_out}. Full turnover clean & fresh linens required before arrival.`,
       owner_id: user.id,
     };
 
@@ -222,7 +228,7 @@ export default function BookingsPortalPage() {
       return;
     }
 
-    // 3. Resolve property_id from properties table using property_name
+    // 3. Resolve property_id from properties table
     let resolvedPropertyId = null;
     const { data: propData } = await supabase
       .from("properties")
@@ -235,15 +241,15 @@ export default function BookingsPortalPage() {
       resolvedPropertyId = propData.id;
     }
 
-    // 4. Automatically record the revenue entry in the financial ledger
+    // 4. Record 30% deposit / revenue entry in financial ledger
     const financeRecord = {
       id: crypto.randomUUID(),
       property_id: resolvedPropertyId,
       type: "Income",
-      category: "Accommodation Revenue",
-      amount: stay.total,
+      category: "Accommodation Revenue (30% Deposit)",
+      amount: stay.deposit,
       transaction_date: new Date().toISOString().split("T")[0],
-      description: `Direct booking revenue for guest ${booking.guest_name} (${stay.nights} nights)`,
+      description: `Secured deposit revenue for guest ${booking.guest_name} (${stay.nights} nights @ $${activeRate}/nt)`,
       owner_id: user.id,
     };
 
@@ -259,10 +265,10 @@ export default function BookingsPortalPage() {
 
     // 5. Update UI state immediately
     setBookings((prev) =>
-      prev.map((b) => (b.id === booking.id ? { ...b, status: "Confirmed", total_amount: stay.total } : b))
+      prev.map((b) => (b.id === booking.id ? { ...b, status: "Confirmed", total_amount: stay.total, nightly_rate: activeRate } : b))
     );
     setApprovingId(null);
-    alert("Success! Booking confirmed, turnover cleaning dispatched, and revenue logged into your financial ledger.");
+    alert("Success! Booking secured, pre-arrival cleaning scheduled for check-in day, and deposit recorded in ledger.");
   };
 
   const handleDelete = async (id: string) => {
@@ -283,7 +289,7 @@ export default function BookingsPortalPage() {
         <div>
           <h1 className="text-xl font-bold text-white">Bookings & Reservations</h1>
           <p className="text-xs text-neutral-400 mt-0.5">
-            Incoming direct reservations and guest demographic profiles.
+            Manage inquiries, negotiated custom quotes, and active guest pipelines.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -387,100 +393,6 @@ export default function BookingsPortalPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
-                  <select
-                    value={manualNationality}
-                    onChange={(e) => setManualNationality(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Ugandan">Ugandan</option>
-                    <option value="Kenyan">Kenyan</option>
-                    <option value="Tanzanian">Tanzanian</option>
-                    <option value="Rwandan">Rwandan</option>
-                    <option value="British">British</option>
-                    <option value="American">American</option>
-                    <option value="European">European</option>
-                    <option value="Other International">Other International</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Age Bracket</label>
-                  <select
-                    value={manualAgeGroup}
-                    onChange={(e) => setManualAgeGroup(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="18-24">18 - 24 Years</option>
-                    <option value="25-34">25 - 34 Years</option>
-                    <option value="35-44">35 - 44 Years</option>
-                    <option value="45-54">45 - 54 Years</option>
-                    <option value="55+">55+ Years</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
-                  <select
-                    value={manualPurpose}
-                    onChange={(e) => setManualPurpose(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="Vacation / Leisure">Vacation / Leisure</option>
-                    <option value="Business Trip">Business Trip</option>
-                    <option value="Family Stay">Family Stay</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={manualAdults}
-                    onChange={(e) => setManualAdults(Number(e.target.value))}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={manualChildren}
-                    onChange={(e) => setManualChildren(Number(e.target.value))}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
-                  <select
-                    value={manualChildAge}
-                    onChange={(e) => setManualChildAge(e.target.value)}
-                    className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                  >
-                    <option value="None / No Children">None / No Children</option>
-                    <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
-                    <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
-                    <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
-                <textarea
-                  rows={2}
-                  value={manualNotes}
-                  onChange={(e) => setManualNotes(e.target.value)}
-                  placeholder="Any special requests or arrival notes..."
-                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                />
-              </div>
-
               <button
                 type="submit"
                 disabled={manualSubmitting}
@@ -497,15 +409,18 @@ export default function BookingsPortalPage() {
         <div className="text-center py-16 text-neutral-400 text-xs">Loading bookings...</div>
       ) : bookings.length === 0 ? (
         <div className="bg-neutral-900/40 border border-neutral-800/80 rounded-2xl p-12 text-center text-neutral-400 text-xs">
-          No bookings received yet for your account portfolio. When travelers submit inquiries on your website, or when you add manual bookings, cards will appear here instantly.
+          No bookings received yet for your account portfolio.
         </div>
       ) : (
         <div className="space-y-6">
           {bookings.map((booking) => {
-            const stay = calculateStayDetails(booking.check_in, booking.check_out, booking.nightly_rate || 100);
+            const activeRate = customRates[booking.id] || booking.nightly_rate || 100;
+            const stay = calculateStayDetails(booking.check_in, booking.check_out, activeRate);
             const isConfirmed = booking.status === "Confirmed" || booking.status === "Approved";
-            const whatsappUrl = `https://wa.me/${booking.phone?.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-              `Hello ${booking.guest_name}, regarding your booking at ${booking.property_name} from ${booking.check_in} to ${booking.check_out}: `
+
+            // Negotiated Quote WhatsApp Link
+            const quoteWhatsAppUrl = `https://wa.me/${booking.phone?.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+              `Hello ${booking.guest_name}, here is your custom quote for *${booking.property_name}*:\n\n📅 Dates: ${booking.check_in} to ${booking.check_out} (${stay.nights} nights)\n💰 Negotiated Rate: $${activeRate}/night\n🏷️ Total Stay: $${stay.total}\n💵 30% Deposit Required: $${stay.deposit}\n\n*Note: This custom quote expires in 6 hours. Reply to confirm and secure your dates!*`
             )}`;
 
             return (
@@ -513,7 +428,7 @@ export default function BookingsPortalPage() {
                 key={booking.id}
                 className="bg-neutral-900/90 border border-neutral-800 rounded-2xl p-6 shadow-xl space-y-5 transition"
               >
-                {/* Top Header: Property Title & Status Badge */}
+                {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-neutral-800/80">
                   <h2 className="text-sm font-bold text-white tracking-wide">
                     {booking.property_name || "La Estancia Property"}
@@ -525,7 +440,7 @@ export default function BookingsPortalPage() {
                         : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                     }`}
                   >
-                    {isConfirmed ? "CONFIRMED & DISPATCHED" : "PENDING APPROVAL"}
+                    {isConfirmed ? "SECURED & PREP DISPATCHED" : "NEGOTIATING / PENDING DEPOSIT"}
                   </span>
                 </div>
 
@@ -533,63 +448,54 @@ export default function BookingsPortalPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-neutral-300">
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-400">👤</span>
-                    <span>
-                      <strong className="text-white">Guest Name:</strong> {booking.guest_name}
-                    </span>
+                    <span><strong className="text-white">Guest:</strong> {booking.guest_name}</span>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <span className="text-neutral-400">💬</span>
-                    <span>
-                      <strong className="text-white">WhatsApp:</strong> {booking.phone}
-                    </span>
+                    <span><strong className="text-white">WhatsApp:</strong> {booking.phone}</span>
                   </div>
-
                   <div className="flex items-center gap-2">
-                    <span className="text-neutral-400">👥</span>
-                    <span>
-                      <strong className="text-white">Demographic:</strong> {booking.purpose_of_stay || "Leisure / Vacation"} ({booking.nationality || "Standard"})
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-neutral-400">👥</span>
-                    <span>
-                      <strong className="text-white">Guests:</strong> {booking.guests_count || 1} ({booking.adults_count || 1} Adults, {booking.children_count || 0} Kids)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:col-span-2">
                     <span className="text-neutral-400">📅</span>
-                    <span>
-                      <strong className="text-white">Dates:</strong> {booking.check_in || "TBD"} &rarr; {booking.check_out || "TBD"} ({stay.nights} nights)
-                    </span>
+                    <span><strong className="text-white">Dates:</strong> {booking.check_in} &rarr; {booking.check_out} ({stay.nights} nights)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-neutral-400">👥</span>
+                    <span><strong className="text-white">Guests:</strong> {booking.guests_count || 1}</span>
                   </div>
                 </div>
 
-                {/* Financial Pills */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
-                  <div className="bg-neutral-950 border border-neutral-800 rounded-xl px-3.5 py-2 text-xs">
-                    <span className="text-neutral-400">Total Stay: </span>
-                    <span className="font-bold text-amber-400">${stay.total}</span>
+                {/* Negotiable Nightly Rate Input & Totals */}
+                <div className="bg-neutral-950 border border-neutral-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <label className="text-xs text-neutral-400 font-medium whitespace-nowrap">Negotiated Rate ($/nt):</label>
+                    <input
+                      type="number"
+                      value={activeRate}
+                      onChange={(e) => handleRateChange(booking.id, Number(e.target.value))}
+                      disabled={isConfirmed}
+                      className="w-28 bg-neutral-900 border border-neutral-700 rounded-lg p-2 text-xs text-amber-400 font-bold focus:outline-none focus:border-amber-500 disabled:opacity-60"
+                    />
                   </div>
-                  <div className="bg-neutral-950 border border-emerald-500/30 rounded-xl px-3.5 py-2 text-xs text-emerald-400 font-medium">
-                    30% Deposit Due: ${stay.deposit}
+                  <div className="flex items-center gap-4 text-xs w-full sm:w-auto justify-between sm:justify-end">
+                    <div>
+                      <span className="text-neutral-400">Total: </span>
+                      <span className="font-bold text-amber-400">${stay.total}</span>
+                    </div>
+                    <div className="bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-emerald-400">
+                      30% Deposit: ${stay.deposit}
+                    </div>
                   </div>
                 </div>
 
-                {/* Guest Notes Box */}
-                <div className="bg-neutral-950/80 border border-neutral-800/80 rounded-xl p-3.5 flex items-start gap-2.5">
-                  <span className="text-neutral-400 text-xs mt-0.5">📄</span>
-                  <div className="text-xs">
-                    <strong className="text-white">GUEST NOTES:</strong>{" "}
-                    <span className="text-neutral-300">
-                      {booking.special_requests || "No special requests provided."}
-                    </span>
+                {/* Guest Notes */}
+                <div className="bg-neutral-950/80 border border-neutral-800/80 rounded-xl p-3 text-xs flex items-start gap-2">
+                  <span className="text-neutral-400">📄</span>
+                  <div>
+                    <strong className="text-white">NOTES:</strong> <span className="text-neutral-300">{booking.special_requests || "None"}</span>
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Actions */}
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 border-t border-neutral-800/80">
                   {isConfirmed ? (
                     <button
@@ -597,7 +503,7 @@ export default function BookingsPortalPage() {
                       className="w-full sm:w-auto flex-1 bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-default"
                     >
                       <span>✓</span>
-                      <span>Payment Approved & Dispatched</span>
+                      <span>Deposit Secured & Cleaning Anchored to Check-in</span>
                     </button>
                   ) : (
                     <button
@@ -606,20 +512,18 @@ export default function BookingsPortalPage() {
                       className="w-full sm:w-auto flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-neutral-950 font-bold px-4 py-2.5 rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/10"
                     >
                       <span>⚡</span>
-                      <span>
-                        {approvingId === booking.id ? "Processing..." : "Approve Cash / MoMo"}
-                      </span>
+                      <span>{approvingId === booking.id ? "Securing..." : "Approve 30% Deposit & Lock Dates"}</span>
                     </button>
                   )}
 
                   <a
-                    href={whatsappUrl}
+                    href={quoteWhatsAppUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full sm:w-auto flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-1.5 text-center"
                   >
                     <span>💬</span>
-                    <span>WhatsApp</span>
+                    <span>Send Quote via WhatsApp (6h Expiry)</span>
                   </a>
 
                   <button
