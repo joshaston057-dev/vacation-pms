@@ -50,6 +50,8 @@ export default function PublicHomePage() {
   const [checkOut, setCheckOut] = useState("");
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
+  const [childAgeBracket, setChildAgeBracket] = useState("4-12 Years");
+  const [nationality, setNationality] = useState("Ugandan");
   const [purposeOfStay, setPurposeOfStay] = useState("Vacation / Leisure");
   const [specialRequests, setSpecialRequests] = useState("");
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
@@ -113,7 +115,8 @@ export default function PublicHomePage() {
       property_name: selectedProperty.title,
       guest_name: guestName,
       phone: phone,
-      purpose_of_stay: purposeOfStay,
+      nationality: nationality,
+      purpose_of_stay: `${purposeOfStay} | Children Age: ${childrenCount > 0 ? childAgeBracket : 'N/A'}`,
       check_in: checkIn,
       check_out: checkOut,
       guests_count: totalGuests,
@@ -129,7 +132,7 @@ export default function PublicHomePage() {
     const { error } = await supabase.from("bookings").insert([newBooking]);
 
     if (!error) {
-      setBookingSuccess(`Booking request submitted successfully! Total: $${totalPrice} for ${nights} night(s). Our host team will contact you via WhatsApp shortly.`);
+      setBookingSuccess(`Booking request submitted successfully! Estimated Total: $${totalPrice} for ${nights} night(s). Our host team will contact you via WhatsApp shortly.`);
       setGuestName("");
       setPhone("");
       setCheckIn("");
@@ -216,7 +219,7 @@ export default function PublicHomePage() {
               href="/portal"
               className="bg-amber-500 text-neutral-950 font-bold px-3 py-2 rounded-xl text-[11px]"
             >
-              Portal →
+              Host Portal →
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -558,26 +561,22 @@ export default function PublicHomePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={adultsCount}
-                      onChange={(e) => setAdultsCount(Number(e.target.value))}
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
+                    <select
+                      value={nationality}
+                      onChange={(e) => setNationality(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={childrenCount}
-                      onChange={(e) => setChildrenCount(Number(e.target.value))}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
+                    >
+                      <option value="Ugandan">Ugandan</option>
+                      <option value="Kenyan">Kenyan</option>
+                      <option value="Tanzanian">Tanzanian</option>
+                      <option value="British">British</option>
+                      <option value="American">American</option>
+                      <option value="European">European</option>
+                      <option value="Other International">Other International</option>
+                    </select>
                   </div>
                   <div>
                     <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
@@ -593,6 +592,44 @@ export default function PublicHomePage() {
                     </select>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults Count</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={adultsCount}
+                      onChange={(e) => setAdultsCount(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Count</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={childrenCount}
+                      onChange={(e) => setChildrenCount(Number(e.target.value))}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                {childrenCount > 0 && (
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
+                    <select
+                      value={childAgeBracket}
+                      onChange={(e) => setChildAgeBracket(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
+                      <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
+                      <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
@@ -610,7 +647,7 @@ export default function PublicHomePage() {
                   disabled={bookingSubmitting}
                   className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
                 >
-                  {bookingSubmitting ? "Submitting Booking..." : `Confirm Booking ($${selectedProperty.price_per_night}/night)`}
+                  {bookingSubmitting ? "Submitting Request..." : "Submit Booking Request"}
                 </button>
               </form>
             ) : (
