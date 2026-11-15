@@ -38,6 +38,7 @@ export default function PublicHomePage() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedDescId, setExpandedDescId] = useState<string | null>(null);
+  const [expandedAmenitiesId, setExpandedAmenitiesId] = useState<string | null>(null);
 
   // Modal tab: "booking" or "reviews"
   const [modalTab, setModalTab] = useState<"booking" | "reviews">("booking");
@@ -326,20 +327,31 @@ export default function PublicHomePage() {
                       <span>🚿 {property.bathrooms || 1} Baths</span>
                     </div>
 
-                    {/* Amenities List */}
+                    {/* Amenities Toggle Dropdown */}
                     {Array.isArray(property.amenities) && property.amenities.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {property.amenities.map((am, i) => (
-                          <span key={i} className="bg-neutral-950 border border-neutral-800 text-[10px] text-neutral-300 px-2 py-0.5 rounded-md">
-                            ✓ {am}
-                          </span>
-                        ))}
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedAmenitiesId(expandedAmenitiesId === property.id ? null : property.id)}
+                          className="text-[11px] text-amber-400 hover:underline font-medium cursor-pointer"
+                        >
+                          {expandedAmenitiesId === property.id ? "▲ Hide Amenities" : "▼ Show Amenities"}
+                        </button>
+                        {expandedAmenitiesId === property.id && (
+                          <div className="flex flex-wrap gap-1 bg-neutral-950 p-3 rounded-xl border border-neutral-800 mt-2">
+                            {property.amenities.map((am, i) => (
+                              <span key={i} className="bg-neutral-900 border border-neutral-800 text-[10px] text-neutral-300 px-2.5 py-1 rounded-md">
+                                ✓ {am}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Description Toggle */}
                     {property.description && (
-                      <div className="pt-2">
+                      <div className="pt-1">
                         <button
                           type="button"
                           onClick={() => setExpandedDescId(expandedDescId === property.id ? null : property.id)}
@@ -451,15 +463,6 @@ export default function PublicHomePage() {
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white">{selectedProperty.title}</h2>
               <p className="text-xs text-neutral-400">📍 {selectedProperty.location}</p>
-            </div>
-
-            {/* Image Preview */}
-            <div className="h-56 rounded-2xl overflow-hidden bg-neutral-800">
-              {selectedProperty.images && selectedProperty.images.length > 0 ? (
-                <img src={selectedProperty.images[0]} alt={selectedProperty.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-neutral-500 text-xs">No image</div>
-              )}
             </div>
 
             {/* Property Specs */}
