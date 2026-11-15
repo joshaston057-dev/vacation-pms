@@ -443,66 +443,19 @@ export default function PublicHomePage() {
             {/* Close Button */}
             <button
               onClick={() => setSelectedProperty(null)}
-              className="absolute top-5 right-5 bg-neutral-800 hover:bg-neutral-700 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer"
+              className="absolute top-5 right-5 bg-neutral-800 hover:bg-neutral-700 text-white w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition cursor-pointer z-10"
             >
               ✕
             </button>
 
-            {/* Modal Header */}
-            <div className="space-y-2">
-              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
-                {selectedProperty.category}
-              </span>
-              <h2 className="text-xl sm:text-2xl font-bold text-white">{selectedProperty.title}</h2>
-              <p className="text-xs text-neutral-400">📍 {selectedProperty.location}</p>
-            </div>
-
-            {/* Property Specs */}
-            <div className="grid grid-cols-3 gap-4 bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800 text-center text-xs">
-              <div>
-                <span className="text-neutral-400 block mb-1">Bedrooms</span>
-                <span className="font-bold text-white">{selectedProperty.bedrooms || 1}</span>
-              </div>
-              <div>
-                <span className="text-neutral-400 block mb-1">Bathrooms</span>
-                <span className="font-bold text-white">{selectedProperty.bathrooms || 1}</span>
-              </div>
-              <div>
-                <span className="text-neutral-400 block mb-1">Price / Night</span>
-                <span className="font-bold text-amber-400">${selectedProperty.price_per_night}</span>
-              </div>
-            </div>
-
-            {/* Modal Tab Switcher (Hidden when success screen is active) */}
-            {!bookingSuccess && (
-              <div className="flex border-b border-neutral-800">
-                <button
-                  onClick={() => setModalTab("booking")}
-                  className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
-                    modalTab === "booking" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
-                  }`}
-                >
-                  📅 Book This Property
-                </button>
-                <button
-                  onClick={() => setModalTab("reviews")}
-                  className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
-                    modalTab === "reviews" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
-                  }`}
-                >
-                  ★ Guest Reviews ({reviews.length})
-                </button>
-              </div>
-            )}
-
-            {/* BOOKING SUCCESS SCREEN (MATCHING REFERENCE IMAGE) */}
+            {/* FULL SUCCESS SCREEN (REPLACES MODAL HEADER WHEN SUBMITTED) */}
             {bookingSuccess ? (
-              <div className="bg-neutral-950/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 text-center space-y-6">
+              <div className="py-6 space-y-6 text-center">
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block">
                     GUEST REGISTRATION & RESERVATION
                   </span>
-                  <h3 className="text-base sm:text-lg font-extrabold text-white">
+                  <h3 className="text-lg sm:text-xl font-extrabold text-white">
                     Book: {selectedProperty.title}
                   </h3>
                   <p className="text-xs text-neutral-400">
@@ -510,9 +463,9 @@ export default function PublicHomePage() {
                   </p>
                 </div>
 
-                <div className="py-2">
-                  <div className="text-3xl mb-2">🎉</div>
-                  <h4 className="text-sm font-bold text-white mb-2">Reservation & Guest Profile Logged!</h4>
+                <div className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-6 sm:p-8 space-y-4">
+                  <div className="text-4xl">🎉</div>
+                  <h4 className="text-sm font-bold text-white">Reservation & Guest Profile Logged!</h4>
                   <p className="text-xs text-neutral-400 leading-relaxed max-w-md mx-auto">
                     Thank you, <span className="text-white font-semibold">{guestName}</span>. Your booking and check-in profile have been recorded. Tap below to send your confirmation straight to our WhatsApp concierge.
                   </p>
@@ -525,252 +478,301 @@ export default function PublicHomePage() {
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-6 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
                   >
                     Confirm via WhatsApp →
                   </a>
                   <button
                     onClick={() => setSelectedProperty(null)}
-                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold py-3 rounded-xl text-xs transition cursor-pointer"
                   >
                     Close
                   </button>
                 </div>
               </div>
-            ) : modalTab === "booking" ? (
-              /* BOOKING FORM */
-              <form onSubmit={handleBookingSubmit} className="space-y-4 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5">
-                <h3 className="text-sm font-bold text-white">Reserve Your Stay</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Your Full Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={guestName}
-                      onChange={(e) => setGuestName(e.target.value)}
-                      placeholder="e.g. David Mugisha"
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">WhatsApp / Phone Number</label>
-                    <input
-                      type="text"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+256..."
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-in Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-out Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={checkOut}
-                      onChange={(e) => setCheckOut(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
-                    <select
-                      value={nationality}
-                      onChange={(e) => setNationality(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="Ugandan">Ugandan</option>
-                      <option value="Kenyan">Kenyan</option>
-                      <option value="Tanzanian">Tanzanian</option>
-                      <option value="Rwandan">Rwandan</option>
-                      <option value="British">British</option>
-                      <option value="American">American</option>
-                      <option value="European">European</option>
-                      <option value="Other International">Other International</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Age Bracket</label>
-                    <select
-                      value={ageGroup}
-                      onChange={(e) => setAgeGroup(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="18-24">18 - 24 Years</option>
-                      <option value="25-34">25 - 34 Years</option>
-                      <option value="35-44">35 - 44 Years</option>
-                      <option value="45-54">45 - 54 Years</option>
-                      <option value="55+">55+ Years</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
-                    <select
-                      value={purposeOfStay}
-                      onChange={(e) => setPurposeOfStay(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="Vacation / Leisure">Vacation / Leisure</option>
-                      <option value="Business Trip">Business Trip</option>
-                      <option value="Family Stay">Family Stay</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={adultsCount}
-                      onChange={(e) => setAdultsCount(Number(e.target.value))}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
-                    <input
-                      type="number"
-                      min={0}
-                      value={childrenCount}
-                      onChange={(e) => setChildrenCount(Number(e.target.value))}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
-                    <select
-                      value={childAgeBracket}
-                      onChange={(e) => setChildAgeBracket(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    >
-                      <option value="None / No Children">None / No Children</option>
-                      <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
-                      <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
-                      <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
-                  <textarea
-                    rows={2}
-                    value={specialRequests}
-                    onChange={(e) => setSpecialRequests(e.target.value)}
-                    placeholder="Any special requests or arrival notes..."
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={bookingSubmitting}
-                  className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
-                >
-                  {bookingSubmitting ? "Logging Reservation..." : "Submit Booking Request"}
-                </button>
-              </form>
             ) : (
-              /* REVIEWS TAB CONTENT */
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
+              <>
+                {/* Modal Header */}
+                <div className="space-y-2">
+                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                    {selectedProperty.category}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold text-white">{selectedProperty.title}</h2>
+                  <p className="text-xs text-neutral-400">📍 {selectedProperty.location}</p>
+                </div>
+
+                {/* Property Specs */}
+                <div className="grid grid-cols-3 gap-4 bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800 text-center text-xs">
                   <div>
-                    <p className="text-xs text-neutral-400">
-                      Overall Rating: <span className="text-amber-400 font-bold">{avgRating} ★</span>
-                    </p>
+                    <span className="text-neutral-400 block mb-1">Bedrooms</span>
+                    <span className="font-bold text-white">{selectedProperty.bedrooms || 1}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400 block mb-1">Bathrooms</span>
+                    <span className="font-bold text-white">{selectedProperty.bathrooms || 1}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400 block mb-1">Price / Night</span>
+                    <span className="font-bold text-amber-400">${selectedProperty.price_per_night}</span>
                   </div>
                 </div>
 
-                {/* Review Feed */}
-                <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
-                  {reviewsLoading ? (
-                    <p className="text-xs text-neutral-500">Loading reviews...</p>
-                  ) : reviews.length === 0 ? (
-                    <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
-                  ) : (
-                    reviews.map((rev) => (
-                      <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
-                          <span className="text-amber-400 text-[11px] font-bold">
-                            {"★".repeat(rev.rating)}
-                            {"☆".repeat(5 - rev.rating)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-neutral-300">{rev.comment}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-
-                {/* Submit Review Form */}
-                <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
-                  {reviewSuccess && (
-                    <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
-                      {reviewSuccess}
-                    </div>
-                  )}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      required
-                      placeholder="Your Name (e.g. Sarah M.)"
-                      value={reviewName}
-                      onChange={(e) => setReviewName(e.target.value)}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
-                    <select
-                      value={rating}
-                      onChange={(e) => setRating(Number(e.target.value))}
-                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                    >
-                      <option value={5}>5 Stars - Exceptional</option>
-                      <option value={4}>4 Stars - Great</option>
-                      <option value={3}>3 Stars - Good</option>
-                      <option value={2}>2 Stars - Fair</option>
-                      <option value={1}>1 Star - Poor</option>
-                    </select>
-                  </div>
-                  <textarea
-                    required
-                    rows={2}
-                    placeholder="How was your experience?"
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                  />
+                {/* Modal Tab Switcher */}
+                <div className="flex border-b border-neutral-800">
                   <button
-                    type="submit"
-                    disabled={reviewSubmitting}
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                    onClick={() => setModalTab("booking")}
+                    className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                      modalTab === "booking" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                    }`}
                   >
-                    {reviewSubmitting ? "Submitting..." : "Post Review"}
+                    📅 Book This Property
                   </button>
-                </form>
-              </div>
+                  <button
+                    onClick={() => setModalTab("reviews")}
+                    className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                      modalTab === "reviews" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                    }`}
+                  >
+                    ★ Guest Reviews ({reviews.length})
+                  </button>
+                </div>
+
+                {/* BOOKING TAB CONTENT */}
+                {modalTab === "booking" ? (
+                  <form onSubmit={handleBookingSubmit} className="space-y-4 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5">
+                    <h3 className="text-sm font-bold text-white">Reserve Your Stay</h3>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Your Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={guestName}
+                          onChange={(e) => setGuestName(e.target.value)}
+                          placeholder="e.g. David Mugisha"
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">WhatsApp / Phone Number</label>
+                        <input
+                          type="text"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="+256..."
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-in Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={checkIn}
+                          onChange={(e) => setCheckIn(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Check-out Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={checkOut}
+                          onChange={(e) => setCheckOut(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
+                        <select
+                          value={nationality}
+                          onChange={(e) => setNationality(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        >
+                          <option value="Ugandan">Ugandan</option>
+                          <option value="Kenyan">Kenyan</option>
+                          <option value="Tanzanian">Tanzanian</option>
+                          <option value="Rwandan">Rwandan</option>
+                          <option value="British">British</option>
+                          <option value="American">American</option>
+                          <option value="European">European</option>
+                          <option value="Other International">Other International</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Age Bracket</label>
+                        <select
+                          value={ageGroup}
+                          onChange={(e) => setAgeGroup(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        >
+                          <option value="18-24">18 - 24 Years</option>
+                          <option value="25-34">25 - 34 Years</option>
+                          <option value="35-44">35 - 44 Years</option>
+                          <option value="45-54">45 - 54 Years</option>
+                          <option value="55+">55+ Years</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Purpose of Stay</label>
+                        <select
+                          value={purposeOfStay}
+                          onChange={(e) => setPurposeOfStay(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        >
+                          <option value="Vacation / Leisure">Vacation / Leisure</option>
+                          <option value="Business Trip">Business Trip</option>
+                          <option value="Family Stay">Family Stay</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={adultsCount}
+                          onChange={(e) => setAdultsCount(Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={childrenCount}
+                          onChange={(e) => setChildrenCount(Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
+                        <select
+                          value={childAgeBracket}
+                          onChange={(e) => setChildAgeBracket(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        >
+                          <option value="None / No Children">None / No Children</option>
+                          <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
+                          <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
+                          <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
+                      <textarea
+                        rows={2}
+                        value={specialRequests}
+                        onChange={(e) => setSpecialRequests(e.target.value)}
+                        placeholder="Any special requests or arrival notes..."
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={bookingSubmitting}
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
+                    >
+                      {bookingSubmitting ? "Logging Reservation..." : "Submit Booking Request"}
+                    </button>
+                  </form>
+                ) : (
+                  /* REVIEWS TAB CONTENT */
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-neutral-400">
+                          Overall Rating: <span className="text-amber-400 font-bold">{avgRating} ★</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Review Feed */}
+                    <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+                      {reviewsLoading ? (
+                        <p className="text-xs text-neutral-500">Loading reviews...</p>
+                      ) : reviews.length === 0 ? (
+                        <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
+                      ) : (
+                        reviews.map((rev) => (
+                          <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
+                              <span className="text-amber-400 text-[11px] font-bold">
+                                {"★".repeat(rev.rating)}
+                                {"☆".repeat(5 - rev.rating)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-neutral-300">{rev.comment}</p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Submit Review Form */}
+                    <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
+                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
+                      {reviewSuccess && (
+                        <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
+                          {reviewSuccess}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Your Name (e.g. Sarah M.)"
+                          value={reviewName}
+                          onChange={(e) => setReviewName(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        />
+                        <select
+                          value={rating}
+                          onChange={(e) => setRating(Number(e.target.value))}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                        >
+                          <option value={5}>5 Stars - Exceptional</option>
+                          <option value={4}>4 Stars - Great</option>
+                          <option value={3}>3 Stars - Good</option>
+                          <option value={2}>2 Stars - Fair</option>
+                          <option value={1}>1 Star - Poor</option>
+                        </select>
+                      </div>
+                      <textarea
+                        required
+                        rows={2}
+                        placeholder="How was your experience?"
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={reviewSubmitting}
+                        className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                      >
+                        {reviewSubmitting ? "Submitting..." : "Post Review"}
+                      </button>
+                    </form>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
