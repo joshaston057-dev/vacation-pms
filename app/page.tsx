@@ -108,8 +108,6 @@ export default function PublicHomePage() {
     const start = new Date(checkIn);
     const end = new Date(checkOut);
     const nights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-    const nightlyRate = selectedProperty.price_per_night || 100;
-    const totalPrice = nights * nightlyRate;
     const totalGuests = adultsCount + childrenCount;
 
     const childInfo = childrenCount > 0 ? ` | Children Age: ${childAgeBracket}` : "";
@@ -128,8 +126,6 @@ export default function PublicHomePage() {
       children_count: childrenCount,
       special_requests: specialRequests,
       status: "Pending",
-      nightly_rate: nightlyRate,
-      total_amount: totalPrice,
       owner_id: selectedProperty.owner_id || null,
     };
 
