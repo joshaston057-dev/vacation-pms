@@ -56,7 +56,7 @@ export default function PublicHomePage() {
   const [purposeOfStay, setPurposeOfStay] = useState("Vacation / Leisure");
   const [specialRequests, setSpecialRequests] = useState("");
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
-  const [bookingSuccess, setBookingSuccess] = useState("");
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
   // Review states
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -103,13 +103,8 @@ export default function PublicHomePage() {
     e.preventDefault();
     if (!selectedProperty) return;
     setBookingSubmitting(true);
-    setBookingSuccess("");
 
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const nights = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
     const totalGuests = adultsCount + childrenCount;
-
     const childInfo = childrenCount > 0 ? ` | Children Age: ${childAgeBracket}` : "";
 
     const newBooking = {
@@ -132,17 +127,7 @@ export default function PublicHomePage() {
     const { error } = await supabase.from("bookings").insert([newBooking]);
 
     if (!error) {
-      setBookingSuccess(
-        `Booking request received for ${nights} night(s)! Our host team will confirm availability and total pricing with you via WhatsApp shortly.`
-      );
-      setGuestName("");
-      setPhone("");
-      setCheckIn("");
-      setCheckOut("");
-      setAdultsCount(1);
-      setChildrenCount(0);
-      setChildAgeBracket("None / No Children");
-      setSpecialRequests("");
+      setBookingSuccess(true);
     } else {
       alert("Failed to submit booking: " + error.message);
     }
@@ -388,6 +373,7 @@ export default function PublicHomePage() {
                   <button
                     onClick={() => {
                       setModalTab("booking");
+                      setBookingSuccess(false);
                       setSelectedProperty(property);
                     }}
                     className="flex-1 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-xl text-xs transition cursor-pointer shadow-lg shadow-amber-500/10"
@@ -487,35 +473,74 @@ export default function PublicHomePage() {
               </div>
             </div>
 
-            {/* Modal Tab Switcher */}
-            <div className="flex border-b border-neutral-800">
-              <button
-                onClick={() => setModalTab("booking")}
-                className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
-                  modalTab === "booking" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
-                }`}
-              >
-                📅 Book This Property
-              </button>
-              <button
-                onClick={() => setModalTab("reviews")}
-                className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
-                  modalTab === "reviews" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
-                }`}
-              >
-                ★ Guest Reviews ({reviews.length})
-              </button>
-            </div>
+            {/* Modal Tab Switcher (Hidden when success screen is active) */}
+            {!bookingSuccess && (
+              <div className="flex border-b border-neutral-800">
+                <button
+                  onClick={() => setModalTab("booking")}
+                  className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                    modalTab === "booking" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                  }`}
+                >
+                  📅 Book This Property
+                </button>
+                <button
+                  onClick={() => setModalTab("reviews")}
+                  className={`flex-1 pb-3 text-xs font-bold transition border-b-2 cursor-pointer ${
+                    modalTab === "reviews" ? "border-amber-500 text-amber-400" : "border-transparent text-neutral-400"
+                  }`}
+                >
+                  ★ Guest Reviews ({reviews.length})
+                </button>
+              </div>
+            )}
 
-            {/* BOOKING TAB CONTENT */}
-            {modalTab === "booking" ? (
+            {/* BOOKING SUCCESS SCREEN (MATCHING REFERENCE IMAGE) */}
+            {bookingSuccess ? (
+              <div className="bg-neutral-950/90 border border-neutral-800 rounded-2xl p-6 sm:p-8 text-center space-y-6">
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block">
+                    GUEST REGISTRATION & RESERVATION
+                  </span>
+                  <h3 className="text-base sm:text-lg font-extrabold text-white">
+                    Book: {selectedProperty.title}
+                  </h3>
+                  <p className="text-xs text-neutral-400">
+                    📍 {selectedProperty.location} • ${selectedProperty.price_per_night}/night
+                  </p>
+                </div>
+
+                <div className="py-2">
+                  <div className="text-3xl mb-2">🎉</div>
+                  <h4 className="text-sm font-bold text-white mb-2">Reservation & Guest Profile Logged!</h4>
+                  <p className="text-xs text-neutral-400 leading-relaxed max-w-md mx-auto">
+                    Thank you, <span className="text-white font-semibold">{guestName}</span>. Your booking and check-in profile have been recorded. Tap below to send your confirmation straight to our WhatsApp concierge.
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                  <a
+                    href={`https://wa.me/256757386946?text=${encodeURIComponent(
+                      `Hello La Estancia, I have submitted a booking request for *${selectedProperty.title}*.\n\n👤 Name: ${guestName}\n📞 Phone: ${phone}\n🌍 Nationality: ${nationality} (${ageGroup})\n📅 Dates: ${checkIn} to ${checkOut}\n👥 Guests: ${adultsCount} Adults, ${childrenCount} Children\n🎯 Purpose: ${purposeOfStay}\n📝 Notes: ${specialRequests || "None"}`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                  >
+                    Confirm via WhatsApp →
+                  </a>
+                  <button
+                    onClick={() => setSelectedProperty(null)}
+                    className="w-full bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-semibold py-2.5 rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : modalTab === "booking" ? (
+              /* BOOKING FORM */
               <form onSubmit={handleBookingSubmit} className="space-y-4 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-5">
                 <h3 className="text-sm font-bold text-white">Reserve Your Stay</h3>
-                {bookingSuccess && (
-                  <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-3 rounded-lg text-xs leading-relaxed">
-                    {bookingSuccess}
-                  </div>
-                )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -664,7 +689,7 @@ export default function PublicHomePage() {
                   disabled={bookingSubmitting}
                   className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
                 >
-                  {bookingSubmitting ? "Submitting Request..." : "Submit Booking Request"}
+                  {bookingSubmitting ? "Logging Reservation..." : "Submit Booking Request"}
                 </button>
               </form>
             ) : (
