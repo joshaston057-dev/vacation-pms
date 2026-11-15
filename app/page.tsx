@@ -43,15 +43,16 @@ export default function PublicHomePage() {
   // Modal tab: "booking" or "reviews"
   const [modalTab, setModalTab] = useState<"booking" | "reviews">("booking");
 
-  // Comprehensive Booking Form States
+  // Booking Form States
   const [guestName, setGuestName] = useState("");
   const [phone, setPhone] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [nationality, setNationality] = useState("Ugandan");
+  const [ageGroup, setAgeGroup] = useState("25-34");
   const [adultsCount, setAdultsCount] = useState(1);
   const [childrenCount, setChildrenCount] = useState(0);
-  const [childAgeBracket, setChildAgeBracket] = useState("4-12 Years");
-  const [nationality, setNationality] = useState("Ugandan");
+  const [childAgeBracket, setChildAgeBracket] = useState("None / No Children");
   const [purposeOfStay, setPurposeOfStay] = useState("Vacation / Leisure");
   const [specialRequests, setSpecialRequests] = useState("");
   const [bookingSubmitting, setBookingSubmitting] = useState(false);
@@ -111,12 +112,15 @@ export default function PublicHomePage() {
     const totalPrice = nights * nightlyRate;
     const totalGuests = adultsCount + childrenCount;
 
+    const childInfo = childrenCount > 0 ? ` | Children Age: ${childAgeBracket}` : "";
+
     const newBooking = {
       property_name: selectedProperty.title,
       guest_name: guestName,
       phone: phone,
       nationality: nationality,
-      purpose_of_stay: `${purposeOfStay} | Children Age: ${childrenCount > 0 ? childAgeBracket : 'N/A'}`,
+      age_group: ageGroup,
+      purpose_of_stay: `${purposeOfStay}${childInfo}`,
       check_in: checkIn,
       check_out: checkOut,
       guests_count: totalGuests,
@@ -132,13 +136,16 @@ export default function PublicHomePage() {
     const { error } = await supabase.from("bookings").insert([newBooking]);
 
     if (!error) {
-      setBookingSuccess(`Booking request submitted successfully! Estimated Total: $${totalPrice} for ${nights} night(s). Our host team will contact you via WhatsApp shortly.`);
+      setBookingSuccess(
+        `Booking request received for ${nights} night(s)! Our host team will confirm availability and total pricing with you via WhatsApp shortly.`
+      );
       setGuestName("");
       setPhone("");
       setCheckIn("");
       setCheckOut("");
       setAdultsCount(1);
       setChildrenCount(0);
+      setChildAgeBracket("None / No Children");
       setSpecialRequests("");
     } else {
       alert("Failed to submit booking: " + error.message);
@@ -416,7 +423,7 @@ export default function PublicHomePage() {
             Discover travel tips, neighborhood guides across Kampala and beyond, and expert advice for short-stay property hosting.
           </p>
           <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 text-xs text-neutral-400 italic">
-            New articles coming soon! Stay tuned for updates on Uganda's hospitality scene.
+            New articles coming soon! Stay tuned for updates on Uganda&apos;s hospitality scene.
           </div>
         </div>
       </section>
@@ -513,6 +520,7 @@ export default function PublicHomePage() {
                     {bookingSuccess}
                   </div>
                 )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-medium text-neutral-400 mb-1">Your Full Name</label>
@@ -561,7 +569,7 @@ export default function PublicHomePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[10px] font-medium text-neutral-400 mb-1">Traveler Nationality</label>
                     <select
@@ -572,10 +580,25 @@ export default function PublicHomePage() {
                       <option value="Ugandan">Ugandan</option>
                       <option value="Kenyan">Kenyan</option>
                       <option value="Tanzanian">Tanzanian</option>
+                      <option value="Rwandan">Rwandan</option>
                       <option value="British">British</option>
                       <option value="American">American</option>
                       <option value="European">European</option>
                       <option value="Other International">Other International</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Guest Age Bracket</label>
+                    <select
+                      value={ageGroup}
+                      onChange={(e) => setAgeGroup(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                    >
+                      <option value="18-24">18 - 24 Years</option>
+                      <option value="25-34">25 - 34 Years</option>
+                      <option value="35-44">35 - 44 Years</option>
+                      <option value="45-54">45 - 54 Years</option>
+                      <option value="55+">55+ Years</option>
                     </select>
                   </div>
                   <div>
@@ -593,9 +616,9 @@ export default function PublicHomePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults Count</label>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Adults</label>
                     <input
                       type="number"
                       min={1}
@@ -605,7 +628,7 @@ export default function PublicHomePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Count</label>
+                    <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children</label>
                     <input
                       type="number"
                       min={0}
@@ -614,9 +637,6 @@ export default function PublicHomePage() {
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
                     />
                   </div>
-                </div>
-
-                {childrenCount > 0 && (
                   <div>
                     <label className="block text-[10px] font-medium text-neutral-400 mb-1">Children Age Bracket</label>
                     <select
@@ -624,12 +644,13 @@ export default function PublicHomePage() {
                       onChange={(e) => setChildAgeBracket(e.target.value)}
                       className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
                     >
+                      <option value="None / No Children">None / No Children</option>
                       <option value="0-3 Years (Infant / Toddler)">0-3 Years (Infant / Toddler)</option>
                       <option value="4-12 Years (Young Child)">4-12 Years (Young Child)</option>
                       <option value="13-17 Years (Teenager)">13-17 Years (Teenager)</option>
                     </select>
                   </div>
-                )}
+                </div>
 
                 <div>
                   <label className="block text-[10px] font-medium text-neutral-400 mb-1">Special Requests / Notes</label>
