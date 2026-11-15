@@ -218,7 +218,7 @@ export default function PublicHomePage() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu (Only Page Links: About Us, Blog, Contact Us) */}
+        {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
           <div className="sm:hidden bg-neutral-900 border-b border-neutral-800 px-4 py-4 space-y-1 text-center text-xs shadow-2xl">
             <a
@@ -289,19 +289,29 @@ export default function PublicHomePage() {
                 className="bg-neutral-900 border border-neutral-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between"
               >
                 <div>
-                  <div className="h-48 bg-neutral-800 relative overflow-hidden">
-                    {property.images && property.images.length > 0 ? (
-                      <img
-                        src={property.images[0]}
-                        alt={property.title}
-                        className="w-full h-full object-cover"
-                      />
+                  {/* Horizontal Scrollable Image Gallery */}
+                  <div className="h-48 bg-neutral-800 relative overflow-hidden group">
+                    {Array.isArray(property.images) && property.images.length > 0 ? (
+                      <div className="flex overflow-x-auto snap-x snap-mandatory h-full w-full scrollbar-none [scrollbar-width:none] [-ms-overflow-style:none]">
+                        {property.images.map((imgUrl, idx) => (
+                          <div key={idx} className="min-w-full h-full flex-shrink-0 snap-center relative">
+                            <img
+                              src={imgUrl}
+                              alt={`${property.title} photo ${idx + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                            <span className="absolute bottom-2 right-2 bg-neutral-950/70 backdrop-blur-md text-white text-[9px] font-bold px-2 py-0.5 rounded-md">
+                              {idx + 1} / {property.images.length}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-neutral-600 text-xs">
                         No Image Available
                       </div>
                     )}
-                    <span className="absolute top-3 left-3 bg-neutral-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg">
+                    <span className="absolute top-3 left-3 bg-neutral-950/80 backdrop-blur-md text-amber-400 border border-amber-500/30 text-[10px] font-bold px-2.5 py-1 rounded-lg z-10 pointer-events-none">
                       {property.category || "Property"}
                     </span>
                   </div>
@@ -448,7 +458,6 @@ export default function PublicHomePage() {
               ✕
             </button>
 
-            {/* FULL SUCCESS SCREEN (REPLACES MODAL HEADER WHEN SUBMITTED) */}
             {bookingSuccess ? (
               <div className="py-6 space-y-6 text-center">
                 <div className="space-y-2">
@@ -459,7 +468,7 @@ export default function PublicHomePage() {
                     Book: {selectedProperty.title}
                   </h3>
                   <p className="text-xs text-neutral-400">
-                    📍 {selectedProperty.location} • ${selectedProperty.price_per_night}/night
+                    📍 {selectedProperty.location} | ${selectedProperty.price_per_night}/night
                   </p>
                 </div>
 
@@ -689,35 +698,35 @@ export default function PublicHomePage() {
                       disabled={bookingSubmitting}
                       className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-3 rounded-xl text-xs transition cursor-pointer"
                     >
-                      {bookingSubmitting ? "Logging Reservation..." : "Submit Booking Request"}
+                      {bookingSubmitting ? "Submitting Reservation..." : "Submit Booking Request"}
                     </button>
                   </form>
                 ) : (
                   /* REVIEWS TAB CONTENT */
                   <div className="space-y-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between bg-neutral-950/60 p-4 rounded-2xl border border-neutral-800">
                       <div>
-                        <p className="text-xs text-neutral-400">
-                          Overall Rating: <span className="text-amber-400 font-bold">{avgRating} ★</span>
-                        </p>
+                        <h3 className="text-xs font-bold text-white">Guest Rating</h3>
+                        <p className="text-[10px] text-neutral-400">Based on verified stays</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-black text-amber-400">★ {avgRating}</span>
+                        <span className="text-[10px] text-neutral-400 block">{reviews.length} reviews</span>
                       </div>
                     </div>
 
-                    {/* Review Feed */}
-                    <div className="space-y-3 max-h-40 overflow-y-auto pr-1">
+                    {/* Reviews List */}
+                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                       {reviewsLoading ? (
-                        <p className="text-xs text-neutral-500">Loading reviews...</p>
+                        <div className="text-center py-6 text-neutral-500 text-xs">Loading reviews...</div>
                       ) : reviews.length === 0 ? (
-                        <p className="text-xs text-neutral-500 italic">No reviews yet. Be the first guest to leave feedback!</p>
+                        <div className="text-center py-6 text-neutral-500 text-xs">No reviews yet. Be the first to leave one!</div>
                       ) : (
                         reviews.map((rev) => (
-                          <div key={rev.id} className="bg-neutral-950 border border-neutral-800/80 rounded-xl p-3 space-y-1">
+                          <div key={rev.id} className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800 space-y-1">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold text-white">{rev.guest_name}</span>
-                              <span className="text-amber-400 text-[11px] font-bold">
-                                {"★".repeat(rev.rating)}
-                                {"☆".repeat(5 - rev.rating)}
-                              </span>
+                              <span className="text-xs font-bold text-white">{rev.guest_name}</span>
+                              <span className="text-amber-400 text-xs">{"★".repeat(rev.rating)}</span>
                             </div>
                             <p className="text-xs text-neutral-300">{rev.comment}</p>
                           </div>
@@ -726,48 +735,51 @@ export default function PublicHomePage() {
                     </div>
 
                     {/* Submit Review Form */}
-                    <form onSubmit={handleReviewSubmit} className="bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4 space-y-3">
-                      <h4 className="text-xs font-bold text-white uppercase tracking-wider">Leave a Review</h4>
-                      {reviewSuccess && (
-                        <div className="bg-emerald-950/50 border border-emerald-800 text-emerald-300 p-2.5 rounded-lg text-xs">
-                          {reviewSuccess}
-                        </div>
-                      )}
+                    <form onSubmit={handleReviewSubmit} className="space-y-3 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4">
+                      <h4 className="text-xs font-bold text-white">Leave a Review</h4>
+                      {reviewSuccess && <div className="text-emerald-400 text-[11px] font-medium">{reviewSuccess}</div>}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <input
-                          type="text"
-                          required
-                          placeholder="Your Name (e.g. Sarah M.)"
-                          value={reviewName}
-                          onChange={(e) => setReviewName(e.target.value)}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                        />
-                        <select
-                          value={rating}
-                          onChange={(e) => setRating(Number(e.target.value))}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500"
-                        >
-                          <option value={5}>5 Stars - Exceptional</option>
-                          <option value={4}>4 Stars - Great</option>
-                          <option value={3}>3 Stars - Good</option>
-                          <option value={2}>2 Stars - Fair</option>
-                          <option value={1}>1 Star - Poor</option>
-                        </select>
+                        <div>
+                          <label className="block text-[10px] text-neutral-400 mb-1">Your Name</label>
+                          <input
+                            type="text"
+                            required
+                            value={reviewName}
+                            onChange={(e) => setReviewName(e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-neutral-400 mb-1">Rating</label>
+                          <select
+                            value={rating}
+                            onChange={(e) => setRating(Number(e.target.value))}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white"
+                          >
+                            <option value={5}>★★★★★ (5/5)</option>
+                            <option value={4}>★★★★☆ (4/5)</option>
+                            <option value={3}>★★★☆☆ (3/5)</option>
+                            <option value={2}>★★☆☆☆ (2/5)</option>
+                            <option value={1}>★☆☆☆☆ (1/5)</option>
+                          </select>
+                        </div>
                       </div>
-                      <textarea
-                        required
-                        rows={2}
-                        placeholder="How was your experience?"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-amber-500 resize-none"
-                      />
+                      <div>
+                        <label className="block text-[10px] text-neutral-400 mb-1">Comment</label>
+                        <textarea
+                          rows={2}
+                          required
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white resize-none"
+                        />
+                      </div>
                       <button
                         type="submit"
                         disabled={reviewSubmitting}
-                        className="w-full bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold py-2.5 rounded-lg text-xs transition cursor-pointer"
+                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
                       >
-                        {reviewSubmitting ? "Submitting..." : "Post Review"}
+                        {reviewSubmitting ? "Posting Review..." : "Submit Review"}
                       </button>
                     </form>
                   </div>
