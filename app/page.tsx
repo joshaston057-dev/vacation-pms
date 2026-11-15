@@ -192,6 +192,7 @@ export default function PublicHomePage() {
           <div className="hidden sm:flex items-center gap-6">
             <a href="#about" className="text-xs text-neutral-300 hover:text-amber-400 transition">About Us</a>
             <a href="#blog" className="text-xs text-neutral-300 hover:text-amber-400 transition">Blog</a>
+            <a href="#upsells" className="text-xs text-neutral-300 hover:text-amber-400 transition">Upsell Services</a>
             <a href="#contact" className="text-xs text-neutral-300 hover:text-amber-400 transition">Contact Us</a>
             <Link
               href="/portal"
@@ -218,7 +219,7 @@ export default function PublicHomePage() {
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile Dropdown Menu (Contact Us replaced with Upsell Services) */}
         {mobileMenuOpen && (
           <div className="sm:hidden bg-neutral-900 border-b border-neutral-800 px-4 py-4 space-y-1 text-center text-xs shadow-2xl">
             <a
@@ -234,6 +235,13 @@ export default function PublicHomePage() {
               className="block py-2.5 text-neutral-300 hover:text-white hover:bg-neutral-800/50 rounded-lg transition"
             >
               Blog
+            </a>
+            <a
+              href="#upsells"
+              onClick={() => setMobileMenuOpen(false)}
+              className="block py-2.5 text-amber-400 font-bold hover:bg-neutral-800/50 rounded-lg transition"
+            >
+              Upsell Services
             </a>
             <a
               href="#contact"
@@ -397,6 +405,56 @@ export default function PublicHomePage() {
         )}
       </main>
 
+      {/* Upsell Services Section */}
+      <section id="upsells" className="border-t border-neutral-900 py-16 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <div className="space-y-2">
+            <span className="text-[10px] font-bold text-amber-500 uppercase tracking-widest block">
+              ENHANCE YOUR STAY
+            </span>
+            <h2 className="text-2xl font-bold text-white">Guest Upsell Services</h2>
+            <p className="text-sm text-neutral-400">
+              Make your stay at La Estancia unforgettable with our exclusive concierge and luxury add-on services.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-2">
+              <div className="text-2xl">🚗</div>
+              <h3 className="text-xs font-bold text-white">Airport Pickup & Dropoff</h3>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                Hassle-free private transit from Entebbe International Airport directly to your doorstep.
+              </p>
+            </div>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-2">
+              <div className="text-2xl">👨‍🍳</div>
+              <h3 className="text-xs font-bold text-white">Private Chef Services</h3>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                Enjoy custom-prepared local and international meals cooked right in your apartment or villa kitchen.
+              </p>
+            </div>
+            <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-5 space-y-2">
+              <div className="text-2xl">🧭</div>
+              <h3 className="text-xs font-bold text-white">Guided Tours & Safaris</h3>
+              <p className="text-[11px] text-neutral-400 leading-relaxed">
+                Explore Kampala city highlights, Jinja source of the Nile, or wildlife safaris with trusted guides.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <a
+              href="https://wa.me/256757386946?text=Hello%20La%20Estancia,%20I%20would%20like%20to%20inquire%20about%20your%20upsell%20services."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-6 py-3 rounded-xl transition items-center gap-2"
+            >
+              <span>💬 Book Upsell Services via WhatsApp</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* About Us Section */}
       <section id="about" className="bg-neutral-900/50 border-t border-neutral-900 py-16 px-4 sm:px-8">
         <div className="max-w-4xl mx-auto text-center space-y-4">
@@ -483,7 +541,7 @@ export default function PublicHomePage() {
                 <div className="space-y-3 pt-2">
                   <a
                     href={`https://wa.me/256757386946?text=${encodeURIComponent(
-                      `Hello La Estancia, I have submitted a booking request for *${selectedProperty.title}*.\n\n👤 Name: ${guestName}\n📞 Phone: ${phone}\n🌍 Nationality: ${nationality} (${ageGroup})\n📅 Dates: ${checkIn} to ${checkOut}\n👥 Guests: ${adultsCount} Adults, ${childrenCount} Children\n🎯 Purpose: ${purposeOfStay}\n📝 Notes: ${specialRequests || "None"}`
+                      `Hello La Estancia, I have submitted a booking request for *${selectedProperty.title}*.\n\n👤 Name: ${guestName}\n📞 Phone: ${phone}\n🌍 Nationality: ${nationality} (${ageGroup})\n📅 Dates: ${checkIn} to${checkOut}\n👥 Guests: ${adultsCount} Adults,${childrenCount} Children\n🎯 Purpose: ${purposeOfStay}\n📝 Notes: ${specialRequests || "None"}`
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -708,87 +766,3 @@ export default function PublicHomePage() {
                       <div>
                         <h3 className="text-xs font-bold text-white">Guest Rating</h3>
                         <p className="text-[10px] text-neutral-400">Based on verified stays</p>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-black text-amber-400">★ {avgRating}</span>
-                        <span className="text-[10px] text-neutral-400 block">{reviews.length} reviews</span>
-                      </div>
-                    </div>
-
-                    {/* Reviews List */}
-                    <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
-                      {reviewsLoading ? (
-                        <div className="text-center py-6 text-neutral-500 text-xs">Loading reviews...</div>
-                      ) : reviews.length === 0 ? (
-                        <div className="text-center py-6 text-neutral-500 text-xs">No reviews yet. Be the first to leave one!</div>
-                      ) : (
-                        reviews.map((rev) => (
-                          <div key={rev.id} className="bg-neutral-950 p-3.5 rounded-xl border border-neutral-800 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-white">{rev.guest_name}</span>
-                              <span className="text-amber-400 text-xs">{"★".repeat(rev.rating)}</span>
-                            </div>
-                            <p className="text-xs text-neutral-300">{rev.comment}</p>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Submit Review Form */}
-                    <form onSubmit={handleReviewSubmit} className="space-y-3 bg-neutral-950/80 border border-neutral-800 rounded-2xl p-4">
-                      <h4 className="text-xs font-bold text-white">Leave a Review</h4>
-                      {reviewSuccess && <div className="text-emerald-400 text-[11px] font-medium">{reviewSuccess}</div>}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[10px] text-neutral-400 mb-1">Your Name</label>
-                          <input
-                            type="text"
-                            required
-                            value={reviewName}
-                            onChange={(e) => setReviewName(e.target.value)}
-                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-neutral-400 mb-1">Rating</label>
-                          <select
-                            value={rating}
-                            onChange={(e) => setRating(Number(e.target.value))}
-                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white"
-                          >
-                            <option value={5}>★★★★★ (5/5)</option>
-                            <option value={4}>★★★★☆ (4/5)</option>
-                            <option value={3}>★★★☆☆ (3/5)</option>
-                            <option value={2}>★★☆☆☆ (2/5)</option>
-                            <option value={1}>★☆☆☆☆ (1/5)</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] text-neutral-400 mb-1">Comment</label>
-                        <textarea
-                          rows={2}
-                          required
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2 text-xs text-white resize-none"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={reviewSubmitting}
-                        className="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2.5 rounded-xl text-xs transition cursor-pointer"
-                      >
-                        {reviewSubmitting ? "Posting Review..." : "Submit Review"}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
