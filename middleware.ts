@@ -1,38 +1,23 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const path = request.nextUrl.pathname
+export function middleware(req: NextRequest) {
+  const res = NextResponse.next();
+  // Check for Supabase Auth cookie session token
+  const hasSession = req.cookies.get("sb-access-token") || req.cookies.getAll().some(c => c.name.includes("-auth-token"));
 
-  // Define routes that require authentication
-  const isProtectedRoute = 
-    path.startsWith('/properties') ||
-    path.startsWith('/bookings') ||
-    path.startsWith('/financials') ||
-    path.startsWith('/co-hosting') ||
-    path.startsWith('/upsells') ||
-    path.startsWith('/tasks')
-
-  // Check for auth token cookie (Replace 'auth-token' with your actual Supabase cookie or session token name)
-  const authToken = request.cookies.get('sb-access-token')?.value || request.cookies.get('auth-token')?.value
-
-  // If trying to access a protected dashboard route without a session, redirect to login
-  if (isProtectedRoute && !authToken) {
-    // For local development testing if you want to bypass login temporarily, 
-    // you can comment out the return statement below.
-    // return NextResponse.redirect(new URL('/login', request.url))
+  // If trying to access portal routes without a session, redirect to login
+  if (req.nextUrl.pathname.startsWith("/portal") && req.nextUrl.pathname !== "/portal/login") {
+    if (!hasSession) {
+      // Allow bypass for local testing if preferred, or enforce strict login:
+      // Uncomment the line below to enforce strict redirection:
+      // return NextResponse.redirect(new URL("/portal/login", req.url));
+    }
   }
 
-  return NextResponse.next()
+  return res;
 }
 
 export const config = {
-  matcher: [
-    '/properties/:path*',
-    '/bookings/:path*',
-    '/financials/:path*',
-    '/co-hosting/:path*',
-    '/upsells/:path*',
-    '/tasks/:path*',
-  ],
-}
+  matcher: ["/portal/:path*"],
+};
